@@ -958,7 +958,7 @@ def needs_agent(conn: sqlite3.Connection, slug: str) -> dict:
     reasons: list[str] = []
     n_shots = conn.execute("SELECT COUNT(*) FROM shots WHERE clip_slug=?", (slug,)).fetchone()[0]
     if is_demo(slug):
-        return {"clip": slug, "reasons": [], "fingerprint": "demo"}
+        return {"clip": slug, "reasons": [], "fingerprint": "demo", "retry_on_backoff": False}
     if clip["stage"] == "script" and clip.get("script_path"):
         reasons.append("script_doctor: découpage à proposer")
     pending_dec = conn.execute(
@@ -971,8 +971,29 @@ def needs_agent(conn: sqlite3.Connection, slug: str) -> dict:
             n = conn.execute("SELECT COUNT(*) FROM shots WHERE clip_slug=? AND status=?", (slug, status)).fetchone()[0]
             if n:
                 reasons.append(f"{status}: {n} plan(s)")
-    fp = hashlib.sha1(json.dumps([reasons, _shot_fingerprint(conn, slug)]).encode()).hexdigest()[:16]
-    return {"clip": slug, "reasons": reasons, "fingerprint": fp}
+    script_sig = None
+    script = absp(clip.get("script_path"))
+    if clip["stage"] == "script" and script and script.is_file():
+        st = script.stat()
+        script_sig = [st.st_mtime_ns, st.st_size]
+    fp = hashlib.sha1(json.dumps([reasons, _shot_fingerprint(conn, slug), script_sig]).encode()).hexdigest()[:16]
+    # À l'étape script, si l'agent n'a pas pu avancer (timecodes manquants), on
+    # attend que Michael modifie son script au lieu de réessayer régulièrement.
+    return {"clip": slug, "reasons": reasons, "fingerprint": fp, "retry_on_backoff": clip["stage"] != "script"}
+
+
+def update_script(conn: sqlite3.Connection, slug: str, text: str) -> None:
+    """Michael complète ou corrige son script (timecodes par plan) avant le découpage."""
+    clip = db.get_clip(conn, slug)
+    if clip["stage"] != "script":
+        raise ProductionError("Le découpage est déjà fait : commente-le plutôt dans la régie")
+    if not text.strip():
+        raise ProductionError("Le script est vide")
+    dest = studio() / clip["dir"] / "script" / "script.md"
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_text(text, encoding="utf-8")
+    conn.execute("UPDATE clips SET script_path=?, updated_at=? WHERE slug=?", (rel(dest), db.now(), slug))
+    db.log_event(conn, slug, "script", "Script mis à jour par Michael")
 
 
 def _shot_fingerprint(conn: sqlite3.Connection, slug: str) -> list:

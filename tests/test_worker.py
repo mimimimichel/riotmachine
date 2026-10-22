@@ -42,3 +42,29 @@ def test_wakes_claude_once(studio, monkeypatch, tmp_path):
                  "VALUES ('reveil','decoupage','change','plus court',?)", (db.now(),))
     assert worker.wake_agents(conn) == ["reveil"]
     os.environ.pop("ANTHROPIC_API_KEY", None)
+
+
+def test_waits_for_michael_script(studio, monkeypatch, tmp_path):
+    """Timecodes manquants : l'agent ne repasse que quand Michael modifie son script."""
+    fake = tmp_path / "claude"
+    fake.write_text("#!/bin/sh\nexit 0\n")
+    fake.chmod(fake.stat().st_mode | stat.S_IEXEC)
+    monkeypatch.setenv("RIOT_CLAUDE_BIN", str(fake))
+    monkeypatch.setenv("RIOT_AGENTS_ENABLED", "1")
+    monkeypatch.setenv("RIOT_AGENT_BACKOFF", "0")
+    settings.reset_caches()
+
+    cli.main(["init"])
+    conn = db.connect()
+    production.create_clip(conn, "Sans temps", song=studio["song"], script_text="Une idée, pas de timecodes",
+                           characters=["jj"])
+    assert worker.wake_agents(conn) == ["sans-temps"]
+    for _ in range(50):
+        worker._reap_agents(conn)
+        if not worker._running:
+            break
+        time.sleep(0.1)
+    time.sleep(1.1)
+    assert worker.wake_agents(conn) == []          # même avec un délai d'attente nul
+    production.update_script(conn, "sans-temps", "Plan 1 — 0:00.0 → 0:04.0 — JJ chante")
+    assert worker.wake_agents(conn) == ["sans-temps"]

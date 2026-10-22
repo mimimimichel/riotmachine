@@ -9,7 +9,10 @@ Aide Michael à créer le clip **$ARGUMENTS**.
 1. Récupère auprès de lui ce qui manque, en une seule question groupée :
    - le fichier du morceau (mp3 ou wav exporté de Suno) ;
    - la piste voix isolée (stem « vocals » de Suno), indispensable pour un bon lip-sync ;
-   - le script ou les paroles (fichier, ou texte collé que tu enregistres dans un fichier) ;
+   - son script avec **ses plans et leurs timecodes** (c'est lui qui les fixe en
+     écoutant le morceau, ex. `Plan 1 — 0:00.0 → 0:04.2 — JJ chante face caméra`),
+     ses intentions et les paroles (fichier, ou texte collé que tu enregistres
+     dans un fichier). Ne propose jamais de timecodes à sa place ;
    - les personnages (par défaut `jj`), le format (16:9 par défaut, 9:16 pour les
      réseaux), le budget en dollars (80 par défaut), le BPM s'il le connaît.
 2. `riot character list` pour vérifier que les personnages existent et ont une

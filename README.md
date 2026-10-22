@@ -25,7 +25,7 @@ toute la production technique.
 | Agent | Rôle | Modèle |
 |---|---|---|
 | orchestrateur | chef de production : fait avancer les plans, trie tes retours | défaut de Claude Code |
-| `script-doctor` | relit ton script, découpe le clip en plans calés sur le morceau | Opus |
+| `script-doctor` | relit ton script, transforme tes plans (et tes timecodes) en plans de production | Opus |
 | `directeur-casting` | fabrique les packs de référence photoréalistes des personnages | Opus |
 | `storyboard` | image clé de chaque plan (point de départ de la vidéo) | Sonnet |
 | `controleur` | contrôle indépendant : identité, mains, artefacts, avant que tu ne voies | Sonnet |
@@ -38,8 +38,13 @@ Tu valides à quatre moments : le **découpage**, les **images**, les **drafts**
 
 ## Comment un clip avance
 
-1. Dans la régie, **Nouveau clip** : morceau, piste voix isolée, script, format, budget.
-2. Le `script-doctor` propose un découpage → notification → tu valides ou tu commentes.
+1. Dans la régie, **Nouveau clip** : morceau, piste voix isolée, format, budget, et
+   ton script avec **tes plans et leurs timecodes** (c'est toi qui les fixes en
+   écoutant le morceau), par exemple `Plan 1 — 0:00.0 → 0:04.2 — JJ chante face caméra`.
+2. Le `script-doctor` relit le script, reprend tes timecodes tels quels et complète
+   chaque plan (cadrage, mouvement, plan chanté ou non) → notification → tu valides
+   ou tu commentes. S'il manque des timecodes, il te le dit au lieu de les inventer,
+   et tu complètes ton script dans la régie.
 3. Le `storyboard` crée une image par plan, le `controleur` vérifie que c'est bien
    JJ → tu valides ou tu demandes une modif.
 4. Le `routeur` choisit le palier, le `prompteur` écrit le prompt, un draft basse

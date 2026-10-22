@@ -133,6 +133,7 @@ function autoRefresh(fn, ms = 15000) {
   state.refreshTimer = setInterval(() => {
     if (document.hidden) return;
     const busy = document.querySelector(".feedback:not([hidden]) textarea, form.new")
+      || document.activeElement?.id === "script-text"
       || [...document.querySelectorAll("video, audio")].some((m) => !m.paused);
     if (!busy) fn();
   }, ms);
@@ -317,8 +318,15 @@ async function showClip(slug, keepScroll = false) {
     </div>`;
 
   if (clip.stage === "script") {
-    html += `<p class="empty" style="margin-top:24px">Le script doctor prépare le découpage. Tu recevras une notification quand il sera prêt.</p>`;
-    if (clip.script) html += `<details style="margin-top:12px"><summary>Ton script</summary><div class="notes-doc">${esc(clip.script)}</div></details>`;
+    html += `<section class="gate" style="border-color:var(--line)">
+      <h2>Ton script</h2>
+      <p class="hint">Le script doctor reprend tes plans et tes timecodes tels quels, puis complète cadrage,
+        mouvement et plans chantés. Une ligne par plan, par exemple : <b>Plan 1 — 0:00.0 → 0:04.2 — JJ chante face caméra</b>.
+        Enregistre quand c'est prêt : le script doctor le reprend dans la minute.</p>
+      <textarea id="script-text" rows="16">${esc(clip.script)}</textarea>
+      <div class="row" style="margin-top:10px"><button class="btn go" data-save-script>Enregistrer le script</button></div>
+      ${clip.script_notes ? `<details style="margin-top:12px" open><summary>Notes du script doctor</summary><div class="notes-doc">${esc(clip.script_notes)}</div></details>` : ""}
+    </section>`;
   } else if (clip.stage === "decoupage_review") {
     html += renderDecoupage(clip);
   } else {
@@ -437,6 +445,13 @@ function bindClip(clip) {
         await api(`/api/clips/${encodeURIComponent(clip.slug)}/assemble`, { method: "POST" });
         toast("Montage lancé, il apparaîtra dans une à deux minutes");
         return;
+      }
+      if (d.saveScript !== undefined) {
+        const text = document.getElementById("script-text").value;
+        t.disabled = true;
+        await api(`/api/clips/${encodeURIComponent(clip.slug)}/script`, { json: { text } });
+        toast("Script enregistré : le script doctor va le reprendre");
+        return showClip(clip.slug, false);
       }
       if (d.budget !== undefined) {
         const v = prompt("Nouveau budget du clip, en dollars :", clip.budget_usd || "");
@@ -557,7 +572,7 @@ async function showNewClip() {
       <label>Titre<input type="text" name="title" required placeholder="Titre du morceau"></label>
       <label>Morceau (mp3 ou wav exporté de Suno)<input type="file" name="song" accept="audio/*" required></label>
       <label>Piste voix isolée (stem « vocals » de Suno, pour le lip-sync)<input type="file" name="vocals" accept="audio/*"></label>
-      <label>Script, intentions de réalisation, paroles<textarea name="script" rows="10" placeholder="L'histoire du clip, l'ambiance, les décors, et les paroles avec leurs passages (couplet, refrain…)"></textarea></label>
+      <label>Script : tes plans avec leurs timecodes, tes intentions, les paroles<textarea name="script" rows="12" placeholder="Intention : JJ seule dans un entrepôt au petit matin…&#10;&#10;Plan 1 — 0:00.0 → 0:04.2 — JJ chante face caméra, gros plan, lumière de fenêtre&#10;Plan 2 — 0:04.2 → 0:08.0 — Profil, elle ferme les yeux sur la fin de phrase&#10;…&#10;&#10;Paroles :&#10;…"></textarea></label>
       <div><span class="hint">Personnages</span><div class="checks">${castable.map((c, i) =>
         `<label><input type="checkbox" name="characters" value="${esc(c.slug)}" ${i === 0 ? "checked" : ""}> ${esc(c.name)}</label>`).join("")}</div></div>
       <div class="two">

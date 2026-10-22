@@ -21,10 +21,12 @@ SCRIPT = """# Premier clip (démo)
 Intention : JJ seule dans un entrepôt vide au petit matin, lumière froide qui se
 réchauffe sur le refrain.
 
-Couplet 1 (0:00-0:08) : JJ chante face caméra, très proche.
-Pré-refrain (0:08-0:14) : elle marche vers la lumière.
-Refrain (0:14-0:24) : elle danse, plan large, la caméra tourne autour d'elle.
-Outro : gros plan sur le micro, puis sur son regard.
+Plan 1 — 0:00.0 → 0:04.0 — JJ chante face caméra, gros plan, lumière froide de fenêtre
+Plan 2 — 0:04.0 → 0:08.0 — Profil de JJ, elle ferme les yeux sur la fin de phrase
+Plan 3 — 0:08.0 → 0:14.0 — Elle marche vers la grande verrière
+Plan 4 — 0:14.0 → 0:20.0 — Refrain : elle danse, plan large, la caméra tourne autour d'elle
+Plan 5 — 0:20.0 → 0:24.0 — Ses mains et ses boucles qui volent
+Plan 6 — 0:24.0 → 0:28.0 — Le micro seul dans la lumière dorée
 """
 
 SHOTS = [

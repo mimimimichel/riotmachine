@@ -24,7 +24,8 @@ from pathlib import Path
 from . import db, fal, notify, production
 from .settings import get_settings, load_models
 
-_running: dict[int, subprocess.Popen] = {}
+# agents en cours : id du passage -> (processus, clip)
+_running: dict[int, tuple[subprocess.Popen, str]] = {}
 
 
 def poll_jobs(conn: sqlite3.Connection) -> int:
@@ -110,7 +111,7 @@ def _agent_env() -> dict[str, str]:
 
 
 def _reap_agents(conn: sqlite3.Connection) -> None:
-    for run_id, proc in list(_running.items()):
+    for run_id, (proc, _slug) in list(_running.items()):
         code = proc.poll()
         if code is None:
             run = conn.execute("SELECT started_at FROM agent_runs WHERE id=?", (run_id,)).fetchone()
@@ -128,9 +129,9 @@ def _reap_agents(conn: sqlite3.Connection) -> None:
                              f"Journal : {run['log_path']}")
 
 
-def _should_wake(conn: sqlite3.Connection, slug: str, fingerprint: str) -> bool:
-    if any(conn.execute("SELECT clip_slug FROM agent_runs WHERE id=?", (rid,)).fetchone()["clip_slug"] == slug
-           for rid in _running):
+def _should_wake(conn: sqlite3.Connection, slug: str, need: dict) -> bool:
+    fingerprint = need["fingerprint"]
+    if any(clip == slug for _proc, clip in _running.values()):
         return False
     last = conn.execute(
         "SELECT * FROM agent_runs WHERE clip_slug=? ORDER BY id DESC LIMIT 1", (slug,)
@@ -139,7 +140,7 @@ def _should_wake(conn: sqlite3.Connection, slug: str, fingerprint: str) -> bool:
         return True
     # Même situation qu'au dernier passage : l'agent n'a pas pu avancer.
     # On attend avant de réessayer pour ne pas brûler le quota de l'abonnement.
-    if last["ended_at"] is None:
+    if last["ended_at"] is None or not need.get("retry_on_backoff", True):
         return False
     return db.age_seconds(last["ended_at"]) > get_settings().agent_backoff_s
 
@@ -151,7 +152,7 @@ def wake_agents(conn: sqlite3.Connection) -> list[str]:
     woken = []
     for c in conn.execute("SELECT slug FROM clips WHERE stage!='done' ORDER BY updated_at").fetchall():
         need = production.needs_agent(conn, c["slug"])
-        if not need["reasons"] or not _should_wake(conn, c["slug"], need["fingerprint"]):
+        if not need["reasons"] or not _should_wake(conn, c["slug"], need):
             continue
         log_path = s.logs_dir / f"agent-{c['slug']}-{db.now().replace(':', '')}.log"
         log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -177,7 +178,7 @@ def wake_agents(conn: sqlite3.Connection) -> list[str]:
             "INSERT INTO agent_runs (clip_slug, reason, fingerprint, pid, log_path, started_at) VALUES (?,?,?,?,?,?)",
             (c["slug"], "; ".join(need["reasons"]), need["fingerprint"], proc.pid, str(log_path), db.now()),
         )
-        _running[cur.lastrowid] = proc
+        _running[cur.lastrowid] = (proc, c["slug"])
         woken.append(c["slug"])
     return woken
 

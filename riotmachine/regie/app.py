@@ -142,6 +142,19 @@ def decide_all(slug: str, gate: str) -> dict[str, Any]:
     return {"ok": True, "approved": n}
 
 
+class ScriptText(BaseModel):
+    text: str
+
+
+@app.post("/api/clips/{slug}/script")
+def save_script(slug: str, body: ScriptText) -> dict[str, Any]:
+    try:
+        production.update_script(_conn(), slug, body.text)
+    except (production.ProductionError, LookupError) as exc:
+        raise _error(exc)
+    return {"ok": True}
+
+
 class Budget(BaseModel):
     budget_usd: float
 
