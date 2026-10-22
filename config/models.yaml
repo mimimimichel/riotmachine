@@ -34,31 +34,43 @@ image:
   upscale: topaz-image-hf     # passage en HD d'une image validée (plan ou canon), fidèle à l'original
   upscale_fallback: seedvr-image   # deuxième essai si la HD s'écarte de l'original
 
-# Fournisseurs vidéo que le routeur peut choisir.
-# Un fournisseur est utilisable s'il est branché dans le code ET si sa clé est dans .env.
+# Fournisseurs. Un fournisseur est utilisable s'il est branché dans le code ET si
+# ses clés sont dans .env (`env` : toutes requises ; `env_any` : au moins une).
+# `credits` : enveloppe gratuite ou prépayée ; tant qu'il en reste, ses offres
+# passent en tête du routage. Renseigner usd, start et expires à l'ouverture.
 providers:
   fal:
     label: fal.ai
-    env: FAL_KEY
-    note: Une seule clé pour Kling, Seedance, Wan, MiniMax et les outils de finition.
+    env: [FAL_KEY]
+    note: Indispensable. Visuels, agrandissements, lip-sync, et Kling, Seedance, Wan, MiniMax en vidéo.
+  vertex:
+    label: Google Cloud (Vertex AI)
+    env: [VERTEX_PROJECT]
+    env_any: [VERTEX_API_KEY, GOOGLE_APPLICATION_CREDENTIALS]
+    note: Veo 3.1. Seule voie payable par les 300 $ de l'essai Google Cloud. Pas de format 1:1.
+    credits: {label: "crédits Google Cloud", usd: 0, start: "", expires: ""}
   kling:
-    label: Kling AI (en direct)
-    env: KLING_ACCESS_KEY
-    note: À brancher. Compte et clé API sur klingai.com.
-  google:
-    label: Google Veo (en direct)
-    env: GEMINI_API_KEY
-    note: À brancher. Clé Google AI Studio ou Vertex AI.
+    label: Kling AI (API officielle)
+    env: [KLING_API_KEY]
+    note: Prépayé par packs (essai à 9,80 $). Le moins cher en 1080p (Kling 2.6 et 2.5 Turbo).
+    credits: {label: "pack Kling", usd: 0, start: "", expires: ""}
   runway:
     label: Runway
-    env: RUNWAYML_API_SECRET
-    note: À brancher. Clé API sur dev.runwayml.com.
+    env: [RUNWAYML_API_SECRET]
+    note: Une clé pour Veo 3.1, Kling 3, Seedance, Wan, Hailuo, Grok Imagine. 1 crédit = 0,01 $.
+  gemini:
+    label: Google Gemini API
+    env: [GEMINI_API_KEY]
+    note: Gemini Omni Flash (Veo n'y est plus depuis le 22/10/2026). Non payable par les crédits Cloud.
 
 lipsync: sync-lipsync-2-pro
 upscale: seedvr-1080p
 
 tier_order: [eco, standard, premium]
 
+# Paliers de besoin. Le routage prend le modèle le moins cher, parmi les
+# fournisseurs branchés, qui sait tenir le palier du plan (champ `tiers` de
+# chaque modèle). `model` est le choix de repli si aucun ne convient.
 tiers:
   eco:
     model: wan-3
@@ -138,6 +150,7 @@ models:
 
   # ------------------------------------------------------------------ vidéo
   wan-3:
+    tiers: [eco]               # paliers que le modèle sait tenir
     use_for: Plans calmes, gros plans, objets. Brouillon 480p puis agrandi.
     label: Wan 3.0
     provider: fal
@@ -160,6 +173,7 @@ models:
       Éviter les longues listes d'adjectifs ; 40 à 80 mots.
 
   kling-3-standard:
+    tiers: [eco, standard]               # paliers que le modèle sait tenir
     use_for: Marche, gestes, cheveux et tissus en mouvement.
     label: Kling 3 Standard
     provider: fal
@@ -179,6 +193,7 @@ models:
       negative_prompt utile : "blur, distorted hands, extra fingers, morphing face, low quality".
 
   kling-3-pro:
+    tiers: [eco, standard]               # paliers que le modèle sait tenir
     use_for: Comme Kling Standard, rendu plus fin.
     label: Kling 3 Pro
     provider: fal
@@ -196,6 +211,7 @@ models:
       (riot shot set <id> --model kling-3-pro) quand standard ne suffit pas.
 
   seedance-2:
+    tiers: [eco, standard, premium]               # paliers que le modèle sait tenir
     use_for: Danse, chorégraphie, plans larges très animés.
     label: Seedance 2.0
     provider: fal
@@ -219,6 +235,7 @@ models:
       Indiquer le tempo du morceau en mots ("energetic, on the beat", "slow sensual groove").
 
   seedance-2-mini:
+    tiers: [eco, standard]               # paliers que le modèle sait tenir
     use_for: Seedance en version économique.
     label: Seedance 2.0 Mini
     provider: fal
@@ -238,6 +255,7 @@ models:
       Version économique de Seedance 2.0, mêmes conseils de prompt.
 
   minimax-h3:
+    tiers: [eco]               # paliers que le modèle sait tenir
     use_for: Alternative économique pour les plans calmes.
     label: MiniMax H3
     provider: fal
@@ -254,6 +272,222 @@ models:
     final_params: {resolution: "768P"}
     prompt_guide: |
       MiniMax H3 : alternative économique à Wan pour les plans calmes.
+
+  # ------------------------------------------------- vidéo : Google Cloud (Vertex AI)
+  # Payable par les crédits de l'essai Google Cloud. Généré directement en 1080p.
+  # GA, retrait annoncé au plus tôt le 17/11/2026 : surveiller le successeur.
+  veo-31-fast-vertex:
+    label: Veo 3.1 Fast
+    provider: vertex
+    kind: video
+    endpoint: veo-3.1-fast-generate-001
+    tiers: [eco, standard, premium]
+    aspects: ["16:9", "9:16"]
+    use_for: Polyvalent, très bon rendu. Sans son. Pas de format carré.
+    output: video.url
+    durations: [4, 6, 8]
+    final_mode: keep
+    price: {per_second: {"720p": 0.08, "1080p": 0.10}}
+    input: {prompt: prompt, image: image, duration: duration, seed: seed, negative_prompt: negative_prompt, aspect_ratio: aspect_ratio}
+    draft_params: {resolution: "1080p"}
+    final_params: {resolution: "1080p"}
+    prompt_guide: |
+      Veo 3.1 : décrire sujet, action, caméra, ambiance en phrases simples, au présent.
+      Il suit bien les mouvements de caméra nommés ("slow dolly in", "orbit"). 4, 6 ou 8 s.
+
+  veo-31-vertex:
+    label: Veo 3.1
+    provider: vertex
+    kind: video
+    endpoint: veo-3.1-generate-001
+    tiers: [eco, standard, premium]
+    aspects: ["16:9", "9:16"]
+    use_for: Le haut de gamme de Google. Sans son. Pas de format carré.
+    output: video.url
+    durations: [4, 6, 8]
+    final_mode: keep
+    price: {per_second: {"720p": 0.20, "1080p": 0.20}}
+    input: {prompt: prompt, image: image, duration: duration, seed: seed, negative_prompt: negative_prompt, aspect_ratio: aspect_ratio}
+    draft_params: {resolution: "1080p"}
+    final_params: {resolution: "1080p"}
+    prompt_guide: |
+      Comme Veo 3.1 Fast.
+
+  veo-31-lite-vertex:
+    label: Veo 3.1 Lite
+    provider: vertex
+    kind: video
+    endpoint: veo-3.1-lite-generate-001
+    to_test: true                # en préversion ; image vers vidéo non confirmé par Google
+    tiers: [eco]
+    aspects: ["16:9", "9:16"]
+    use_for: Le moins cher de Google, pour plans secondaires. À tester.
+    output: video.url
+    durations: [4, 6, 8]
+    final_mode: keep
+    price: {per_second: {"720p": 0.03, "1080p": 0.05}}
+    input: {prompt: prompt, image: image, duration: duration, seed: seed, negative_prompt: negative_prompt, aspect_ratio: aspect_ratio}
+    draft_params: {resolution: "1080p"}
+    final_params: {resolution: "1080p"}
+
+  # ------------------------------------------------------ vidéo : Kling (API officielle)
+  # La sortie suit le ratio de l'image de départ. Pas de negative prompt (passé dans le prompt).
+  kling-26-direct:
+    label: Kling 2.6
+    provider: kling
+    kind: video
+    endpoint: kling-2.6
+    tiers: [eco, standard]
+    use_for: Le moins cher en 1080p. Gestes, marche, cheveux. 5 ou 10 s.
+    output: video.url
+    durations: [5, 10]
+    final_mode: keep
+    price: {per_second: {"720p": 0.042, "1080p": 0.07}}
+    input: {prompt: prompt, image: image, duration: duration, negative_prompt: negative_prompt}
+    settings: {audio: "off"}
+    draft_params: {resolution: "1080p"}
+    final_params: {resolution: "1080p"}
+
+  kling-25-turbo-direct:
+    label: Kling 2.5 Turbo
+    provider: kling
+    kind: video
+    endpoint: kling-2.5-turbo
+    tiers: [eco, standard]
+    use_for: Même prix que 2.6, plus rapide. 5 ou 10 s.
+    output: video.url
+    durations: [5, 10]
+    final_mode: keep
+    price: {per_second: {"720p": 0.042, "1080p": 0.07}}
+    input: {prompt: prompt, image: image, duration: duration, negative_prompt: negative_prompt}
+    draft_params: {resolution: "1080p"}
+    final_params: {resolution: "1080p"}
+
+  kling-30-direct:
+    label: Kling 3.0
+    provider: kling
+    kind: video
+    endpoint: kling-3.0
+    tiers: [eco, standard, premium]
+    use_for: Mouvements de corps, physique des tissus. 3 à 15 s.
+    output: video.url
+    durations: [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    final_mode: keep
+    price: {per_second: {"720p": 0.084, "1080p": 0.112}}
+    input: {prompt: prompt, image: image, duration: duration, negative_prompt: negative_prompt}
+    settings: {audio: "off"}
+    draft_params: {resolution: "1080p"}
+    final_params: {resolution: "1080p"}
+
+  # --------------------------------------------------------------- vidéo : Runway
+  # 1 crédit = 0,01 $. `ratios` traduit le format du clip en valeur Runway.
+  veo-31-fast-runway:
+    label: Veo 3.1 Fast
+    provider: runway
+    kind: video
+    endpoint: runway/veo3.1_fast
+    tiers: [eco, standard, premium]
+    aspects: ["16:9", "9:16"]
+    use_for: Veo sans compte Google Cloud. Pas de format carré.
+    output: video.url
+    durations: [4, 6, 8]
+    final_mode: keep
+    price: {per_second: 0.10}
+    input: {prompt: promptText, image: promptImage, duration: duration, seed: seed, negative_prompt: negativePrompt, aspect_ratio: ratio}
+    ratios: {"16:9": "1920:1080", "9:16": "1080:1920"}
+    defaults: {model: veo3.1_fast, audio: false}
+
+  kling-30-pro-runway:
+    label: Kling 3.0 Pro
+    provider: runway
+    kind: video
+    endpoint: runway/kling3.0_pro
+    tiers: [eco, standard, premium]
+    use_for: Kling 3 en 1080p via Runway.
+    output: video.url
+    durations: [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    final_mode: keep
+    price: {per_second: 0.12}
+    input: {prompt: promptText, image: promptImage, duration: duration, aspect_ratio: ratio}
+    ratios: {"16:9": "1920:1080", "9:16": "1080:1920", "1:1": "1440:1440"}
+    defaults: {model: kling3.0_pro, audio: false}
+
+  seedance-25-runway:
+    label: Seedance 2.5
+    provider: runway
+    kind: video
+    endpoint: runway/seedance2_5
+    tiers: [eco, standard, premium]
+    use_for: Danse et chorégraphie. Brouillon 720p puis agrandi.
+    output: video.url
+    durations: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    final_mode: upscale
+    price: {per_second: 0.30}
+    input: {prompt: promptText, image: promptImage, duration: duration, seed: seed, aspect_ratio: ratio}
+    ratios: {"16:9": "1280:720", "9:16": "720:1280", "1:1": "960:960"}
+    defaults: {model: seedance2_5, audio: false}
+
+  gen4-turbo-runway:
+    label: Runway Gen-4 Turbo
+    provider: runway
+    kind: video
+    endpoint: runway/gen4_turbo
+    tiers: [eco]
+    use_for: Plans simples, 720p puis agrandi.
+    output: video.url
+    durations: [2, 3, 4, 5, 6, 7, 8, 9, 10]
+    final_mode: upscale
+    price: {per_second: 0.05}
+    input: {prompt: promptText, image: promptImage, duration: duration, seed: seed, aspect_ratio: ratio}
+    ratios: {"16:9": "1280:720", "9:16": "720:1280", "1:1": "960:960"}
+    defaults: {model: gen4_turbo}
+
+  grok-lite-runway:
+    label: Grok Imagine 1.5 Lite
+    provider: runway
+    kind: video
+    endpoint: runway/grok_imagine_1_5_lite
+    to_test: true                # qualité inconnue : à essayer avant d'en faire un choix automatique
+    tiers: [eco]
+    use_for: Le moins cher du marché (0,03 $/s en 720p). Qualité à vérifier.
+    output: video.url
+    durations: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    final_mode: upscale
+    price: {per_second: 0.03, per_run: 0.01}
+    input: {prompt: promptText, image: promptImage, duration: duration}
+    defaults: {model: grok_imagine_1_5_lite, ratio: auto_720p}
+
+  hailuo3-runway:
+    label: Hailuo 3
+    provider: runway
+    kind: video
+    endpoint: runway/hailuo3
+    tiers: [eco, standard]
+    use_for: Bon rapport qualité-prix, 768p puis agrandi.
+    output: video.url
+    durations: [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    final_mode: upscale
+    price: {per_second: 0.10}
+    input: {prompt: promptText, image: promptImage, duration: duration, aspect_ratio: ratio}
+    ratios: {"16:9": "16:9", "9:16": "9:16", "1:1": "1:1"}
+    defaults: {model: hailuo3, resolution: 768p}
+
+  # ------------------------------------------------------- vidéo : Google Gemini API
+  omni-flash-gemini:
+    label: Gemini Omni Flash
+    provider: gemini
+    kind: video
+    endpoint: gemini-omni-1.1-flash
+    tiers: [eco, standard]
+    aspects: ["16:9", "9:16"]
+    use_for: Génère du son (retiré ensuite), donc payé plein tarif. Pas de format carré.
+    output: video.url
+    durations: [3, 4, 5, 6, 7, 8, 9, 10]
+    final_mode: keep
+    price: {per_second: {"720p": 0.101, "1080p": 0.152}}
+    input: {prompt: prompt, image: image, duration: duration, negative_prompt: negative_prompt, aspect_ratio: aspect_ratio}
+    draft_params: {resolution: "1080p"}
+    final_params: {resolution: "1080p"}
 
   # ------------------------------------------------------------- finition
   topaz-image-hf:

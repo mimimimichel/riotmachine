@@ -94,7 +94,8 @@ def estimate_cost(model_cfg: dict[str, Any], seconds: float = 0.0, mode: str = "
     unit_price = _price_for(model_cfg, mode)
     price = model_cfg.get("price") or {}
     if "per_second" in price:
-        return round(unit_price * max(seconds, 1.0), 4)
+        extra = float(price.get("per_run") or 0) if not isinstance(price.get("per_run"), dict) else 0.0
+        return round(unit_price * max(seconds, 1.0) + extra, 4)
     return round(unit_price, 4)
 
 
@@ -168,22 +169,27 @@ def shot_seconds(shot: dict[str, Any]) -> float:
 
 # Fournisseurs dont l'appel est écrit dans le code. Les autres sont déclarés
 # dans models.yaml mais attendent leur branchement.
-IMPLEMENTED_PROVIDERS = {"fal"}
+IMPLEMENTED_PROVIDERS = {"fal", "vertex", "kling", "runway", "gemini"}
 
 
 def providers() -> list[dict[str, Any]]:
-    """État de chaque fournisseur : branché dans le code, clé présente, utilisable."""
+    """État de chaque fournisseur : branché dans le code, clés présentes, utilisable."""
     import os
     from .settings import get_settings
+    simulated = get_settings().fal_mock
     out = []
     for key, cfg in (models_cfg().get("providers") or {}).items():
+        env_all = cfg.get("env") or []
+        env_all = [env_all] if isinstance(env_all, str) else env_all
+        env_any = cfg.get("env_any") or []
+        has_key = all(os.environ.get(e, "").strip() for e in env_all) and (
+            not env_any or any(os.environ.get(e, "").strip() for e in env_any))
         implemented = key in IMPLEMENTED_PROVIDERS
-        has_key = bool(os.environ.get(cfg.get("env", ""), ""))
-        simulated = key == "fal" and get_settings().fal_mock
         out.append({
-            "key": key, "label": cfg.get("label", key), "note": cfg.get("note", ""), "env": cfg.get("env"),
+            "key": key, "label": cfg.get("label", key), "note": cfg.get("note", ""),
+            "env": env_all + ([" ou ".join(env_any)] if env_any else []),
             "implemented": implemented, "has_key": has_key,
-            "usable": implemented and (has_key or simulated), "simulated": simulated,
+            "usable": implemented and (has_key or simulated), "simulated": simulated and not has_key,
         })
     return out
 
@@ -200,17 +206,68 @@ def video_models() -> list[dict[str, Any]]:
             continue
         prov = cfg.get("provider", "fal")
         out.append({"key": key, "label": cfg.get("label", key), "provider": prov,
-                    "use_for": cfg.get("use_for", ""), "tier": tiers.get(key),
+                    "use_for": cfg.get("use_for", ""), "tier": tiers.get(key), "tiers": cfg.get("tiers") or [],
+                    "aspects": cfg.get("aspects"), "to_test": bool(cfg.get("to_test")),
+                    "max_seconds": max(int(d) for d in cfg.get("durations", [5])),
                     "usable": provider_usable(prov)})
     return out
 
 
+def _credits() -> dict[str, dict]:
+    try:
+        from .credits import status
+        return status()
+    except Exception:   # base indisponible (tests unitaires du routage) : pas de crédits
+        return {}
+
+
+def effective_cost(model_key: str, cost: float, credit_status: dict[str, dict] | None = None) -> float:
+    """Ce que l'offre coûte vraiment : 0 si les crédits du fournisseur la couvrent."""
+    prov = model(model_key).get("provider", "fal")
+    st = (credit_status if credit_status is not None else _credits()).get(prov)
+    return 0.0 if st and st["remaining"] >= cost else cost
+
+
+def fits_shot(cfg: dict[str, Any], shot: dict[str, Any], tier: str) -> bool:
+    """Le modèle tient-il ce palier, le format du clip et la durée du plan ?"""
+    if tier not in (cfg.get("tiers") or []):
+        return False
+    aspect = shot.get("aspect_ratio")
+    if aspect and cfg.get("aspects") and aspect not in cfg["aspects"]:
+        return False
+    longest = max(int(d) for d in cfg.get("durations", [5]))
+    return longest + 0.05 >= shot_seconds(shot)
+
+
+def cheapest_for(tier: str, shot: dict[str, Any]) -> tuple[str, int]:
+    """L'offre utilisable la moins chère qui tient ce palier, pour la durée de ce plan.
+    Les offres couvertes par des crédits gratuits passent devant (coût effectif 0)."""
+    credit_status = _credits()
+    fits = []
+    for key, cfg in models_cfg()["models"].items():
+        if cfg.get("kind") != "video" or cfg.get("to_test") or not fits_shot(cfg, shot, tier):
+            continue
+        if not provider_usable(cfg.get("provider", "fal")):
+            continue
+        cost = route_shot(shot, model_key=key)["cost_total_usd"]
+        fits.append((effective_cost(key, cost, credit_status), cost, key))
+    if not fits:
+        return tier_model_key(tier), 0
+    fits.sort()
+    return fits[0][2], len(fits)
+
+
 def model_options(shot: dict[str, Any]) -> list[dict[str, Any]]:
     """Chaque modèle vidéo avec son coût estimé pour ce plan (pour le choix de Michael)."""
+    need = shot.get("tier") or classify(shot)[0]
+    credit_status = _credits()
     opts = []
     for m in video_models():
         est = route_shot(shot, model_key=m["key"])
-        opts.append({**m, "cost_total_usd": est["cost_total_usd"], "duration": est["duration"]})
+        eff = effective_cost(m["key"], est["cost_total_usd"], credit_status)
+        opts.append({**m, "cost_total_usd": est["cost_total_usd"], "duration": est["duration"],
+                     "effective_usd": eff, "on_credits": eff == 0 and est["cost_total_usd"] > 0,
+                     "fits": fits_shot(models_cfg()["models"][m["key"]], shot, need)})
     return opts
 
 
@@ -221,12 +278,18 @@ def route_shot(shot: dict[str, Any], force_tier: str | None = None,
         tiers = {v["model"]: t for t, v in models_cfg()["tiers"].items()}
         tier, why = tiers.get(model_key, shot.get("tier") or "standard"), "modèle choisi"
         key = model_key
-    elif force_tier:
-        tier, why = force_tier, "palier forcé"
-        key = tier_model_key(tier)
     else:
-        tier, why = classify(shot)
-        key = tier_model_key(tier)
+        if force_tier:
+            tier, why = force_tier, "palier forcé"
+        else:
+            tier, why = classify(shot)
+        key, n_fit = cheapest_for(tier, shot)
+        if n_fit > 1:
+            why = f"{why} ; le moins cher des {n_fit} modèles adaptés"
+        prov = model(key).get("provider", "fal")
+        st = _credits().get(prov)
+        if st and st["remaining"] > 0:
+            why = f"{why} ; payé par {st['label']} (reste {st['remaining']:.0f} $)"
     cfg = model(key)
     seconds = shot_seconds(shot)
     duration = choose_duration(cfg, seconds)

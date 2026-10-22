@@ -21,7 +21,7 @@ import time
 import traceback
 from pathlib import Path
 
-from . import db, fal, notify, production
+from . import db, fal, notify, production, providers
 from .settings import get_settings, load_models
 
 # agents en cours : id du passage -> (processus, clip)
@@ -36,14 +36,14 @@ def poll_jobs(conn: sqlite3.Connection) -> int:
     ).fetchall())
     for job in jobs:
         try:
-            st = fal.status(job["status_url"])
+            st = providers.status(job)
             if st in ("IN_QUEUE", "IN_PROGRESS"):
                 if st == "IN_PROGRESS" and job["status"] != "running":
                     conn.execute("UPDATE jobs SET status='running', updated_at=? WHERE id=?", (db.now(), job["id"]))
                 continue
             try:
-                result = fal.result(job["response_url"])
-            except fal.FalError as exc:
+                result = providers.result(job)
+            except (fal.FalError, providers.ProviderError) as exc:
                 production.on_job_failed(conn, job, str(exc))
                 finished += 1
                 continue

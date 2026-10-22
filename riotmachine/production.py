@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-from . import db, fal, media, notify, routing
+from . import credits, db, fal, media, notify, providers, routing
 from .settings import get_settings, load_models
 
 IMAGE_EXT = {".png", ".jpg", ".jpeg", ".webp"}
@@ -236,13 +236,14 @@ def launch_character_asset(conn: sqlite3.Connection, slug: str, version: int, ki
     payload = routing.build_payload(mcfg, prompt=prompt, image_urls=image_urls, mode="final",
                                     aspect_ratio=_casting_aspect(kind))
     cost = routing.estimate_cost(mcfg, mode="final")
-    sub = fal.submit(mcfg["endpoint"], payload, kind="image", label=f"{slug} {kind} {label}")
+    sub = providers.submit(mcfg, payload, kind="image", label=f"{slug} {kind} {label}")
     out = absp(v["dir"]) / kind / f"{slugify(label)}-{sub['request_id'][-6:]}.png"
     with db.tx(conn):
         cur = conn.execute(
-            "INSERT INTO character_assets (version_id, kind, label, path, prompt, model_key, cost_usd, status, created_at) "
-            "VALUES (?,?,?,?,?,?,?,?,?)",
-            (v["id"], kind, label, rel(out), prompt, key, cost, "generating", db.now()),
+            "INSERT INTO character_assets (version_id, kind, label, path, prompt, model_key, cost_usd, funding, status, "
+            "created_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+            (v["id"], kind, label, rel(out), prompt, key, cost,
+             credits.funding_for(conn, mcfg.get("provider", "fal"), cost), "generating", db.now()),
         )
         _insert_job(conn, "character_assets", cur.lastrowid, mcfg["endpoint"], sub, out)
     return {"asset_id": cur.lastrowid, "request_id": sub["request_id"], "refs": [rel(p) for p in refs], "cost_usd": cost}
@@ -405,13 +406,14 @@ def launch_canon_hd(conn: sqlite3.Connection, slug: str, version: int, model_key
         model_key = cfg.get("upscale_fallback") if tries % 2 == 1 and cfg.get("upscale_fallback") else cfg["upscale"]
     mcfg = routing.model(model_key)
     payload = routing.build_payload(mcfg, image_urls=[fal.to_data_uri(absp(draft["path"]))], mode="final")
-    sub = fal.submit(mcfg["endpoint"], payload, kind="image", label=f"{slug} canon HD")
+    sub = providers.submit(mcfg, payload, kind="image", label=f"{slug} canon HD")
     out = absp(v["dir"]) / "brouillons" / f"canon-hd-{sub['request_id'][-6:]}.png"
     with db.tx(conn):
         cur = conn.execute(
-            "INSERT INTO character_assets (version_id, kind, label, path, model_key, cost_usd, status, parent_id, "
-            "created_at) VALUES (?,?,?,?,?,?,?,?,?)",
+            "INSERT INTO character_assets (version_id, kind, label, path, model_key, cost_usd, funding, status, "
+            "parent_id, created_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
             (v["id"], "canon", "canon HD", rel(out), model_key, routing.estimate_cost(mcfg, mode="final"),
+             credits.funding_for(conn, mcfg.get("provider", "fal"), routing.estimate_cost(mcfg, mode="final")),
              "generating", draft["id"], db.now()),
         )
         _insert_job(conn, "character_assets", cur.lastrowid, mcfg["endpoint"], sub, out)
@@ -828,11 +830,14 @@ def update_shot(conn: sqlite3.Connection, shot_id: int, **fields: Any) -> dict:
     return db.get_shot(conn, shot_id)
 
 
-def _check_budget(conn: sqlite3.Connection, slug: str, extra: float, force: bool) -> None:
+def _check_budget(conn: sqlite3.Connection, slug: str, extra: float, force: bool,
+                  model_cfg: dict | None = None) -> None:
     clip = db.get_clip(conn, slug)
     budget = clip.get("budget_usd")
     if not budget or force:
         return
+    if model_cfg and credits.funding_for(conn, model_cfg.get("provider", "fal"), extra) == "credits":
+        return   # payé par des crédits : le budget en argent n'est pas touché
     spent = db.clip_cost(conn, slug)
     if spent + extra > budget:
         raise BudgetError(
@@ -844,10 +849,10 @@ def _check_budget(conn: sqlite3.Connection, slug: str, extra: float, force: bool
 def _insert_job(conn: sqlite3.Connection, table: str, target_id: int, endpoint: str,
                 sub: dict, out: Path) -> int:
     cur = conn.execute(
-        "INSERT INTO jobs (target_table, target_id, endpoint, request_id, status_url, response_url, output_path, "
-        "status, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
-        (table, target_id, endpoint, sub["request_id"], sub["status_url"], sub["response_url"], rel(out),
-         "queued", db.now(), db.now()),
+        "INSERT INTO jobs (target_table, target_id, endpoint, provider, request_id, status_url, response_url, "
+        "output_path, status, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+        (table, target_id, endpoint, sub.get("provider", "fal"), sub["request_id"], sub["status_url"],
+         sub["response_url"], rel(out), "queued", db.now(), db.now()),
     )
     return cur.lastrowid
 
@@ -856,6 +861,8 @@ def _create_asset(conn: sqlite3.Connection, shot: dict, kind: str, out_dir: str,
                   prompt: str | None, model_key: str, seed: int | None, params: dict, cost: float,
                   endpoint: str, sub: dict) -> dict:
     version = db.next_asset_version(conn, shot["id"], kind)
+    funding = "cash" if is_demo(shot["clip_slug"]) else \
+        credits.funding_for(conn, routing.model(model_key).get("provider", "fal"), cost)
     suffix = {"lipsync": "-lipsync", "image_hd": "-hd"}.get(kind, "")
     out = studio() / "clips" / shot["clip_slug"] / out_dir / f"plan-{shot['num']:03d}{suffix}-v{version}{ext}"
     with db.tx(conn):
@@ -864,11 +871,11 @@ def _create_asset(conn: sqlite3.Connection, shot: dict, kind: str, out_dir: str,
             (shot["id"], kind),
         )
         cur = conn.execute(
-            "INSERT INTO assets (shot_id, kind, version, path, prompt, model_key, seed, params, cost_usd, status, created_at) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+            "INSERT INTO assets (shot_id, kind, version, path, prompt, model_key, seed, params, cost_usd, funding, "
+            "status, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
             (shot["id"], kind, version, rel(out), prompt, model_key, seed,
              json.dumps({k: v for k, v in params.items() if not str(v).startswith("data:")}),
-             cost, "generating", db.now()),
+             cost, funding, "generating", db.now()),
         )
         _insert_job(conn, "assets", cur.lastrowid, endpoint, sub, out)
     return {"asset_id": cur.lastrowid, "version": version, "path": rel(out), "cost_usd": cost,
@@ -891,10 +898,10 @@ def launch_image(conn: sqlite3.Connection, shot_id: int, force: bool = False) ->
             refs += character_refs(conn, c, casting[c]["version"], casting[c]["look_slug"], limit=per_char)
     image_urls = [fal.to_data_uri(p) for p in refs]
     cost = routing.estimate_cost(mcfg, mode="draft")
-    _check_budget(conn, clip["slug"], cost, force)
+    _check_budget(conn, clip["slug"], cost, force, mcfg)
     payload = routing.build_payload(mcfg, prompt=shot["image_prompt"], image_urls=image_urls,
                                     aspect_ratio=clip["aspect_ratio"], mode="draft")
-    sub = fal.submit(mcfg["endpoint"], payload, kind="image", label=f"plan {shot['num']} image",
+    sub = providers.submit(mcfg, payload, kind="image", label=f"plan {shot['num']} image",
                      force_mock=is_demo(clip["slug"]))
     res = _create_asset(conn, shot, "image", "storyboard", ".png", shot["image_prompt"], key, None,
                         payload, cost, mcfg["endpoint"], sub)
@@ -921,11 +928,11 @@ def launch_image_hd(conn: sqlite3.Connection, shot_id: int, force: bool = False,
         model_key = cfg.get("upscale_fallback") if tries and cfg.get("upscale_fallback") else cfg["upscale"]
     mcfg = routing.model(model_key)
     cost = routing.estimate_cost(mcfg, mode="final")
-    _check_budget(conn, clip["slug"], cost, force)
+    _check_budget(conn, clip["slug"], cost, force, mcfg)
     ref = image["remote_url"] if image["remote_url"] and not str(image["remote_url"]).startswith("mock://") \
         else fal.to_data_uri(absp(image["path"]))
     payload = routing.build_payload(mcfg, image_urls=[ref], mode="final")
-    sub = fal.submit(mcfg["endpoint"], payload, kind="image", label=f"plan {shot['num']} HD",
+    sub = providers.submit(mcfg, payload, kind="image", label=f"plan {shot['num']} HD",
                      force_mock=is_demo(clip["slug"]))
     params = {**payload, "from_image": image["id"]}
     res = _create_asset(conn, shot, "image_hd", "storyboard", ".png", None, model_key, None,
@@ -1005,14 +1012,14 @@ def launch_draft(conn: sqlite3.Connection, shot_id: int, force: bool = False) ->
     duration = routing.choose_duration(mcfg, routing.shot_seconds(shot))
     seed = shot.get("seed") or random.randint(1, 2**31 - 1)
     cost = routing.estimate_cost(mcfg, duration, "draft")
-    _check_budget(conn, clip["slug"], cost, force)
+    _check_budget(conn, clip["slug"], cost, force, mcfg)
     image_ref = image["remote_url"] if image["remote_url"] and not str(image["remote_url"]).startswith("mock://") \
         else fal.to_data_uri(absp(image["path"]))
     payload = routing.build_payload(
         mcfg, prompt=shot["video_prompt"], image_urls=[image_ref], duration=duration, seed=seed,
         negative_prompt=shot.get("negative_prompt"), aspect_ratio=clip["aspect_ratio"], mode="draft",
     )
-    sub = fal.submit(mcfg["endpoint"], payload, kind="video", label=f"plan {shot['num']} draft",
+    sub = providers.submit(mcfg, payload, kind="video", label=f"plan {shot['num']} draft",
                      seconds=duration, force_mock=is_demo(clip["slug"]))
     res = _create_asset(conn, shot, "draft", "drafts", ".mp4", shot["video_prompt"], shot["model_key"], seed,
                         payload, cost, mcfg["endpoint"], sub)
@@ -1052,8 +1059,8 @@ def launch_final(conn: sqlite3.Connection, shot_id: int, force: bool = False) ->
         )
         prompt, seed = draft["prompt"], draft["seed"]
     cost = routing.estimate_cost(mcfg, duration, "final")
-    _check_budget(conn, clip["slug"], cost, force)
-    sub = fal.submit(mcfg["endpoint"], payload, kind="video", label=f"plan {shot['num']} final",
+    _check_budget(conn, clip["slug"], cost, force, mcfg)
+    sub = providers.submit(mcfg, payload, kind="video", label=f"plan {shot['num']} final",
                      seconds=duration, force_mock=is_demo(clip["slug"]))
     res = _create_asset(conn, shot, "final", "finals", ".mp4", prompt, key, seed, payload, cost,
                         mcfg["endpoint"], sub)
@@ -1102,8 +1109,8 @@ def launch_lipsync(conn: sqlite3.Connection, shot_id: int, force: bool = False) 
     video_ref = final["remote_url"] or fal.to_data_uri(absp(final["path"]))
     payload = routing.build_payload(mcfg, video_url=video_ref, audio_url=fal.to_data_uri(slice_path), mode="final")
     cost = routing.estimate_cost(mcfg, routing.shot_seconds(shot), "final")
-    _check_budget(conn, clip["slug"], cost, force)
-    sub = fal.submit(mcfg["endpoint"], payload, kind="video", label=f"plan {shot['num']} lipsync",
+    _check_budget(conn, clip["slug"], cost, force, mcfg)
+    sub = providers.submit(mcfg, payload, kind="video", label=f"plan {shot['num']} lipsync",
                      seconds=routing.shot_seconds(shot), force_mock=is_demo(clip["slug"]))
     res = _create_asset(conn, shot, "lipsync", "finals", ".mp4", None, key, final["seed"], payload, cost,
                         mcfg["endpoint"], sub)
@@ -1125,7 +1132,7 @@ def on_job_done(conn: sqlite3.Connection, job: dict, result: dict) -> None:
         url = routing.extract_output(result, mcfg["output"])
         dest = absp(job["output_path"])
         dest = dest.with_suffix(_ext_from_url(url, dest.suffix))
-        fal.download(url, dest)
+        providers.download(url, dest, job.get("provider") or "fal")
         with db.tx(conn):
             conn.execute("UPDATE character_assets SET status='proposed', path=?, remote_url=? WHERE id=?",
                          (rel(dest), url, asset["id"]))
@@ -1137,7 +1144,7 @@ def on_job_done(conn: sqlite3.Connection, job: dict, result: dict) -> None:
     url = routing.extract_output(result, mcfg["output"])
     dest = absp(job["output_path"])
     dest = dest.with_suffix(_ext_from_url(url, dest.suffix))
-    fal.download(url, dest)
+    providers.download(url, dest, job.get("provider") or "fal")
     seed = result.get("seed") if isinstance(result, dict) else None
     shot = db.get_shot(conn, asset["shot_id"])
     qc = load_models().get("qc", {})
@@ -1381,6 +1388,43 @@ def retry_failed(conn: sqlite3.Connection, shot_id: int) -> str:
     return status
 
 
+# --- Carnet de rodage des modèles -----------------------------------------------
+
+def rodage(conn: sqlite3.Connection, model_key: str | None = None) -> list[dict]:
+    """Ce que l'historique dit de chaque modèle vidéo : validé du premier coup ou refait,
+    sur quels types de plans, avec les commentaires de Michael. Le routeur le lit."""
+    q = ("SELECT a.id, a.model_key, a.version, a.status, a.cost_usd, s.framing, s.motion, s.num, s.clip_slug, "
+         "s.description FROM assets a JOIN shots s ON s.id=a.shot_id WHERE a.kind='draft' AND a.status!='generating'")
+    params: list = []
+    if model_key:
+        q += " AND a.model_key=?"
+        params.append(model_key)
+    stats: dict[str, dict] = {}
+    for a in db.rows(conn.execute(q, params).fetchall()):
+        m = stats.setdefault(a["model_key"], {"model": a["model_key"], "drafts": 0, "valides": 0, "refaits": 0,
+                                              "echecs": 0, "cout_usd": 0.0, "par_mouvement": {}, "retours": []})
+        m["drafts"] += 1
+        m["cout_usd"] = round(m["cout_usd"] + (a["cost_usd"] or 0), 2)
+        mv = m["par_mouvement"].setdefault(a["motion"] or "?", {"valides": 0, "refaits": 0})
+        rv = conn.execute("SELECT decision, comment FROM reviews WHERE asset_id=? AND gate='drafts' "
+                          "ORDER BY id DESC LIMIT 1", (a["id"],)).fetchone()
+        if a["status"] == "failed":
+            m["echecs"] += 1
+        elif rv and rv["decision"] == "approve" or a["status"] == "validated":
+            m["valides"] += 1
+            mv["valides"] += 1
+        elif rv and rv["decision"] == "change":
+            m["refaits"] += 1
+            mv["refaits"] += 1
+            m["retours"].append(f"{a['clip_slug']} plan {a['num']} ({a['framing'] or '?'}, {a['motion'] or '?'}) : "
+                                f"{rv['comment']}")
+    out = list(stats.values())
+    for m in out:
+        jugés = m["valides"] + m["refaits"]
+        m["taux_premier_coup"] = round(m["valides"] / jugés, 2) if jugés else None
+    return sorted(out, key=lambda m: -m["drafts"])
+
+
 # --- Vues --------------------------------------------------------------------
 
 def shot_view(conn: sqlite3.Connection, shot: dict) -> dict:
@@ -1393,6 +1437,8 @@ def shot_view(conn: sqlite3.Connection, shot: dict) -> dict:
         "SELECT * FROM reviews WHERE shot_id=? ORDER BY id DESC LIMIT 10", (shot["id"],)
     ).fetchall())
     s["cost_usd"] = round(sum(a["cost_usd"] or 0 for a in assets), 3)
+    clip_aspect = conn.execute("SELECT aspect_ratio FROM clips WHERE slug=?", (shot["clip_slug"],)).fetchone()
+    shot = {**shot, "aspect_ratio": clip_aspect[0] if clip_aspect else None}
     if shot.get("model_key"):
         try:
             s["estimate"] = routing.route_shot(shot, model_key=shot["model_key"])
@@ -1408,6 +1454,7 @@ def clip_snapshot(conn: sqlite3.Connection, slug: str, compact: bool = False) ->
     shots = db.rows(conn.execute("SELECT * FROM shots WHERE clip_slug=? ORDER BY num", (slug,)).fetchall())
     clip["casting"] = db.casting_for_clip(conn, slug)
     clip["cost_usd"] = round(db.clip_cost(conn, slug), 3)
+    clip["credits_used_usd"] = round(db.clip_cost(conn, slug, "credits"), 3)
     counts: dict[str, int] = {}
     for s in shots:
         counts[s["status"]] = counts.get(s["status"], 0) + 1

@@ -280,6 +280,7 @@ async function router() {
     if (page === "personnages" && arg) { setNav("personnages"); await showCharacter(arg); }
     else if (page === "personnages") { setNav("personnages"); await showCharacters(); }
     else if (page === "nouveau") { setNav("studio"); await showNewClip(); }
+    else if (page === "fournisseurs") { setNav("fournisseurs"); await showProviders(); }
     else { setNav("studio"); await showStudio(); }
   } catch (e) {
     $view.innerHTML = `<p class="empty">${esc(e.message)}</p>`;
@@ -899,13 +900,17 @@ function renderPlanVideo(shot, isGate) {
   const provLabel = (k) => (providers.find((p) => p.key === k) || { label: k }).label;
   let modelHtml;
   if (isGate && shot.model_options) {
-    const opts = shot.model_options.slice().sort((a, b) => (b.usable - a.usable) || (a.cost_total_usd - b.cost_total_usd));
-    modelHtml = `<div class="models">${opts.map((m) => `<label class="model ${m.key === shot.model_key ? "on" : ""} ${m.usable ? "" : "off"}">
+    const opts = shot.model_options.slice().sort((a, b) => (b.usable - a.usable) || (a.effective_usd - b.effective_usd) || (a.cost_total_usd - b.cost_total_usd));
+    const card = (m) => `<label class="model ${m.key === shot.model_key ? "on" : ""} ${m.usable ? "" : "off"}">
         <input type="radio" name="model-${shot.id}" value="${m.key}" ${m.key === shot.model_key ? "checked" : ""} ${m.usable ? "" : "disabled"} data-model="${shot.id}">
-        <span><span class="nm">${esc(m.label)}</span> <span class="hint">· ${esc(provLabel(m.provider))}${m.usable ? "" : " (à brancher)"}</span><br>
+        <span><span class="nm">${esc(m.label)}</span> <span class="hint">· ${esc(provLabel(m.provider))}${m.usable ? "" : " (clé manquante)"}</span>
+          ${m.to_test ? `<span class="pill work" style="margin-left:6px">à tester</span>` : ""}<br>
           <span class="uf">${esc(m.use_for)}</span></span>
-        <span class="cost">~${money(m.cost_total_usd)}<small>${m.duration} s générées</small></span></label>`).join("")}</div>
-      ${providers.filter((p) => !p.usable).length ? `<p class="hint">Fournisseurs en attente : ${providers.filter((p) => !p.usable).map((p) => esc(p.label)).join(", ")}. Ils apparaîtront ici une fois branchés.</p>` : ""}`;
+        <span class="cost">${m.on_credits ? `<span style="color:var(--led)">crédits</span><small>valeur ~${money(m.cost_total_usd)}</small>` : `~${money(m.cost_total_usd)}`}<small>${m.duration} s générées</small></span></label>`;
+    const fit = opts.filter((m) => m.fits); const other = opts.filter((m) => !m.fits);
+    modelHtml = `<div class="models">${fit.map(card).join("")}</div>
+      ${other.length ? `<details class="fold"><summary>Autres modèles (moins adaptés à ce plan, ou format et durée non tenus) : ${other.length}</summary><div class="models">${other.map(card).join("")}</div></details>` : ""}
+      ${providers.filter((p) => !p.usable).length ? `<p class="hint">Sans clé pour l'instant : ${providers.filter((p) => !p.usable).map((p) => esc(p.label)).join(", ")}. Voir la page <a href="#/fournisseurs">Fournisseurs</a>.</p>` : ""}`;
   } else {
     modelHtml = est ? `<dl class="kv"><dt>Fournisseur</dt><dd>${esc(provLabel(est.provider))}</dd><dt>Modèle</dt><dd>${esc(est.model_label)}</dd></dl>` : "";
   }
@@ -1728,6 +1733,50 @@ async function characterClick(e, ch, v) {
       return reload();
     }
   } catch (err) { toast(err.message, "err"); }
+}
+
+/* ---------- Fournisseurs ---------- */
+
+async function showProviders() {
+  const d = await api("/api/providers");
+  const provLabel = Object.fromEntries(d.providers.map((p) => [p.key, p.label]));
+  const provs = d.providers.map((p) => {
+    const st = p.has_key ? ["branché", "done"] : p.simulated ? ["simulation", "review"] : ["clé manquante", "wait"];
+    const cr = d.credits[p.key];
+    return `<div class="panel stack" style="gap:8px">
+      <div class="row"><b>${esc(p.label)}</b><span class="spacer"></span>${pill(st[0], st[1])}</div>
+      <p class="hint">${esc(p.note)}</p>
+      <p class="hint mono">.env : ${p.env.map(esc).join(", ")}</p>
+      ${cr ? `<div class="progress"><i style="width:${Math.min(100, (100 * cr.spent) / cr.usd)}%"></i></div>
+        <p class="mono" style="font-size:13px">${esc(cr.label)} : ${money(cr.remaining)} restants sur ${cr.usd.toFixed(0)} $${cr.expires ? ` · jusqu'au ${esc(cr.expires)}` : ""}</p>` : ""}
+    </div>`;
+  }).join("");
+  const rows = d.video_models.map((m) => `<tr style="${m.usable ? "" : "opacity:.5"}">
+      <td><b>${esc(m.label)}</b>${m.to_test ? ` <span class="pill work">à tester</span>` : ""}<br><span class="hint">${esc(m.use_for)}</span></td>
+      <td>${esc(provLabel[m.provider] || m.provider)}</td>
+      <td class="mono">${m.per_second_usd.toFixed(3)} $</td>
+      <td>${m.tiers.map((t) => `<span class="tag">${esc(t)}</span>`).join(" ")}</td>
+      <td class="hint">${esc(m.duration_range)}${m.aspects ? `<br>${m.aspects.map(esc).join(", ")}` : ""}</td></tr>`).join("");
+  const rod = d.rodage.length ? d.rodage.map((r) => `<tr><td><b>${esc(r.model)}</b></td><td class="mono">${r.drafts}</td>
+      <td class="mono">${r.taux_premier_coup == null ? "–" : Math.round(r.taux_premier_coup * 100) + " %"}</td>
+      <td class="mono">${r.refaits}</td><td class="mono">${r.echecs}</td>
+      <td class="hint">${r.retours.slice(-3).map(esc).join("<br>")}</td></tr>`).join("")
+    : `<tr><td colspan="6" class="hint">Pas encore de vidéo jugée.</td></tr>`;
+  $view.innerHTML = `<div class="pagehead"><h1>Fournisseurs</h1>
+      <span class="sub">Règle : le moins cher qui est adapté au plan, crédits gratuits d'abord. Détail dans docs/PROCESS.md et docs/FOURNISSEURS.md.</span></div>
+    <div class="clips" style="grid-template-columns:repeat(auto-fill,minmax(280px,1fr))">${provs}</div>
+    <div class="panel" style="margin-top:18px;overflow-x:auto"><div class="panel-head"><h2>Offres vidéo</h2>
+      <span class="hint">Coût par seconde de plan, tout compris (vidéo draft, vidéo HD), sans son. Classées du moins cher au plus cher.</span></div>
+      <table class="cut" style="width:100%;border-collapse:collapse;font-size:14px">
+        <thead><tr><th align="left">Modèle</th><th align="left">Fournisseur</th><th align="left">$/s</th><th align="left">Paliers tenus</th><th align="left">Durées, formats</th></tr></thead>
+        <tbody>${rows}</tbody></table></div>
+    <div class="panel" style="margin-top:18px;overflow-x:auto"><div class="panel-head"><h2>Carnet de rodage</h2>
+      <span class="hint">Ce que tes validations disent de chaque modèle. Le routeur le lit avant de choisir.</span></div>
+      <table style="width:100%;border-collapse:collapse;font-size:14px">
+        <thead><tr><th align="left">Modèle</th><th align="left">Vidéos</th><th align="left">Validées du 1er coup</th><th align="left">Refaites</th><th align="left">Échecs</th><th align="left">Derniers retours</th></tr></thead>
+        <tbody>${rod}</tbody></table></div>
+    <p class="hint" style="margin-top:14px">Lip-sync : ${esc(d.lipsync)} · Visuel HD : ${esc(d.image_upscale)}</p>`;
+  every(30000, () => { if (!isBusy()) showProviders(); });
 }
 
 /* ---------- clavier ---------- */

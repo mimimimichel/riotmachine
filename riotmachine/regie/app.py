@@ -98,7 +98,20 @@ def overview() -> dict[str, Any]:
 
 @app.get("/api/providers")
 def providers() -> dict[str, Any]:
-    return {"providers": routing.providers(), "video_models": routing.video_models()}
+    """Page Fournisseurs : état, crédits, offres comparées sur un plan type de 6 s, carnet de rodage."""
+    from .. import credits
+    conn = _conn()
+    sample = {"t_start": 0, "t_end": 6, "motion": "medium", "framing": "MS", "characters": ["jj"]}
+    models = []
+    for m in routing.video_models():
+        est = routing.route_shot(sample, model_key=m["key"])
+        cfg = routing.model(m["key"])
+        models.append({**m, "per_second_usd": round(est["cost_total_usd"] / 6, 3), "final_mode": cfg.get("final_mode"),
+                       "duration_range": f"{min(cfg.get('durations', [5]))}-{max(cfg.get('durations', [5]))} s"})
+    models.sort(key=lambda m: m["per_second_usd"])
+    return {"providers": routing.providers(), "credits": credits.status(conn), "video_models": models,
+            "rodage": production.rodage(conn), "lipsync": routing.models_cfg().get("lipsync"),
+            "image_upscale": routing.models_cfg()["image"].get("upscale")}
 
 
 @app.get("/api/clips/{slug}/waveform")

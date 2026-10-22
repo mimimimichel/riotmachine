@@ -17,7 +17,7 @@ from typing import Any, Iterator
 
 from .settings import get_settings
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 4
 
 # --- Cycle de vie ---------------------------------------------------------
 
@@ -104,6 +104,7 @@ CREATE TABLE IF NOT EXISTS character_assets (
     prompt TEXT,
     model_key TEXT,
     cost_usd REAL NOT NULL DEFAULT 0,
+    funding TEXT NOT NULL DEFAULT 'cash',
     status TEXT NOT NULL DEFAULT 'proposed'
         CHECK (status IN ('generating','proposed','kept','rejected','failed')),
     error TEXT,
@@ -221,6 +222,7 @@ CREATE TABLE IF NOT EXISTS assets (
     seed INTEGER,
     params TEXT,
     cost_usd REAL NOT NULL DEFAULT 0,
+    funding TEXT NOT NULL DEFAULT 'cash',
     status TEXT NOT NULL DEFAULT 'generating'
         CHECK (status IN ('generating','ready','validated','rejected','failed','superseded')),
     error TEXT,
@@ -232,6 +234,7 @@ CREATE TABLE IF NOT EXISTS jobs (
     target_table TEXT NOT NULL CHECK (target_table IN ('assets','character_assets')),
     target_id INTEGER NOT NULL,
     endpoint TEXT NOT NULL,
+    provider TEXT NOT NULL DEFAULT 'fal',
     request_id TEXT,
     status_url TEXT,
     response_url TEXT,
@@ -316,7 +319,24 @@ def init_db(conn: sqlite3.Connection) -> None:
     if has_tables and version < 2:
         _migrate_v2(conn)
     conn.executescript(SCHEMA)
+    _ensure_columns(conn)
     conn.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
+
+
+# Colonnes ajoutées après coup : ajoutées si elles manquent (sans effet sinon).
+LATER_COLUMNS = {
+    "jobs": [("provider", "TEXT NOT NULL DEFAULT 'fal'")],
+    "assets": [("funding", "TEXT NOT NULL DEFAULT 'cash'")],
+    "character_assets": [("funding", "TEXT NOT NULL DEFAULT 'cash'")],
+}
+
+
+def _ensure_columns(conn: sqlite3.Connection) -> None:
+    for table, cols in LATER_COLUMNS.items():
+        have = _columns(conn, table)
+        for name, decl in cols:
+            if name not in have:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {decl}")
 
 
 def _columns(conn: sqlite3.Connection, table: str) -> set[str]:
@@ -454,11 +474,12 @@ def next_asset_version(conn: sqlite3.Connection, shot_id: int, kind: str) -> int
     return int(r[0])
 
 
-def clip_cost(conn: sqlite3.Connection, slug: str) -> float:
+def clip_cost(conn: sqlite3.Connection, slug: str, funding: str = "cash") -> float:
+    """Dépense d'un clip : en argent ('cash', ce qui compte pour le budget) ou en crédits ('credits')."""
     r = conn.execute(
         "SELECT COALESCE(SUM(a.cost_usd),0) FROM assets a JOIN shots s ON s.id=a.shot_id "
-        "WHERE s.clip_slug=?",
-        (slug,),
+        "WHERE s.clip_slug=? AND a.funding=?",
+        (slug, funding),
     ).fetchone()
     return float(r[0])
 

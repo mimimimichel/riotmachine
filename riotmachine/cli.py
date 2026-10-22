@@ -155,6 +155,7 @@ def cmd_shot_retry(a) -> None:
 def cmd_route(a) -> None:
     conn = _conn()
     shot = db.get_shot(conn, a.shot)
+    shot["aspect_ratio"] = db.get_clip(conn, shot["clip_slug"])["aspect_ratio"]
     tier = a.tier or (shot.get("tier") if a.keep_tier else None)
     res = routing.route_shot(shot, force_tier=None if a.model else tier, model_key=a.model)
     prov = res["provider"]
@@ -165,6 +166,10 @@ def cmd_route(a) -> None:
                                route_reason=a.why or res["why"])
         res["applied"] = True
     out(res)
+
+
+def cmd_rodage(a) -> None:
+    out(production.rodage(_conn(), a.model))
 
 
 def cmd_providers(a) -> None:
@@ -466,6 +471,10 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--asset", type=int)
     sp.add_argument("--decision", choices=["keep", "reject", "canon"])
     sp.set_defaults(func=cmd_character)
+
+    sp = sub.add_parser("rodage", help="Carnet de rodage : ce que l'historique dit de chaque modèle vidéo")
+    sp.add_argument("--model")
+    sp.set_defaults(func=cmd_rodage)
 
     sp = sub.add_parser("providers", help="Fournisseurs vidéo branchés et modèles disponibles")
     sp.set_defaults(func=cmd_providers)

@@ -28,6 +28,12 @@ Langue de travail : **français** (les prompts envoyés aux modèles sont en ang
 
 ## La chaîne de production
 
+Le process complet, ses règles et ce qu'on a appris sont dans
+**`docs/PROCESS.md`** : c'est la référence. Les fournisseurs et leurs modèles sont
+dans `docs/FOURNISSEURS.md`. Quand tu constates une leçon durable (un modèle qui
+rate un type de plan, une formulation de prompt qui marche), ajoute une ligne
+datée à la section « Ce qu'on a appris » de `docs/PROCESS.md`.
+
 ```
 dossier du clip (morceau, voix, pitch, concept, dossier de réalisation, paroles) + découpage de Michael
   └─ script-doctor ─▶ blocs et plans complétés ─▶ [Michael valide le découpage]
@@ -86,6 +92,7 @@ riot shot show <id>                   # un plan + ADN et références des person
 riot shot set <id> --image-prompt ... --video-prompt ... --negative-prompt ... --framing ... --motion ...
 riot shots import <clip> <fichier.json>   # découpage en blocs (avant validation seulement)
 riot providers                        # fournisseurs branchés et modèles vidéo disponibles
+riot rodage [--model <clé>]           # carnet de rodage : résultats de chaque modèle vidéo
 riot route <id> --apply [--model <clé>] [--why "<raison montrée à Michael>"] [--tier …] [--keep-tier]
 riot model [<clé>]                    # config d'un modèle, dont son prompt_guide
 riot shot submit <id>                 # présente le plan vidéo à Michael (après routeur + prompteur)

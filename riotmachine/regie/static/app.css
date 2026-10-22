@@ -560,3 +560,6 @@ pre.text { white-space: pre-wrap; font-family: var(--mono); font-size: 12px; col
 .steps-mini i.c-work { background: var(--violet); }
 .steps-mini i.c-change { background: var(--magenta); }
 .steps-mini i.c-failed { background: var(--red); }
+
+table th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--dim); padding: 6px 10px; border-bottom: 1px solid var(--line); }
+table td { padding: 10px; border-bottom: 1px solid var(--line); vertical-align: top; }

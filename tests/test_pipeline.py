@@ -164,13 +164,15 @@ def test_full_clip(studio, tmp_path):
 def test_unplugged_provider_refused(studio, tmp_path):
     run("init")
     conn = db.connect()
-    assert [p["key"] for p in routing.providers() if p["usable"]] == ["fal"]
+    # en simulation, tout fournisseur branché dans le code est utilisable ; un fournisseur inconnu, jamais
+    assert {p["key"] for p in routing.providers() if p["usable"]} == {"fal", "vertex", "kling", "runway", "gemini"}
     production.create_clip(conn, "Fournisseurs", song=studio["song"], characters=["jj"])
     production.import_shots(conn, "fournisseurs", [{"t_start": 0, "t_end": 4, "description": "x", "characters": ["jj"]}])
     sid = conn.execute("SELECT id FROM shots").fetchone()["id"]
     conn.execute("UPDATE shots SET status='video_review', model_key='wan-3', video_prompt='x' WHERE id=?", (sid,))
     cfg = routing.models_cfg()
-    cfg["models"]["veo-test"] = {"kind": "video", "provider": "google", "label": "Veo", "endpoint": "x",
+    cfg["providers"]["luma"] = {"label": "Luma", "env": ["LUMA_KEY"]}
+    cfg["models"]["veo-test"] = {"kind": "video", "provider": "luma", "label": "Ray", "endpoint": "x",
                                  "output": "video.url", "price": {"per_second": 0.5}, "durations": [4, 8]}
     try:
         with pytest.raises(production.ProductionError):
@@ -179,6 +181,7 @@ def test_unplugged_provider_refused(studio, tmp_path):
         assert opts["veo-test"]["usable"] is False and opts["wan-3"]["usable"] is True
     finally:
         cfg["models"].pop("veo-test")
+        cfg["providers"].pop("luma")
 
 
 def test_migration_from_v1(studio, tmp_path):
@@ -219,7 +222,7 @@ def test_migration_from_v1(studio, tmp_path):
     old.close()
     conn = db.connect()
     db.init_db(conn)
-    assert conn.execute("PRAGMA user_version").fetchone()[0] == 2
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == db.SCHEMA_VERSION
     assert db.get_clip(conn, "ancien")["brief_ready"] == 1
     assert db.clip_cost(conn, "ancien") == 0.5
     conn.execute("INSERT INTO assets (shot_id,kind,version,status,created_at) VALUES (1,'image_hd',1,'ready','t')")

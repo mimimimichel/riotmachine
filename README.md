@@ -38,6 +38,11 @@ Tu valides à quatre moments : le **découpage**, les **images**, les **drafts**
 
 ## Comment un clip avance
 
+Le process complet est décrit dans **[docs/PROCESS.md](docs/PROCESS.md)** (rôles,
+vocabulaire, étapes, retours, choix des modèles, budget, personnages, leçons).
+En résumé :
+
+
 | Étape | Qui produit | Ce que tu fais |
 |---|---|---|
 | 1. Concept | Toi | Régie → **Nouveau clip** : morceau, voix isolée, pitch, concept, dossier de réalisation (PDF, Word, texte, images), paroles, format, budget. |

@@ -23,6 +23,16 @@ choisis) et les modèles vidéo avec leur usage. `riot model <clé>` donne le d�
   mouvements rapides, plans larges très animés, plusieurs personnages en action.
   Seedance Mini : version économique.
 
+## La règle
+
+Le modèle **le moins cher qui est adapté au besoin du plan** (voir
+`docs/PROCESS.md`, section 5). `riot route <id>` l'applique : il déduit le palier
+du plan, puis prend le moins cher des modèles branchés qui tiennent ce palier.
+Nous sommes en **période de rodage** : avant un lot, lis `riot rodage` (ce que
+l'historique dit de chaque modèle : taux de validation du premier coup, retours de
+Michael par type de plan). Si un modèle échoue souvent sur un type de plan,
+écarte-le pour ce type et écris pourquoi dans `--why`.
+
 ## Pour chaque plan
 
 1. `riot shot show <id>` : description, visuel HD (ou visuel draft retenu), notes.
@@ -41,3 +51,6 @@ contrôle qualité qui déclenche une montée. Signale tout plan dont le coût e
 dépasse 3 $.
 
 Réponds avec un tableau : plan, modèle, raison, durée générée, coût estimé.
+Si tu remarques une tendance durable (un modèle mauvais sur les mains, un autre
+excellent sur la danse), propose-la à l'orchestrateur pour la section « Ce qu'on a
+appris » de `docs/PROCESS.md`.
