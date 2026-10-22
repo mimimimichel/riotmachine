@@ -72,7 +72,8 @@ def cmd_clip_new(a) -> None:
     conn = _conn()
     clip = production.create_clip(
         conn, a.title, slug=a.slug, song=a.song, vocals=a.vocals, script_file=a.script, bpm=a.bpm,
-        aspect=a.aspect, budget_usd=a.budget, characters=a.characters or [],
+        aspect=a.aspect, budget_usd=a.budget, characters=a.characters or [], pitch=a.pitch,
+        concept=a.concept, dossier=a.dossier or [], lyrics_files=a.lyrics or [],
     )
     out(clip)
 
@@ -102,8 +103,7 @@ def cmd_casting(a) -> None:
 def cmd_shots_import(a) -> None:
     conn = _conn()
     data = json.loads(Path(a.file).read_text(encoding="utf-8"))
-    shots = data["shots"] if isinstance(data, dict) else data
-    n = production.import_shots(conn, a.clip, shots)
+    n = production.import_shots(conn, a.clip, data)
     out({"clip": a.clip, "plans_importes": n})
 
 
@@ -144,6 +144,10 @@ def cmd_shot_status(a) -> None:
     out({"shot": a.shot, "status": a.status})
 
 
+def cmd_shot_submit(a) -> None:
+    out(production.submit_video_plan(_conn(), a.shot))
+
+
 def cmd_shot_retry(a) -> None:
     out({"shot": a.shot, "status": production.retry_failed(_conn(), a.shot)})
 
@@ -152,16 +156,25 @@ def cmd_route(a) -> None:
     conn = _conn()
     shot = db.get_shot(conn, a.shot)
     tier = a.tier or (shot.get("tier") if a.keep_tier else None)
-    res = routing.route_shot(shot, force_tier=tier)
+    res = routing.route_shot(shot, force_tier=None if a.model else tier, model_key=a.model)
+    prov = res["provider"]
+    if not routing.provider_usable(prov):
+        raise ValueError(f"Le fournisseur {prov} n'est pas branché : choisis un modèle d'un fournisseur disponible")
     if a.apply:
-        production.update_shot(conn, a.shot, tier=res["tier"], model_key=a.model or res["model_key"])
+        production.update_shot(conn, a.shot, tier=res["tier"], model_key=res["model_key"],
+                               route_reason=a.why or res["why"])
         res["applied"] = True
     out(res)
 
 
+def cmd_providers(a) -> None:
+    out({"fournisseurs": routing.providers(), "modeles_video": routing.video_models()})
+
+
 def cmd_gen(a) -> None:
     conn = _conn()
-    launcher = {"image": production.launch_image, "draft": production.launch_draft,
+    launcher = {"image": production.launch_image, "hd": production.launch_image_hd,
+                "draft": production.launch_draft,
                 "final": production.launch_final, "lipsync": production.launch_lipsync}[a.kind]
     out(launcher(conn, a.shot, force=a.force))
 
@@ -222,6 +235,9 @@ def cmd_character(a) -> None:
     elif a.action == "validate":
         production.validate_character_version(conn, a.slug, a.version)
         out({"character": a.slug, "canon_version": a.version})
+    elif a.action == "pack-done":
+        production.pack_done(conn, a.slug, a.version)
+        out({"character": a.slug, "version": a.version, "pack": "done"})
 
 
 def cmd_model(a) -> None:
@@ -334,6 +350,10 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--aspect", default="16:9", choices=["16:9", "9:16", "1:1", "4:5"])
     sp.add_argument("--budget", type=float, help="Budget en dollars")
     sp.add_argument("--characters", nargs="*", help="Personnages castés (version canon)")
+    sp.add_argument("--pitch", help="Le pitch du clip en une ou deux phrases")
+    sp.add_argument("--concept", help="Le concept du clip")
+    sp.add_argument("--dossier", nargs="*", help="Dossier de réalisation : DA, storytelling, plans (pdf, docx, md, images)")
+    sp.add_argument("--lyrics", nargs="*", help="Fichier(s) de paroles")
     sp.set_defaults(func=cmd_clip_new)
     sp = clip.add_parser("show", help="État complet d'un clip (JSON)")
     sp.add_argument("clip")
@@ -385,6 +405,10 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("shot", type=int)
     sp.add_argument("status", choices=db.SHOT_STATUSES)
     sp.set_defaults(func=cmd_shot_status)
+    sp = shot.add_parser("submit", help="Présente le plan vidéo (modèle + prompt + coût) à Michael")
+    sp.add_argument("shot", type=int)
+    sp.set_defaults(func=cmd_shot_submit)
+
     sp = shot.add_parser("retry", help="Relance un plan en échec à l'étape qui a échoué")
     sp.add_argument("shot", type=int)
     sp.set_defaults(func=cmd_shot_retry)
@@ -393,12 +417,13 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("shot", type=int)
     sp.add_argument("--tier", choices=["eco", "standard", "premium"], help="Force un palier")
     sp.add_argument("--keep-tier", action="store_true", help="Garde le palier déjà enregistré")
-    sp.add_argument("--model", help="Force un modèle précis de config/models.yaml")
+    sp.add_argument("--model", help="Choisit un modèle précis de config/models.yaml")
+    sp.add_argument("--why", help="Raison du choix, montrée à Michael")
     sp.add_argument("--apply", action="store_true")
     sp.set_defaults(func=cmd_route)
 
     sp = sub.add_parser("gen", help="Lance une génération")
-    sp.add_argument("kind", choices=["image", "draft", "final", "lipsync"])
+    sp.add_argument("kind", choices=["image", "hd", "draft", "final", "lipsync"])
     sp.add_argument("shot", type=int)
     sp.add_argument("--force", action="store_true", help="Ignore le budget")
     sp.set_defaults(func=cmd_gen)
@@ -421,12 +446,13 @@ def build_parser() -> argparse.ArgumentParser:
     sp = sub.add_parser("decide", help="Décision de Michael (sinon : la régie)")
     sp.add_argument("target", choices=["decoupage", "shot"])
     sp.add_argument("id", help="slug du clip (découpage) ou id du plan")
-    sp.add_argument("decision", choices=["approve", "change"])
+    sp.add_argument("decision", choices=["approve", "change", "use_work_image"])
     sp.add_argument("--comment")
     sp.set_defaults(func=cmd_decide)
 
     sp = sub.add_parser("character", help="Référentiel des personnages")
-    sp.add_argument("action", choices=["list", "new", "show", "version", "sync", "gen", "pick", "validate"])
+    sp.add_argument("action", choices=["list", "new", "show", "version", "sync", "gen", "pick", "validate",
+                                       "pack-done"])
     sp.add_argument("slug", nargs="?")
     sp.add_argument("--name")
     sp.add_argument("--notes")
@@ -440,6 +466,9 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--asset", type=int)
     sp.add_argument("--decision", choices=["keep", "reject", "canon"])
     sp.set_defaults(func=cmd_character)
+
+    sp = sub.add_parser("providers", help="Fournisseurs vidéo branchés et modèles disponibles")
+    sp.set_defaults(func=cmd_providers)
 
     sp = sub.add_parser("model", help="Config d'un modèle (dont son guide de prompt), ou la liste")
     sp.add_argument("key", nargs="?")

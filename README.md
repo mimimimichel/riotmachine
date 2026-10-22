@@ -38,25 +38,32 @@ Tu valides à quatre moments : le **découpage**, les **images**, les **drafts**
 
 ## Comment un clip avance
 
-1. Dans la régie, **Nouveau clip** : morceau, piste voix isolée, format, budget, et
-   ton script avec **tes plans et leurs timecodes** (c'est toi qui les fixes en
-   écoutant le morceau), par exemple `Plan 1 — 0:00.0 → 0:04.2 — JJ chante face caméra`.
-2. Le `script-doctor` relit le script, reprend tes timecodes tels quels et complète
-   chaque plan (cadrage, mouvement, plan chanté ou non) → notification → tu valides
-   ou tu commentes. S'il manque des timecodes, il te le dit au lieu de les inventer,
-   et tu complètes ton script dans la régie.
-3. Le `storyboard` crée une image par plan, le `controleur` vérifie que c'est bien
-   JJ → tu valides ou tu demandes une modif.
-4. Le `routeur` choisit le palier, le `prompteur` écrit le prompt, un draft basse
-   résolution est généré, le `controleur` le vérifie → tu valides.
-5. Le rendu final part tout seul : upscale du draft validé (donc identique à ce que
-   tu as validé), puis lip-sync sur les plans chantés → tu valides.
-6. **Monter le clip** assemble la meilleure version de chaque plan sur le morceau,
-   à tout moment (dès le storyboard, ça donne une animatique).
+| Étape | Qui produit | Ce que tu fais |
+|---|---|---|
+| 1. Concept | Toi | Régie → **Nouveau clip** : morceau, voix isolée, pitch, concept, dossier de réalisation (PDF, Word, texte, images), paroles, format, budget. |
+| 2. Découpage | Toi, puis le `script-doctor` | Onglet **Découpage** : tes blocs (intro, couplet, refrain…) et les plans de chaque bloc avec leurs timecodes. Ou bien le découpage est dans ton dossier. Onglet **Dossier** → « Envoyer au script doctor ». Il complète chaque plan (cadrage, mouvement, plan chanté), tu valides. |
+| 3. Visuel draft | `storyboard` puis `controleur` | Tu valides chaque visuel, ou tu écris ce qu'il faut changer. |
+| 4. Visuel HD | Automatique | L'image validée est agrandie sans être redessinée. Le `controleur` vérifie qu'elle est fidèle ; tu n'es sollicité qu'en cas d'écart (comparateur à curseur). |
+| 5. Plan vidéo | `routeur` puis `prompteur` | Tu vois le fournisseur, le modèle, sa raison, le coût estimé et le prompt. Tu peux changer de modèle ou retoucher le prompt. Rien n'est dépensé avant ta validation. |
+| 6. Vidéo draft | Automatique, puis `controleur` | Tu valides la vidéo draft. |
+| 7. Vidéo HD + lip-sync | Automatique | Agrandissement de la draft validée, puis lip-sync des plans chantés. Tu valides le final. |
+| 8. Montage | Automatique | « Monter le clip » assemble la meilleure version de chaque plan sur le morceau, à tout moment. |
+
+Chaque plan avance à son rythme. Dans l'onglet **Plans**, la timeline du morceau
+montre les blocs et l'état de chaque plan ; les blocs se replient ; un clic sur
+un plan ouvre son détail avec ses six étapes (visuel draft, visuel HD, plan vidéo,
+vidéo draft, vidéo HD, lip-sync). « Prochain à valider » enchaîne les validations.
 
 Quand tu demandes une modif, écris simplement ce que tu veux. L'orchestrateur
-renvoie le plan au bon endroit : image (`storyboard`), mouvement (`prompteur`),
-rendu insuffisant (`routeur`, qui monte d'un palier) ou finition.
+renvoie le plan au bon endroit : visuel (`storyboard`), HD, mouvement
+(`prompteur`), rendu insuffisant (`routeur`, qui monte d'un palier) ou finition.
+
+## Les fournisseurs vidéo
+
+`config/models.yaml` déclare les fournisseurs. **fal.ai** est branché (une seule
+clé pour Kling, Seedance, Wan, MiniMax et les outils de finition). Kling en direct,
+Google Veo et Runway sont déclarés mais pas encore branchés : ils apparaissent
+grisés dans le choix du modèle. `riot providers` donne l'état de chacun.
 
 ## Les paliers et les coûts
 
@@ -80,6 +87,16 @@ préviennent s'il est atteint ; tu peux le changer dans la régie.
 
 ## Le référentiel des personnages
 
+Dans la régie, onglet **Personnages** :
+
+1. Tu déposes le **brouillon de la canon** (l'image que tu as faite).
+2. La **canon HD** est générée seule. Tu la compares au brouillon avec le curseur :
+   tu la valides, tu la fais refaire (avec l'autre outil d'agrandissement), ou tu
+   gardes le brouillon tel quel.
+3. Tu écris tes **instructions** pour le pack (angles, plans en pied, expressions,
+   lumières, tenues, détails) et tu lances le pack : le `directeur-casting` le génère.
+4. Tu gardes ou rejettes chaque image, puis tu **valides la version**.
+
 ```
 studio/characters/jj/
 ├── character.yaml        fiche (import initial)
@@ -97,7 +114,7 @@ studio/characters/jj/
 - Les agents proposent, toi seul choisis la canon et valides une version.
 - Un groupe (`studio/groups/`) référence des personnages et leurs versions.
 
-Pour créer ou améliorer un personnage : `/casting jj` dans Claude Code. Le brief
+Le brief
 `brief-v2.md` liste ce qu'il faut trancher pour la v2 de JJ (taches de rousseur,
 reflets, yeux) : les deux images actuelles ne décrivent pas tout à fait la même
 personne, c'est la première cause du manque de réalisme.
@@ -182,11 +199,11 @@ d'agent ni de dépense. `riot demo --reset` le supprime.
 
 | Je veux… | Où |
 |---|---|
-| démarrer un clip | régie → Nouveau clip (ou `/nouveau-clip` dans Claude Code) |
-| valider, commenter, comparer les versions | régie → le clip (filtre « À valider ») |
+| démarrer un clip | régie → Studio → Nouveau clip (ou `/nouveau-clip` dans Claude Code) |
+| valider, commenter, comparer les versions | régie → le clip → Plans (« Prochain à valider ») |
 | voir un plan dans le morceau | bouton « Lire dans le morceau » ou clic sur la bande |
 | un montage du clip | bouton « Monter le clip » |
-| créer ou faire évoluer un personnage | `/casting <nom>` dans Claude Code, puis régie → Personnages |
+| créer ou faire évoluer un personnage | régie → Personnages |
 | faire le point | `/etat` dans Claude Code, ou `riot status` |
 | relancer l'orchestrateur à la main | `/prod <clip>` dans Claude Code |
 

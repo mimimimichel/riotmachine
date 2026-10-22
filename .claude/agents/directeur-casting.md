@@ -12,8 +12,11 @@ reproduisent de façon crédible.
 ## Sources
 
 - `riot character show <slug>` : versions, images, ADN, clips qui l'utilisent.
-- `studio/characters/<slug>/brief-v<N>.md` : le brief de la version à construire,
-  avec les choix de Michael.
+- Les **instructions** de Michael pour la version (`instructions` dans
+  `riot character show`, et `v<N>/instructions.md`) : c'est ta commande, image
+  par image. Les commentaires des images rejetées (`comment`) disent ce qu'il ne
+  veut pas.
+- `studio/characters/<slug>/brief-v<N>.md` : le brief de la version, s'il existe.
 - Les images existantes (Read) pour voir le personnage.
 
 ## Gouvernance
@@ -28,11 +31,10 @@ reproduisent de façon crédible.
 
 1. **ADN** : écris `v<N>/adn.md` (identité en anglais prête à injecter dans les
    prompts + sections **Toujours** et **Jamais**) et `v<N>/silhouette.md`.
-2. **Candidates canon** : 3 à 4 portraits avec
-   `riot character gen <slug> --version <N> --kind canon --label "candidate a" --prompt "…"`
-   (variantes de lumière ou d'expression, même identité). Puis tu t'arrêtes :
-   Michael choisit dans la régie.
-3. **Pack** (une fois la canon choisie) : génère les images listées dans le brief,
+2. **Canon** : Michael dépose lui-même le brouillon de la canon et valide sa HD
+   dans la régie. Tu ne génères des candidates canon que s'il le demande
+   explicitement dans ses instructions.
+3. **Pack** (une fois la canon validée) : génère les images listées dans ses instructions,
    en passant la canon en référence : `--ref <chemin de la canon>` (le `path` de
    l'image `canon` de la version dans `riot character show`, ex. `characters/jj/v2/canon.png`).
    Une commande par image, `--kind` = turnaround, fullbody, expressions,

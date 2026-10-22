@@ -21,14 +21,38 @@ budget:
 
 qc:                           # contrôle automatique par un agent avant de te montrer
   images: true                # cohérence du personnage vs la canon
+  images_hd: true             # la HD est fidèle au visuel draft validé
   drafts: true                # anatomie, artefacts, respect du plan (sur 3 images clés)
   max_auto_retries:
     images: 2
+    images_hd: 1              # un deuxième essai avec l'autre outil, puis Michael tranche
     drafts: 1
 
 image:
-  storyboard: nano-banana-2   # images clés des plans
+  storyboard: nano-banana-2   # image de travail de chaque plan (1K, rapide, à valider)
   casting: nano-banana-pro    # pack de référence des personnages (plus haut de gamme)
+  upscale: topaz-image-hf     # passage en HD d'une image validée (plan ou canon), fidèle à l'original
+  upscale_fallback: seedvr-image   # deuxième essai si la HD s'écarte de l'original
+
+# Fournisseurs vidéo que le routeur peut choisir.
+# Un fournisseur est utilisable s'il est branché dans le code ET si sa clé est dans .env.
+providers:
+  fal:
+    label: fal.ai
+    env: FAL_KEY
+    note: Une seule clé pour Kling, Seedance, Wan, MiniMax et les outils de finition.
+  kling:
+    label: Kling AI (en direct)
+    env: KLING_ACCESS_KEY
+    note: À brancher. Compte et clé API sur klingai.com.
+  google:
+    label: Google Veo (en direct)
+    env: GEMINI_API_KEY
+    note: À brancher. Clé Google AI Studio ou Vertex AI.
+  runway:
+    label: Runway
+    env: RUNWAYML_API_SECRET
+    note: À brancher. Clé API sur dev.runwayml.com.
 
 lipsync: sync-lipsync-2-pro
 upscale: seedvr-1080p
@@ -72,6 +96,8 @@ routing:
 models:
   # ------------------------------------------------------------------ images
   nano-banana-2:
+    label: Nano Banana 2
+    provider: fal
     kind: image
     endpoint: fal-ai/nano-banana-2/edit
     output: images[0].url
@@ -84,6 +110,8 @@ models:
     final_params: {resolution: "2K"}
 
   nano-banana-pro:
+    label: Nano Banana Pro
+    provider: fal
     kind: image
     endpoint: fal-ai/nano-banana-pro/edit
     output: images[0].url
@@ -96,6 +124,8 @@ models:
     final_params: {resolution: "2K"}
 
   seedream-5-lite:
+    label: Seedream 5 Lite
+    provider: fal
     kind: image
     endpoint: fal-ai/bytedance/seedream/v5/lite/edit
     output: images[0].url
@@ -108,6 +138,9 @@ models:
 
   # ------------------------------------------------------------------ vidéo
   wan-3:
+    use_for: Plans calmes, gros plans, objets. Brouillon 480p puis agrandi.
+    label: Wan 3.0
+    provider: fal
     kind: video
     endpoint: alibaba/wan-3.0/image-to-video
     output: video.url
@@ -127,6 +160,9 @@ models:
       Éviter les longues listes d'adjectifs ; 40 à 80 mots.
 
   kling-3-standard:
+    use_for: Marche, gestes, cheveux et tissus en mouvement.
+    label: Kling 3 Standard
+    provider: fal
     kind: video
     endpoint: fal-ai/kling-video/v3/standard/image-to-video
     output: video.url
@@ -143,6 +179,9 @@ models:
       negative_prompt utile : "blur, distorted hands, extra fingers, morphing face, low quality".
 
   kling-3-pro:
+    use_for: Comme Kling Standard, rendu plus fin.
+    label: Kling 3 Pro
+    provider: fal
     kind: video
     endpoint: fal-ai/kling-video/v3/pro/image-to-video
     output: video.url
@@ -157,6 +196,9 @@ models:
       (riot shot set <id> --model kling-3-pro) quand standard ne suffit pas.
 
   seedance-2:
+    use_for: Danse, chorégraphie, plans larges très animés.
+    label: Seedance 2.0
+    provider: fal
     kind: video
     endpoint: bytedance/seedance-2.0/image-to-video
     output: video.url
@@ -177,6 +219,9 @@ models:
       Indiquer le tempo du morceau en mots ("energetic, on the beat", "slow sensual groove").
 
   seedance-2-mini:
+    use_for: Seedance en version économique.
+    label: Seedance 2.0 Mini
+    provider: fal
     kind: video
     endpoint: bytedance/seedance-2.0/mini/image-to-video
     output: video.url
@@ -193,6 +238,9 @@ models:
       Version économique de Seedance 2.0, mêmes conseils de prompt.
 
   minimax-h3:
+    use_for: Alternative économique pour les plans calmes.
+    label: MiniMax H3
+    provider: fal
     kind: video
     endpoint: minimax/h3/image-to-video
     output: video.url
@@ -208,7 +256,30 @@ models:
       MiniMax H3 : alternative économique à Wan pour les plans calmes.
 
   # ------------------------------------------------------------- finition
+  topaz-image-hf:
+    label: Topaz haute fidélité (image)
+    provider: fal
+    kind: upscale_image
+    endpoint: fal-ai/topaz/upscale/image
+    output: image.url
+    price: {per_image: 0.08}      # jusqu'à 24 Mpx en sortie (vérifié le 22/10/2026)
+    input: {image: image_url}
+    # face_enhancement coupé : il redessine les visages, donc change l'identité
+    defaults: {model: High Fidelity V2, upscale_factor: 2, face_enhancement: false, output_format: png}
+
+  seedvr-image:
+    label: SeedVR (image)
+    provider: fal
+    kind: upscale_image
+    endpoint: fal-ai/seedvr/upscale/image
+    output: image.url
+    price: {per_image: 0.01}      # 0,001 $ par mégapixel (vérifié le 22/10/2026)
+    input: {image: image_url}
+    defaults: {upscale_mode: factor, upscale_factor: 2, output_format: png}
+
   seedvr-1080p:
+    label: SeedVR (vidéo 1080p)
+    provider: fal
     kind: upscale
     endpoint: fal-ai/seedvr/upscale/video
     output: video.url
@@ -218,6 +289,8 @@ models:
     defaults: {upscale_mode: target, target_resolution: 1080p, output_format: "X264 (.mp4)"}
 
   topaz-2x:
+    label: Topaz (vidéo x2)
+    provider: fal
     kind: upscale
     endpoint: fal-ai/topaz/upscale/video
     output: video.url
@@ -226,6 +299,8 @@ models:
     defaults: {upscale_factor: 2, H264_output: true}
 
   sync-lipsync-2-pro:
+    label: Sync Lipsync 2 Pro
+    provider: fal
     kind: lipsync
     endpoint: fal-ai/sync-lipsync/v2
     output: video.url
@@ -234,6 +309,8 @@ models:
     defaults: {model: lipsync-2-pro, sync_mode: cut_off}
 
   sync-lipsync-2:
+    label: Sync Lipsync 2
+    provider: fal
     kind: lipsync
     endpoint: fal-ai/sync-lipsync/v2
     output: video.url

@@ -166,13 +166,67 @@ def shot_seconds(shot: dict[str, Any]) -> float:
     return max(0.5, float(shot["t_end"]) - float(shot["t_start"]))
 
 
-def route_shot(shot: dict[str, Any], force_tier: str | None = None) -> dict[str, Any]:
+# Fournisseurs dont l'appel est écrit dans le code. Les autres sont déclarés
+# dans models.yaml mais attendent leur branchement.
+IMPLEMENTED_PROVIDERS = {"fal"}
+
+
+def providers() -> list[dict[str, Any]]:
+    """État de chaque fournisseur : branché dans le code, clé présente, utilisable."""
+    import os
+    from .settings import get_settings
+    out = []
+    for key, cfg in (models_cfg().get("providers") or {}).items():
+        implemented = key in IMPLEMENTED_PROVIDERS
+        has_key = bool(os.environ.get(cfg.get("env", ""), ""))
+        simulated = key == "fal" and get_settings().fal_mock
+        out.append({
+            "key": key, "label": cfg.get("label", key), "note": cfg.get("note", ""), "env": cfg.get("env"),
+            "implemented": implemented, "has_key": has_key,
+            "usable": implemented and (has_key or simulated), "simulated": simulated,
+        })
+    return out
+
+
+def provider_usable(key: str) -> bool:
+    return any(p["key"] == key and p["usable"] for p in providers())
+
+
+def video_models() -> list[dict[str, Any]]:
+    tiers = {v["model"]: t for t, v in models_cfg()["tiers"].items()}
+    out = []
+    for key, cfg in models_cfg()["models"].items():
+        if cfg.get("kind") != "video":
+            continue
+        prov = cfg.get("provider", "fal")
+        out.append({"key": key, "label": cfg.get("label", key), "provider": prov,
+                    "use_for": cfg.get("use_for", ""), "tier": tiers.get(key),
+                    "usable": provider_usable(prov)})
+    return out
+
+
+def model_options(shot: dict[str, Any]) -> list[dict[str, Any]]:
+    """Chaque modèle vidéo avec son coût estimé pour ce plan (pour le choix de Michael)."""
+    opts = []
+    for m in video_models():
+        est = route_shot(shot, model_key=m["key"])
+        opts.append({**m, "cost_total_usd": est["cost_total_usd"], "duration": est["duration"]})
+    return opts
+
+
+def route_shot(shot: dict[str, Any], force_tier: str | None = None,
+               model_key: str | None = None) -> dict[str, Any]:
     """Résumé du routage d'un plan : palier, modèle, durée générée, coût estimé."""
-    if force_tier:
+    if model_key:
+        tiers = {v["model"]: t for t, v in models_cfg()["tiers"].items()}
+        tier, why = tiers.get(model_key, shot.get("tier") or "standard"), "modèle choisi"
+        key = model_key
+    elif force_tier:
         tier, why = force_tier, "palier forcé"
+        key = tier_model_key(tier)
     else:
         tier, why = classify(shot)
-    key = tier_model_key(tier)
+        key = tier_model_key(tier)
     cfg = model(key)
     seconds = shot_seconds(shot)
     duration = choose_duration(cfg, seconds)
@@ -181,6 +235,8 @@ def route_shot(shot: dict[str, Any], force_tier: str | None = None) -> dict[str,
     if final_mode == "upscale":
         up = model(models_cfg()["upscale"])
         final_cost = estimate_cost(up, duration, "final")
+    elif final_mode == "keep":
+        final_cost = 0.0   # la vidéo draft est déjà en qualité finale
     else:
         final_cost = estimate_cost(cfg, duration, "final")
     lipsync_cost = 0.0
@@ -190,6 +246,8 @@ def route_shot(shot: dict[str, Any], force_tier: str | None = None) -> dict[str,
         "tier": tier,
         "why": why,
         "model_key": key,
+        "model_label": cfg.get("label", key),
+        "provider": cfg.get("provider", "fal"),
         "duration": duration,
         "shot_seconds": round(seconds, 2),
         "final_mode": final_mode,

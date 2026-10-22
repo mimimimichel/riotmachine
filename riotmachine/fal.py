@@ -101,7 +101,7 @@ def result(response_url: str) -> dict[str, Any]:
         dur = q.get("dur", ["5"])[0]
         url = f"mock://{kind}?label={label}&dur={dur}"
         if kind == "image":
-            return {"images": [{"url": url}], "seed": 42}
+            return {"images": [{"url": url}], "image": {"url": url}, "seed": 42}
         return {"video": {"url": url}, "seed": 42}
     with httpx.Client(timeout=60) as client:
         r = client.get(response_url, headers=_headers())
@@ -134,9 +134,16 @@ def _mock_render(url: str, dest: Path) -> Path:
     kind = parsed.netloc or "video"
     text = f"drawtext=text='{label}':fontcolor=white:fontsize=36:x=(w-text_w)/2:y=(h-text_h)/2"
     if kind == "image":
+        # une teinte par plan (la HD garde celle de son visuel) pour que la démo se lise
+        import hashlib
+        base = label.replace(" HD", "").replace(" image", "")
+        palette = ["0x3b2a5c", "0x5c2a4f", "0x2a4a5c", "0x5c4a2a", "0x2a5c45", "0x4a2a5c", "0x5c3a2a", "0x2a3a5c"]
+        color = palette[int(hashlib.md5(base.encode()).hexdigest(), 16) % len(palette)]
+        size = "1920x1080" if label.endswith("HD") else "1280x720"
         cmd = [
             "ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi",
-            "-i", "color=c=0x30343c:s=1280x720", "-frames:v", "1", "-vf", text, str(dest),
+            "-i", f"gradients=s={size}:c0={color}:c1=0x0a0911:x0=0:y0=0:x1=1280:y1=720:d=1",
+            "-frames:v", "1", "-vf", text, str(dest),
         ]
     else:
         dur = q.get("dur", ["5"])[0]

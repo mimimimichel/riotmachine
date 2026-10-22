@@ -25,7 +25,7 @@ if [ ${#missing[@]} -gt 0 ]; then
 fi
 
 echo "== Environnement Python (.venv)"
-python3 -m venv .venv
+[ -x .venv/bin/pip ] || python3 -m venv .venv
 .venv/bin/pip install --quiet --upgrade pip
 .venv/bin/pip install --quiet -e .
 

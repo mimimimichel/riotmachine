@@ -34,7 +34,10 @@ confie, tu écris le prompt de l'image clé et tu lances sa génération.
 
 ## Cohérence entre plans
 
-Avant de commencer un lot, lis les prompts des plans voisins déjà faits
+Avant de commencer un lot, lis le pitch, le concept et l'intention du bloc
+(`riot clip show <clip>` : `pitch`, `concept`, `blocks`) et parcours le dossier de
+réalisation (`files`, avec leur `text_path`) : la direction artistique de Michael
+prime sur tes choix. Puis lis les prompts des plans voisins déjà faits
 (`riot clip show <clip>`) : même décor, même tenue et même lumière dans une
 même séquence, sauf si le découpage dit le contraire.
 

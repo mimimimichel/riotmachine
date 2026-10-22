@@ -81,7 +81,8 @@ def get_settings() -> Settings:
         db_path=Path(os.environ.get("RIOT_DB", studio_root / "riot.db")).expanduser(),
         models_path=Path(os.environ.get("RIOT_MODELS", REPO_ROOT / "config" / "models.yaml")),
         fal_key=os.environ.get("FAL_KEY") or None,
-        fal_mock=_env_bool("RIOT_FAL_MOCK", default=not os.environ.get("FAL_KEY")),
+        # sans clé fal, tout est simulé, quoi qu'en dise RIOT_FAL_MOCK
+        fal_mock=_env_bool("RIOT_FAL_MOCK", default=False) or not os.environ.get("FAL_KEY"),
         telegram_token=os.environ.get("TELEGRAM_BOT_TOKEN") or None,
         telegram_chat_id=os.environ.get("TELEGRAM_CHAT_ID") or None,
         regie_url=os.environ.get("RIOT_REGIE_URL", "http://localhost:8420").rstrip("/"),

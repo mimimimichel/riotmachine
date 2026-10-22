@@ -63,9 +63,11 @@ def poll_jobs(conn: sqlite3.Connection) -> int:
 
 
 def run_automatic_steps(conn: sqlite3.Connection) -> int:
-    """Étapes sans jugement : rendu final après validation du draft, puis lip-sync."""
+    """Étapes sans jugement : image HD, brouillon vidéo validé, rendu final, lip-sync."""
     launched = 0
-    for status, launcher in (("final_todo", production.launch_final),
+    for status, launcher in (("hd_todo", production.launch_image_hd),
+                             ("draft_todo", production.launch_draft),
+                             ("final_todo", production.launch_final),
                              ("lipsync_todo", production.launch_lipsync)):
         for r in conn.execute("SELECT id, clip_slug, num FROM shots WHERE status=? ORDER BY id", (status,)).fetchall():
             try:
@@ -89,6 +91,13 @@ def notify_reviews(conn: sqlite3.Connection) -> None:
         # même contenu = même clé : on ne renvoie que si la liste change
         key = f"review:{c['slug']}:{hashlib.sha1(text.encode()).hexdigest()[:12]}"
         notify.send_once(conn, key, text)
+    for r in conn.execute(
+            "SELECT cv.character_slug, cv.version, ca.id FROM character_assets ca "
+            "JOIN character_versions cv ON cv.id=ca.version_id "
+            "WHERE ca.kind='canon' AND ca.parent_id IS NOT NULL AND ca.status='proposed'").fetchall():
+        notify.send_once(conn, f"canon-hd:{r['id']}",
+                         f"🎭 Canon HD de <b>{r['character_slug']}</b> v{r['version']} prête : compare-la au brouillon.\n"
+                         + notify.regie_link(f"#/personnages/{r['character_slug']}"))
     _budget_alerts(conn)
 
 
@@ -149,37 +158,69 @@ def wake_agents(conn: sqlite3.Connection) -> list[str]:
     s = get_settings()
     if not s.agents_enabled:
         return []
+    global _claude_missing
+    _claude_missing = False
     woken = []
     for c in conn.execute("SELECT slug FROM clips WHERE stage!='done' ORDER BY updated_at").fetchall():
         need = production.needs_agent(conn, c["slug"])
         if not need["reasons"] or not _should_wake(conn, c["slug"], need):
             continue
-        log_path = s.logs_dir / f"agent-{c['slug']}-{db.now().replace(':', '')}.log"
-        log_path.parent.mkdir(parents=True, exist_ok=True)
-        cmd = [
-            s.claude_bin, "-p", f"/prod {c['slug']}",
-            "--permission-mode", "acceptEdits",
-            "--allowedTools", "Bash(riot *),Bash(ffmpeg *),Bash(ffprobe *),Read,Write,Edit,Glob,Grep,Agent,Task",
-            "--output-format", "text",
-        ]
-        if s.claude_model:
-            cmd += ["--model", s.claude_model]
-        log = log_path.open("w", encoding="utf-8")
-        log.write(f"# {' '.join(cmd)}\n# raisons : {need['reasons']}\n\n")
-        log.flush()
-        try:
-            proc = subprocess.Popen(cmd, cwd=s.repo_root, stdout=log, stderr=subprocess.STDOUT,
-                                    env=_agent_env(), start_new_session=True)
-        except FileNotFoundError:
-            notify.send_once(conn, "claude-missing", "⚠️ Claude Code introuvable : installe-le et connecte-toi (claude puis /login).")
-            log.close()
+        if _launch_claude(conn, c["slug"], f"/prod {c['slug']}", need["reasons"], need["fingerprint"]):
+            woken.append(c["slug"])
+        elif _claude_missing:
             return woken
-        cur = conn.execute(
-            "INSERT INTO agent_runs (clip_slug, reason, fingerprint, pid, log_path, started_at) VALUES (?,?,?,?,?,?)",
-            (c["slug"], "; ".join(need["reasons"]), need["fingerprint"], proc.pid, str(log_path), db.now()),
-        )
-        _running[cur.lastrowid] = (proc, c["slug"])
-        woken.append(c["slug"])
+    return woken
+
+
+_claude_missing = False
+
+
+def _launch_claude(conn: sqlite3.Connection, key: str, prompt: str, reasons: list[str], fingerprint: str) -> bool:
+    global _claude_missing
+    s = get_settings()
+    log_path = s.logs_dir / f"agent-{key.replace(':', '-')}-{db.now().replace(':', '')}.log"
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    cmd = [
+        s.claude_bin, "-p", prompt,
+        "--permission-mode", "acceptEdits",
+        "--allowedTools", "Bash(riot *),Bash(ffmpeg *),Bash(ffprobe *),Read,Write,Edit,Glob,Grep,Agent,Task",
+        "--output-format", "text",
+    ]
+    if s.claude_model:
+        cmd += ["--model", s.claude_model]
+    log = log_path.open("w", encoding="utf-8")
+    log.write(f"# {' '.join(cmd)}\n# raisons : {reasons}\n\n")
+    log.flush()
+    try:
+        proc = subprocess.Popen(cmd, cwd=s.repo_root, stdout=log, stderr=subprocess.STDOUT,
+                                env=_agent_env(), start_new_session=True)
+    except FileNotFoundError:
+        notify.send_once(conn, "claude-missing", "⚠️ Claude Code introuvable : installe-le et connecte-toi (claude puis /login).")
+        log.close()
+        _claude_missing = True
+        return False
+    cur = conn.execute(
+        "INSERT INTO agent_runs (clip_slug, reason, fingerprint, pid, log_path, started_at) VALUES (?,?,?,?,?,?)",
+        (key, "; ".join(reasons), fingerprint, proc.pid, str(log_path), db.now()),
+    )
+    _running[cur.lastrowid] = (proc, key)
+    return True
+
+
+def wake_casting(conn: sqlite3.Connection) -> list[str]:
+    """Réveille /casting quand Michael a demandé le pack d'un personnage."""
+    s = get_settings()
+    if not s.agents_enabled:
+        return []
+    woken = []
+    for need in production.characters_needing_agent(conn):
+        key = f"personnage:{need['slug']}"
+        need = {**need, "retry_on_backoff": False}
+        if not _should_wake(conn, key, need):
+            continue
+        if _launch_claude(conn, key, f"/casting {need['slug']}", [f"pack demandé v{need['version']}"],
+                          need["fingerprint"]):
+            woken.append(key)
     return woken
 
 
@@ -187,7 +228,7 @@ def tick(conn: sqlite3.Connection, wake: bool = True) -> dict:
     out = {"jobs_done": poll_jobs(conn), "auto_launched": run_automatic_steps(conn)}
     notify_reviews(conn)
     _reap_agents(conn)
-    out["agents"] = wake_agents(conn) if wake else []
+    out["agents"] = (wake_agents(conn) + wake_casting(conn)) if wake else []
     return out
 
 

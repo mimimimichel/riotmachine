@@ -17,43 +17,60 @@ from typing import Any, Iterator
 
 from .settings import get_settings
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 # --- Cycle de vie ---------------------------------------------------------
 
 CLIP_STAGES = [
-    "script",            # script + morceau déposés, en attente du script doctor
-    "decoupage_review",  # découpage proposé, attend Michael (porte A)
-    "production",        # plans en production (storyboard -> drafts -> finals)
+    "script",            # concept, dossier, paroles et découpage en préparation
+    "decoupage_review",  # découpage (blocs et plans) complété, attend Michael
+    "production",        # plans en production (images -> vidéos -> finals)
     "done",              # tous les plans validés en final
 ]
 
 SHOT_STATUSES = [
-    "image_todo",        # le storyboard doit écrire le prompt et lancer l'image
-    "image_gen",         # génération image en cours
+    "image_todo",        # le storyboard doit écrire le prompt et lancer l'image de travail
+    "image_gen",         # génération de l'image de travail en cours
     "image_qc",          # contrôle cohérence personnage par l'agent
-    "image_review",      # attend Michael (porte B)
-    "prompt_todo",       # image validée : routeur + prompteur doivent lancer le draft
-    "draft_gen",         # draft vidéo en cours
-    "draft_qc",          # contrôle du draft par l'agent (si activé)
-    "draft_review",      # attend Michael (porte C)
-    "final_todo",        # draft validé : rendu final à lancer (automatique)
+    "image_review",      # attend Michael : image de travail
+    "hd_todo",           # image validée : passage en haute définition (automatique)
+    "hd_gen",            # agrandissement en cours
+    "hd_qc",             # l'agent vérifie que la HD est fidèle à l'image validée
+    "hd_review",         # écart signalé sur la HD : Michael tranche
+    "prompt_todo",       # routeur (fournisseur + modèle) puis prompteur (prompt vidéo)
+    "video_review",      # attend Michael : prompt, modèle et coût avant toute dépense vidéo
+    "draft_todo",        # plan vidéo validé : brouillon à lancer (automatique)
+    "draft_gen",         # brouillon vidéo en cours
+    "draft_qc",          # contrôle du brouillon par l'agent
+    "draft_review",      # attend Michael : brouillon vidéo
+    "final_todo",        # brouillon validé : rendu final à lancer (automatique)
     "final_gen",         # rendu final / upscale en cours
     "lipsync_todo",      # plan chanté : lip-sync à lancer (automatique)
     "lipsync_gen",       # lip-sync en cours
-    "final_review",      # attend Michael (porte D)
+    "final_review",      # attend Michael : final
     "done",              # validé
     "change_requested",  # Michael a demandé une modif, à trier par l'orchestrateur
     "failed",            # erreur à traiter
 ]
 
-REVIEW_STATUSES = {"image_review": "images", "draft_review": "drafts", "final_review": "finals"}
+REVIEW_STATUSES = {
+    "image_review": "images",
+    "hd_review": "hd",
+    "video_review": "videoplan",
+    "draft_review": "drafts",
+    "final_review": "finals",
+}
 
 # Statuts qui demandent un agent Claude (le worker réveille l'orchestrateur)
-AGENT_STATUSES = {"image_todo", "image_qc", "prompt_todo", "draft_qc", "change_requested", "failed"}
+AGENT_STATUSES = ("image_todo", "image_qc", "hd_qc", "prompt_todo", "draft_qc", "change_requested", "failed")
+
+# Statuts traités par le worker sans jugement
+AUTO_STATUSES = ("hd_todo", "draft_todo", "final_todo", "lipsync_todo")
 
 FRAMINGS = ["ECU", "CU", "MCU", "MS", "MWS", "WS", "EWS"]
 MOTIONS = ["static", "low", "medium", "high"]
+
+CLIP_FILE_KINDS = ["song", "vocals", "dossier", "lyrics", "reference"]
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS characters (
@@ -71,6 +88,8 @@ CREATE TABLE IF NOT EXISTS character_versions (
     status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','validated','archived')),
     dir TEXT NOT NULL,
     notes TEXT,
+    instructions TEXT,
+    pack_status TEXT NOT NULL DEFAULT 'none',
     created_at TEXT NOT NULL,
     UNIQUE (character_slug, version)
 );
@@ -88,6 +107,8 @@ CREATE TABLE IF NOT EXISTS character_assets (
     status TEXT NOT NULL DEFAULT 'proposed'
         CHECK (status IN ('generating','proposed','kept','rejected','failed')),
     error TEXT,
+    parent_id INTEGER,
+    comment TEXT,
     created_at TEXT NOT NULL
 );
 
@@ -126,8 +147,30 @@ CREATE TABLE IF NOT EXISTS clips (
     duration_s REAL,
     aspect_ratio TEXT NOT NULL DEFAULT '16:9',
     budget_usd REAL,
+    pitch TEXT,
+    concept TEXT,
+    brief_ready INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS clip_files (
+    id INTEGER PRIMARY KEY,
+    clip_slug TEXT NOT NULL REFERENCES clips(slug),
+    kind TEXT NOT NULL,
+    label TEXT,
+    path TEXT NOT NULL,
+    text_path TEXT,
+    created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS blocks (
+    id INTEGER PRIMARY KEY,
+    clip_slug TEXT NOT NULL REFERENCES clips(slug),
+    num INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    intention TEXT,
+    UNIQUE (clip_slug, num)
 );
 
 CREATE TABLE IF NOT EXISTS castings (
@@ -142,6 +185,7 @@ CREATE TABLE IF NOT EXISTS shots (
     id INTEGER PRIMARY KEY,
     clip_slug TEXT NOT NULL REFERENCES clips(slug),
     num INTEGER NOT NULL,
+    block_id INTEGER,
     section TEXT,
     t_start REAL NOT NULL,
     t_end REAL NOT NULL,
@@ -153,6 +197,7 @@ CREATE TABLE IF NOT EXISTS shots (
     singing INTEGER NOT NULL DEFAULT 0,
     tier TEXT,
     model_key TEXT,
+    route_reason TEXT,
     seed INTEGER,
     image_prompt TEXT,
     video_prompt TEXT,
@@ -167,7 +212,7 @@ CREATE TABLE IF NOT EXISTS shots (
 CREATE TABLE IF NOT EXISTS assets (
     id INTEGER PRIMARY KEY,
     shot_id INTEGER NOT NULL REFERENCES shots(id),
-    kind TEXT NOT NULL CHECK (kind IN ('image','draft','final','lipsync')),
+    kind TEXT NOT NULL CHECK (kind IN ('image','image_hd','draft','final','lipsync')),
     version INTEGER NOT NULL,
     path TEXT,
     remote_url TEXT,
@@ -203,7 +248,7 @@ CREATE TABLE IF NOT EXISTS reviews (
     clip_slug TEXT NOT NULL,
     shot_id INTEGER,
     asset_id INTEGER,
-    gate TEXT NOT NULL CHECK (gate IN ('decoupage','images','drafts','finals','casting')),
+    gate TEXT NOT NULL CHECK (gate IN ('decoupage','images','hd','videoplan','drafts','finals','casting')),
     decision TEXT NOT NULL CHECK (decision IN ('approve','change')),
     comment TEXT,
     route TEXT,
@@ -266,8 +311,57 @@ def connect(path: Path | None = None) -> sqlite3.Connection:
 
 
 def init_db(conn: sqlite3.Connection) -> None:
+    version = conn.execute("PRAGMA user_version").fetchone()[0]
+    has_tables = conn.execute("SELECT 1 FROM sqlite_master WHERE name='clips'").fetchone()
+    if has_tables and version < 2:
+        _migrate_v2(conn)
     conn.executescript(SCHEMA)
     conn.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
+
+
+def _columns(conn: sqlite3.Connection, table: str) -> set[str]:
+    return {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
+
+
+def _rebuild(conn: sqlite3.Connection, table: str, old: str, new: str) -> None:
+    """Remplace une contrainte CHECK en recréant la table (SQLite ne sait pas la modifier)."""
+    sql = conn.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name=?", (table,)).fetchone()[0]
+    if new in sql:
+        return
+    cols = ", ".join(_columns(conn, table))
+    conn.execute(f"ALTER TABLE {table} RENAME TO {table}_old")
+    conn.execute(sql.replace(old, new))
+    conn.execute(f"INSERT INTO {table} ({cols}) SELECT {cols} FROM {table}_old")
+    conn.execute(f"DROP TABLE {table}_old")
+
+
+def _migrate_v2(conn: sqlite3.Connection) -> None:
+    """Passage au schéma 2 : blocs, dossier du clip, image HD, plan vidéo, canon HD."""
+    conn.execute("PRAGMA foreign_keys=OFF")
+    conn.execute("BEGIN IMMEDIATE")
+    try:
+        add = {
+            "clips": [("pitch", "TEXT"), ("concept", "TEXT"), ("brief_ready", "INTEGER NOT NULL DEFAULT 0")],
+            "shots": [("block_id", "INTEGER"), ("route_reason", "TEXT")],
+            "character_versions": [("instructions", "TEXT"), ("pack_status", "TEXT NOT NULL DEFAULT 'none'")],
+            "character_assets": [("parent_id", "INTEGER"), ("comment", "TEXT")],
+        }
+        for table, cols in add.items():
+            have = _columns(conn, table)
+            for name, decl in cols:
+                if name not in have:
+                    conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {decl}")
+        _rebuild(conn, "assets", "('image','draft','final','lipsync')", "('image','image_hd','draft','final','lipsync')")
+        _rebuild(conn, "reviews", "('decoupage','images','drafts','finals','casting')",
+                 "('decoupage','images','hd','videoplan','drafts','finals','casting')")
+        # Un clip existant déjà découpé a forcément été envoyé au script doctor
+        conn.execute("UPDATE clips SET brief_ready=1 WHERE script_path IS NOT NULL")
+        conn.execute("COMMIT")
+    except BaseException:
+        conn.execute("ROLLBACK")
+        raise
+    finally:
+        conn.execute("PRAGMA foreign_keys=ON")
 
 
 @contextmanager

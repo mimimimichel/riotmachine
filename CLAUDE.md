@@ -29,26 +29,35 @@ Langue de travail : **français** (les prompts envoyés aux modèles sont en ang
 ## La chaîne de production
 
 ```
-script + morceau
-  └─ script-doctor ─▶ découpage en plans ─▶ [Michael valide le découpage]
-       └─ storyboard ─▶ image clé de chaque plan ─▶ controleur ─▶ [Michael valide les images]
-            └─ routeur (modèle) ─▶ prompteur (prompt vidéo) ─▶ draft 480p ─▶ controleur ─▶ [Michael valide les drafts]
-                 └─ automatique : rendu final (upscale) + lip-sync des plans chantés ─▶ [Michael valide les finals]
-                      └─ montage sur le morceau (riot assemble)
+dossier du clip (morceau, voix, pitch, concept, dossier de réalisation, paroles) + découpage de Michael
+  └─ script-doctor ─▶ blocs et plans complétés ─▶ [Michael valide le découpage]
+       └─ storyboard ─▶ visuel draft ─▶ controleur ─▶ [Michael valide le visuel]
+            └─ automatique : visuel HD (agrandissement fidèle) ─▶ controleur (fidélité) ─▶ [Michael seulement en cas d'écart]
+                 └─ routeur (fournisseur + modèle) ─▶ prompteur (prompt vidéo) ─▶ riot shot submit
+                      └─ [Michael valide le plan vidéo : prompt, modèle, coût] ─ rien n'est dépensé avant
+                           └─ automatique : vidéo draft ─▶ controleur ─▶ [Michael valide la vidéo draft]
+                                └─ automatique : vidéo HD + lip-sync des plans chantés ─▶ [Michael valide le final]
+                                     └─ montage sur le morceau (riot assemble)
 ```
+
+Un clip compte souvent des dizaines de plans (60 et plus), regroupés en **blocs**
+(intro, couplet 1, refrain…). Chaque plan avance à son rythme, plan par plan.
 
 Statuts d'un plan et qui s'en occupe :
 
 | Statut | Qui agit |
 |---|---|
 | `image_todo` | agent **storyboard** : écrit le prompt image, lance `riot gen image` |
-| `image_gen`, `draft_gen`, `final_gen`, `lipsync_gen` | le worker attend fal (rien à faire) |
-| `image_qc`, `draft_qc` | agent **controleur** : `riot qc pass|fail` |
-| `image_review`, `draft_review`, `final_review` | **Michael**, dans la régie (rien à faire) |
-| `prompt_todo` | agent **routeur** puis agent **prompteur**, puis toi : `riot gen draft` |
-| `final_todo`, `lipsync_todo` | le worker, automatiquement |
+| `image_gen`, `hd_gen`, `draft_gen`, `final_gen`, `lipsync_gen` | le worker attend le fournisseur (rien à faire) |
+| `image_qc`, `hd_qc`, `draft_qc` | agent **controleur** : `riot qc pass|fail` |
+| `image_review`, `hd_review`, `video_review`, `draft_review`, `final_review` | **Michael**, dans la régie (rien à faire) |
+| `hd_todo`, `draft_todo`, `final_todo`, `lipsync_todo` | le worker, automatiquement |
+| `prompt_todo` | agent **routeur** puis agent **prompteur**, puis toi : `riot shot submit <id>` |
 | `change_requested` | **toi** : tu tries le retour de Michael (voir plus bas) |
-| `failed` | **toi**, avec l'agent **finition** si c'est un rendu final ou un lip-sync |
+| `failed` | **toi**, avec l'agent **finition** si c'est une vidéo HD ou un lip-sync |
+
+Tu ne lances **jamais** `riot gen draft` toi-même : la vidéo ne part qu'après la
+validation du plan vidéo par Michael, et c'est le worker qui la lance.
 
 ## Trier un retour de Michael
 
@@ -57,33 +66,37 @@ route, puis `riot review handle <id> --route <route> --note "<ce que tu as compr
 
 | Route | Quand |
 |---|---|
-| `storyboard` | l'image ne va pas : composition, décor, tenue, visage, lumière |
+| `storyboard` | le visuel ne va pas : composition, décor, tenue, visage, lumière |
+| `hd` | seule la HD a perdu ou changé quelque chose : on refait l'agrandissement |
 | `prompteur` | le mouvement, l'action ou la caméra ne vont pas |
-| `routeur` | le rendu est techniquement insuffisant (mains, morphing, flou) : on monte d'un palier |
-| `finition` | seul le rendu final ou le lip-sync pose problème |
+| `routeur` | le rendu est techniquement insuffisant (mains, morphing, flou), ou Michael conteste le modèle |
+| `finition` | seul le rendu HD ou le lip-sync pose problème |
 | `script` | le plan lui-même change (idée, durée) : mets à jour description et timecodes |
 
-Ensuite, dans le même passage, fais avancer le plan (il repasse en `image_todo` ou
-`prompt_todo`). Le commentaire de Michael est recopié dans `notes` du plan : les
-agents doivent le lire et en tenir compte.
+Ensuite, dans le même passage, fais avancer le plan. Après `prompteur` ou
+`routeur`, le plan repasse par la validation du plan vidéo (`riot shot submit`).
+Le commentaire de Michael est recopié dans `notes` du plan : les agents doivent le
+lire et en tenir compte.
 
 ## La CLI `riot` (aide-mémoire)
 
 ```
-riot clip show <clip>                 # état complet (JSON) : plans, casting, retours, needs_agent
+riot clip show <clip> [--full]        # état complet (JSON) : blocs, plans, fichiers, retours, needs_agent
 riot shot show <id>                   # un plan + ADN et références des personnages castés
 riot shot set <id> --image-prompt ... --video-prompt ... --negative-prompt ... --framing ... --motion ...
-riot shots import <clip> <fichier.json>   # découpage (avant validation seulement)
-riot route <id> --apply [--tier eco|standard|premium] [--keep-tier] [--model <clé>]
+riot shots import <clip> <fichier.json>   # découpage en blocs (avant validation seulement)
+riot providers                        # fournisseurs branchés et modèles vidéo disponibles
+riot route <id> --apply [--model <clé>] [--why "<raison montrée à Michael>"] [--tier …] [--keep-tier]
 riot model [<clé>]                    # config d'un modèle, dont son prompt_guide
-riot gen image|draft|final|lipsync <id>
+riot shot submit <id>                 # présente le plan vidéo à Michael (après routeur + prompteur)
+riot gen image <id>                   # visuel draft (les autres générations sont automatiques)
 riot qc pass|fail|frames <id> [--note ...]
 riot review list --clip <clip> | riot review handle <id> --route <route> --note ...
 riot shot retry <id>                  # relance un plan en échec
 riot clip stage <clip> <étape>        # script | decoupage_review | production | done
 riot notify "<message>"               # message Telegram à Michael
 riot cost <clip> | riot events --clip <clip>
-riot character show <slug> | riot character version <slug> | riot character gen <slug> ...
+riot character show <slug> | riot character gen <slug> ... | riot character pack-done <slug> --version N
 ```
 
 ## Où sont les choses
@@ -91,8 +104,10 @@ riot character show <slug> | riot character version <slug> | riot character gen 
 - `studio/characters/<slug>/` : référentiel des personnages. `v<N>/` = une version
   (canon.*, adn.md, silhouette.md, turnaround/, fullbody/, expressions/, lighting/,
   details/), `looks/<look>/` = tenues et styles, `brief-v*.md` = briefs de casting.
-- `studio/clips/<clip>/` : `song/` (master + voix), `script/`, `storyboard/`,
-  `drafts/`, `finals/`, `montage/`, `work/`.
+- `studio/clips/<clip>/` : `song/` (master + voix), `dossier/` (dossier de
+  réalisation déposé par Michael ; chaque document a une version `.txt` à côté),
+  `script/` (paroles.md, notes.md, shots.json), `storyboard/` (visuels draft et
+  `-hd`), `drafts/`, `finals/`, `montage/`, `work/`.
 - `config/models.yaml` : modèles, prix, règles de routage, guides de prompt.
 - `studio/groups/` : compositions de groupes (quels personnages, quelles versions).
 

@@ -22,7 +22,10 @@
       "Bash(git push *)",
       "Read(.env)",
       "Edit(config/**)",
-      "Write(config/**)"
+      "Write(config/**)",
+      "Bash(riot gen draft *)",
+      "Bash(riot gen final *)",
+      "Bash(riot gen lipsync *)"
     ]
   }
 }

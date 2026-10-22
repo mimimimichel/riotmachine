@@ -1,64 +1,110 @@
 "use strict";
 
-/* Régie Riot Machine — page unique, sans dépendance. */
+/* Régie Riot Machine — page unique, sans dépendance.
+   Pages : Studio (les clips), un clip (Plans, Dossier, Découpage, Journal),
+   Personnages, Nouveau clip. Le détail d'un plan s'ouvre dans un panneau. */
 
+/* ---------- vocabulaire ---------- */
+
+const STEPS = [
+  { key: "image", label: "Visuel draft", kinds: ["image"], gate: "images" },
+  { key: "hd", label: "Visuel HD", kinds: ["image_hd"], gate: "hd" },
+  { key: "plan", label: "Plan vidéo", kinds: [], gate: "videoplan" },
+  { key: "draft", label: "Vidéo draft", kinds: ["draft"], gate: "drafts" },
+  { key: "final", label: "Vidéo HD", kinds: ["final"], gate: "finals" },
+  { key: "lipsync", label: "Lip-sync", kinds: ["lipsync"], gate: "finals", singing: true },
+];
+const STEP_INDEX = Object.fromEntries(STEPS.map((s, i) => [s.key, i]));
+
+// statut -> [libellé, état, étape]
 const STATUS = {
-  image_todo: ["Storyboard à faire", "work"],
-  image_gen: ["Image en cours", "work"],
-  image_qc: ["Contrôle de l'image", "work"],
-  image_review: ["Image à valider", "review"],
-  prompt_todo: ["Prompt vidéo à écrire", "work"],
-  draft_gen: ["Draft en cours", "work"],
-  draft_qc: ["Contrôle du draft", "work"],
-  draft_review: ["Draft à valider", "review"],
-  final_todo: ["Rendu final en cours", "work"],
-  final_gen: ["Rendu final en cours", "work"],
-  lipsync_todo: ["Lip-sync en cours", "work"],
-  lipsync_gen: ["Lip-sync en cours", "work"],
-  final_review: ["Final à valider", "review"],
-  done: ["Validé", "done"],
-  change_requested: ["Modif demandée", "change"],
-  failed: ["En échec", "failed"],
+  image_todo: ["Storyboard en préparation", "work", "image"],
+  image_gen: ["Visuel en génération", "work", "image"],
+  image_qc: ["Contrôle du visuel", "work", "image"],
+  image_review: ["Visuel à valider", "review", "image"],
+  hd_todo: ["Passage en HD", "work", "hd"],
+  hd_gen: ["Passage en HD", "work", "hd"],
+  hd_qc: ["Contrôle de la HD", "work", "hd"],
+  hd_review: ["HD à vérifier", "review", "hd"],
+  prompt_todo: ["Prompt et modèle en préparation", "work", "plan"],
+  video_review: ["Plan vidéo à valider", "review", "plan"],
+  draft_todo: ["Vidéo draft lancée", "work", "draft"],
+  draft_gen: ["Vidéo draft en génération", "work", "draft"],
+  draft_qc: ["Contrôle de la vidéo", "work", "draft"],
+  draft_review: ["Vidéo draft à valider", "review", "draft"],
+  final_todo: ["Vidéo HD lancée", "work", "final"],
+  final_gen: ["Vidéo HD en génération", "work", "final"],
+  lipsync_todo: ["Lip-sync lancé", "work", "lipsync"],
+  lipsync_gen: ["Lip-sync en génération", "work", "lipsync"],
+  final_review: ["Final à valider", "review", "final"],
+  done: ["Terminé", "done", "final"],
+  change_requested: ["Modif demandée", "change", null],
+  failed: ["En échec", "failed", null],
 };
-const STAGE = {
-  script: "Découpage en préparation",
-  decoupage_review: "Découpage à valider",
-  production: "En production",
-  done: "Terminé",
+const GATE_STEP = { images: "image", hd: "hd", videoplan: "plan", drafts: "draft", finals: "final" };
+const KIND_STEP = { image: "image", image_hd: "hd", draft: "draft", final: "final", lipsync: "lipsync" };
+const STAGE_LABEL = {
+  script: ["Préparation", "wait"],
+  decoupage_review: ["Découpage à valider", "review"],
+  production: ["En production", "work"],
+  done: ["Terminé", "done"],
 };
-const GATE_OF = { image_review: "images", draft_review: "drafts", final_review: "finals" };
-const GATE_LABEL = { images: "les images", drafts: "les drafts", finals: "les finals" };
-const APPROVE_ALL_LABEL = { images: "Valider toutes les images", drafts: "Valider tous les drafts", finals: "Valider tous les finals" };
-const KIND_ORDER = { image: 0, draft: 1, final: 2, lipsync: 3 };
-const KIND_LABEL = { image: "Image", draft: "Draft", final: "Final", lipsync: "Lip-sync" };
-const CHAR_KINDS = ["canon", "turnaround", "fullbody", "expressions", "lighting", "details"];
+const APPROVE_LABEL = {
+  images: ["Valider le visuel", "visuels"],
+  hd: ["Valider la HD", "visuels HD"],
+  videoplan: ["Valider et lancer la vidéo", "plans vidéo"],
+  drafts: ["Valider la vidéo draft", "vidéos draft"],
+  finals: ["Valider le final", "finals"],
+};
 const CHAR_KIND_LABEL = {
-  canon: "Canon", turnaround: "Angles", fullbody: "Silhouette", expressions: "Expressions",
+  canon: "Candidates canon", turnaround: "Angles", fullbody: "Silhouette", expressions: "Expressions",
   lighting: "Lumières", details: "Détails",
 };
+const FILE_ICON = { pdf: "PDF", docx: "DOC", md: "MD", txt: "TXT", png: "IMG", jpg: "IMG", jpeg: "IMG", webp: "IMG", mp3: "♪", wav: "♪", m4a: "♪" };
 
-const state = { route: "", data: null, filter: "review", picked: {}, refreshTimer: null, lastJson: "" };
+/* ---------- état ---------- */
+
+const state = {
+  clip: null, clipJson: "", tab: "plans", shotId: null, step: null, filter: "all", stepFilter: null,
+  picked: {}, peaks: {}, timer: null, overview: null, editor: null, editorDirty: false,
+  character: null, charVersion: null, tempOpen: {}, confirmKey: null,
+};
 const $view = document.getElementById("view");
+const $drawer = document.getElementById("drawer");
+const song = document.createElement("audio");
+song.preload = "metadata";
+document.body.appendChild(song);
 
 /* ---------- utilitaires ---------- */
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => (
   { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const media = (p) => (p ? "/media/" + p.split("/").map(encodeURIComponent).join("/") : "");
-const tc = (s) => {
-  const m = Math.floor(s / 60);
-  const r = (s - m * 60).toFixed(1).padStart(4, "0");
-  return `${m}:${r}`;
-};
 const money = (n) => `${(n || 0).toFixed(2)} $`;
 const isVideo = (p) => /\.(mp4|mov|webm)$/i.test(p || "");
+function tc(s, digits = 1) {
+  if (s == null || isNaN(s)) return "–";
+  const m = Math.floor(s / 60);
+  const r = (s - m * 60).toFixed(digits).padStart(digits ? 3 + digits : 2, "0");
+  return `${m}:${r}`;
+}
+function parseTc(v) {
+  v = String(v ?? "").trim().replace(",", ".");
+  if (!v) return null;
+  const m = v.match(/^(\d+):(\d{1,2}(?:\.\d+)?)$/);
+  if (m) return +m[1] * 60 + +m[2];
+  const n = Number(v.replace(/s$/, ""));
+  return isNaN(n) ? NaN : n;
+}
+const ext = (p) => (p || "").split(".").pop().toLowerCase();
+const debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
 
-function toast(msg, err = false) {
+function toast(msg, kind = "ok") {
   const t = document.getElementById("toast");
   t.textContent = msg;
-  t.className = "show" + (err ? " err" : "");
+  t.className = "show " + kind;
   clearTimeout(toast._t);
-  toast._t = setTimeout(() => { t.className = ""; }, err ? 5000 : 2500);
+  toast._t = setTimeout(() => { t.className = ""; }, kind === "err" ? 5000 : 2600);
 }
 
 async function api(path, opts = {}) {
@@ -71,27 +117,36 @@ async function api(path, opts = {}) {
   }
   const r = await fetch(path, init);
   const body = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(body.detail || `Erreur ${r.status}`);
+  if (!r.ok) throw new Error(typeof body.detail === "string" ? body.detail : `Erreur ${r.status}`);
   return body;
+}
+
+function upload(path, formData, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", path);
+    xhr.upload.onprogress = (e) => { if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total); };
+    xhr.onload = () => {
+      let body = {};
+      try { body = JSON.parse(xhr.responseText); } catch (e) { /* réponse vide */ }
+      if (xhr.status >= 400) reject(new Error(typeof body.detail === "string" ? body.detail : `Erreur ${xhr.status}`));
+      else resolve(body);
+    };
+    xhr.onerror = () => reject(new Error("Envoi interrompu : vérifie la connexion"));
+    xhr.send(formData);
+  });
 }
 
 function prefs(key, value) {
   try {
-    if (value === undefined) return localStorage.getItem("riot:" + key);
-    localStorage.setItem("riot:" + key, value);
+    if (value === undefined) return JSON.parse(localStorage.getItem("riot:" + key) || "null");
+    localStorage.setItem("riot:" + key, JSON.stringify(value));
   } catch (e) { /* stockage indisponible : sans conséquence */ }
   return null;
 }
 
-function statusBadge(status) {
-  const [label, cls] = STATUS[status] || [status, ""];
-  return `<span class="st ${cls}">${esc(label)}</span>`;
-}
-
-function colorClass(status) {
-  const cls = (STATUS[status] || [0, "idle"])[1];
-  return "c-" + (cls === "work" ? "work" : cls);
-}
+const led = (cls) => `<span class="led ${cls}"></span>`;
+const pill = (label, cls) => `<span class="pill ${cls}">${led(cls)}${esc(label)}</span>`;
 
 function lightbox(src) {
   const box = document.createElement("div");
@@ -104,506 +159,1592 @@ function lightbox(src) {
   document.body.appendChild(box);
 }
 
-/* ---------- routeur ---------- */
+/* Deux temps pour les actions groupées : premier appui = « Confirmer ? ». */
+function needsConfirm(btn, key) {
+  if (state.confirmKey === key) { state.confirmKey = null; return false; }
+  state.confirmKey = key;
+  const old = btn.innerHTML;
+  btn.innerHTML = "Confirmer ?";
+  btn.classList.add("go");
+  setTimeout(() => {
+    if (state.confirmKey === key) { state.confirmKey = null; btn.innerHTML = old; btn.classList.remove("go"); }
+  }, 4000);
+  return true;
+}
+
+function isBusy() {
+  const a = document.activeElement;
+  if (a && (a.tagName === "TEXTAREA" || (a.tagName === "INPUT" && a.type !== "checkbox" && a.type !== "radio"))) return true;
+  if ([...document.querySelectorAll("video")].some((v) => !v.paused)) return true;
+  if (document.querySelector(".feedback:not([hidden]) textarea")) return true;
+  return false;
+}
+
+function compareWidget(leftSrc, rightSrc, leftLabel, rightLabel) {
+  return `<div class="compare" data-compare>
+      <img src="${rightSrc}" alt="${esc(rightLabel)}">
+      <div class="top" style="width:50%"><img src="${leftSrc}" alt="${esc(leftLabel)}"></div>
+      <span class="bar" style="left:50%"></span>
+      <span class="lab l">${esc(leftLabel)}</span><span class="lab r">${esc(rightLabel)}</span>
+    </div>
+    <div class="sidebyside">
+      <figure><img src="${leftSrc}" data-zoom="${leftSrc}" alt=""><figcaption>${esc(leftLabel)} : touche pour agrandir</figcaption></figure>
+      <figure><img src="${rightSrc}" data-zoom="${rightSrc}" alt=""><figcaption>${esc(rightLabel)} : touche pour agrandir</figcaption></figure>
+    </div>`;
+}
+
+function bindCompare(root) {
+  root.querySelectorAll("[data-compare]").forEach((box) => {
+    const top = box.querySelector(".top");
+    const topImg = top.querySelector("img");
+    const bar = box.querySelector(".bar");
+    const size = () => { topImg.style.width = box.clientWidth + "px"; topImg.style.height = "auto"; };
+    const imgs = box.querySelectorAll("img");
+    imgs.forEach((i) => i.addEventListener("load", size));
+    size();
+    const move = (x) => {
+      const r = box.getBoundingClientRect();
+      const pct = Math.min(100, Math.max(0, ((x - r.left) / r.width) * 100));
+      top.style.width = pct + "%";
+      bar.style.left = pct + "%";
+    };
+    let drag = false;
+    box.addEventListener("pointerdown", (e) => { drag = true; box.setPointerCapture(e.pointerId); move(e.clientX); });
+    box.addEventListener("pointermove", (e) => { if (drag) move(e.clientX); });
+    box.addEventListener("pointerup", () => { drag = false; });
+  });
+}
+
+function dropZone(name, label, hint, accept, multiple) {
+  return `<label class="drop" data-drop="${name}">
+      <span class="big">${esc(label)}</span><span class="hint">${esc(hint)}</span>
+      <input type="file" name="${name}" ${accept ? `accept="${accept}"` : ""} ${multiple ? "multiple" : ""}>
+      <span class="hint picked"></span>
+    </label>`;
+}
+
+function bindDrops(root, onFiles) {
+  root.querySelectorAll("[data-drop]").forEach((zone) => {
+    const input = zone.querySelector("input");
+    const shown = zone.querySelector(".picked");
+    const show = () => {
+      const names = [...input.files].map((f) => f.name);
+      shown.textContent = names.length ? names.join(" · ") : "";
+      if (onFiles && names.length) onFiles(zone.dataset.drop, input.files);
+    };
+    input.addEventListener("change", show);
+    zone.addEventListener("dragover", (e) => { e.preventDefault(); zone.classList.add("over"); });
+    zone.addEventListener("dragleave", () => zone.classList.remove("over"));
+    zone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      zone.classList.remove("over");
+      if (!e.dataTransfer.files.length) return;
+      const dt = new DataTransfer();
+      [...(input.multiple ? input.files : []), ...e.dataTransfer.files].forEach((f) => dt.items.add(f));
+      input.files = dt.files;
+      show();
+    });
+  });
+}
+
+/* ---------- navigation ---------- */
 
 function setNav(name) {
   document.querySelectorAll("[data-nav]").forEach((a) => a.classList.toggle("active", a.dataset.nav === name));
 }
 
+function stopTimer() { clearInterval(state.timer); state.timer = null; }
+
+function every(ms, fn) {
+  stopTimer();
+  state.timer = setInterval(() => { if (!document.hidden) fn(); }, ms);
+}
+
+let lastRoute = "";
 async function router() {
   const hash = location.hash || "#/";
-  state.route = hash;
-  clearInterval(state.refreshTimer);
-  state.lastJson = "";
-  const [, page, arg] = hash.split("/");
+  const parts = hash.slice(2).split("/").map(decodeURIComponent);
+  const [page, arg, tab, sub, shot] = parts;
   try {
-    if (page === "clip" && arg) { setNav(""); await showClip(decodeURIComponent(arg)); }
-    else if (page === "personnages" && arg) { setNav("personnages"); await showCharacter(decodeURIComponent(arg)); }
+    if (page === "clip" && arg) {
+      setNav("studio");
+      const sameView = lastRoute === `clip/${arg}/${tab || ""}` && state.clip && state.clip.slug === arg;
+      lastRoute = `clip/${arg}/${tab || ""}`;
+      state.shotId = sub === "p" && shot ? +shot : null;
+      if (sameView) { renderDrawer(); return; }
+      await showClip(arg, tab);
+      return;
+    }
+    lastRoute = hash;
+    closeDrawerUi();
+    if (page === "personnages" && arg) { setNav("personnages"); await showCharacter(arg); }
     else if (page === "personnages") { setNav("personnages"); await showCharacters(); }
-    else if (page === "nouveau") { setNav("nouveau"); await showNewClip(); }
-    else { setNav("clips"); await showHome(); }
+    else if (page === "nouveau") { setNav("studio"); await showNewClip(); }
+    else { setNav("studio"); await showStudio(); }
   } catch (e) {
     $view.innerHTML = `<p class="empty">${esc(e.message)}</p>`;
   }
 }
 window.addEventListener("hashchange", router);
 
-function autoRefresh(fn, ms = 15000) {
-  clearInterval(state.refreshTimer);
-  state.refreshTimer = setInterval(() => {
-    if (document.hidden) return;
-    const busy = document.querySelector(".feedback:not([hidden]) textarea, form.new")
-      || document.activeElement?.id === "script-text"
-      || [...document.querySelectorAll("video, audio")].some((m) => !m.paused);
-    if (!busy) fn();
-  }, ms);
+async function refreshSys() {
+  try {
+    const d = await api("/api/overview");
+    state.overview = d;
+    const fal = d.providers.find((p) => p.key === "fal");
+    document.getElementById("sysstat").innerHTML = `
+      <span title="Générations en cours chez les fournisseurs">${led(d.jobs_running ? "work" : "wait")}${d.jobs_running} génération${d.jobs_running > 1 ? "s" : ""}</span>
+      <span title="Agents Claude au travail">${led(d.agents_running.length ? "work" : "wait")}<span class="long">Agents :</span> ${d.agents_running.length ? "au travail" : "en veille"}</span>
+      <span title="fal.ai">${led(fal && fal.simulated ? "review" : "done")}fal.ai ${fal && fal.simulated ? "simulation" : "réel"}</span>`;
+    return d;
+  } catch (e) { return null; }
+}
+setInterval(() => { if (!document.hidden) refreshSys(); }, 20000);
+
+/* ---------- logique des plans ---------- */
+
+function lastReviewGate(shot) {
+  const r = (shot.reviews || []).find((x) => x.decision === "change");
+  return r ? r.gate : null;
 }
 
-/* ---------- accueil ---------- */
+function failedStep(shot) {
+  const failed = (shot.assets || []).filter((a) => a.status === "failed").sort((a, b) => b.id - a.id)[0];
+  return failed ? KIND_STEP[failed.kind] : "image";
+}
 
-async function showHome() {
-  const d = await api("/api/overview");
+function currentStep(shot) {
+  const info = STATUS[shot.status];
+  if (!info) return "image";
+  if (shot.status === "change_requested") return GATE_STEP[lastReviewGate(shot)] || "image";
+  if (shot.status === "failed") return failedStep(shot);
+  if (shot.status === "final_review" && shot.singing) return "lipsync";
+  if (shot.status === "done") return shot.singing ? "lipsync" : "final";
+  return info[2];
+}
+
+function shotState(shot) { return (STATUS[shot.status] || ["", "wait"])[1]; }
+
+function stepStates(shot) {
+  const cur = currentStep(shot);
+  const curIdx = STEP_INDEX[cur];
+  const st = shotState(shot);
+  return STEPS.map((s, i) => {
+    if (s.singing && !shot.singing) return { ...s, state: "off", text: "Plan non chanté" };
+    if (shot.status === "done") return { ...s, state: "done", text: "Validé" };
+    if (i < curIdx) return { ...s, state: "done", text: "Validé" };
+    if (i === curIdx) {
+      return { ...s, state: st, text: (STATUS[shot.status] || [shot.status])[0] };
+    }
+    if (shot.status === "final_review" && s.key === "final" && shot.singing) return { ...s, state: "done", text: "Prête" };
+    return { ...s, state: "wait", text: "À venir" };
+  });
+}
+
+function assetsOf(shot, kinds) {
+  return (shot.assets || [])
+    .filter((a) => kinds.includes(a.kind) && a.path && a.status !== "generating")
+    .sort((a, b) => a.version - b.version);
+}
+
+function bestAsset(shot, kinds) {
+  const list = assetsOf(shot, kinds).filter((a) => a.status !== "failed");
+  const live = list.filter((a) => !["superseded", "rejected"].includes(a.status));
+  return (live.length ? live : list).slice(-1)[0] || null;
+}
+
+function thumbOf(shot) {
+  return bestAsset(shot, ["image_hd"]) || bestAsset(shot, ["image"]);
+}
+
+function gateOf(shot) {
+  return { image_review: "images", hd_review: "hd", video_review: "videoplan", draft_review: "drafts", final_review: "finals" }[shot.status] || null;
+}
+
+function aspectClass(clip) { return clip.aspect_ratio === "9:16" ? "v916" : clip.aspect_ratio === "1:1" ? "v11" : ""; }
+
+/* ---------- Studio ---------- */
+
+async function showStudio() {
+  const d = await refreshSys() || await api("/api/overview");
   const pending = d.clips.reduce((n, c) => n + c.to_review, 0);
-  let html = `<h1>Clips</h1>
-    <div class="meta"><span>${pending ? `<span class="count-review">${pending} validation(s) t'attendent</span>` : "Rien à valider pour l'instant"}</span>
-    <span>${d.jobs_running} génération(s) en cours</span>
-    ${d.fal_mode === "simulation" ? "<span>fal en mode simulation (aucune dépense)</span>" : ""}</div>`;
-  if (!d.clips.length) {
-    html += `<p class="empty" style="margin-top:28px">Aucun clip. <a href="#/nouveau">Démarre le premier</a> avec ton morceau et ton script.</p>`;
-  } else {
-    html += `<div class="clips">` + d.clips.map((c) => {
-      const total = c.shots || 1;
-      const segs = Object.entries(c.status_counts).map(([s, n]) =>
-        `<i class="${colorClass(s)}" style="width:${(100 * n) / total}%"></i>`).join("");
-      return `<a class="clip-row" href="#/clip/${encodeURIComponent(c.slug)}">
-        <span><span class="title">${esc(c.title)}</span><br>
-          <span class="meta"><span>${esc(STAGE[c.stage] || c.stage)}</span><span>${c.shots} plans</span></span></span>
-        <span class="side">${c.to_review ? `<span class="count-review">${c.to_review} à valider</span><br>` : ""}
-          ${money(c.cost_usd)}${c.budget_usd ? ` / ${c.budget_usd.toFixed(0)} $` : ""}</span>
-        ${c.shots ? `<span class="mini-strip">${segs}</span>` : ""}
-      </a>`;
-    }).join("") + `</div>`;
-  }
-  $view.innerHTML = html;
-  autoRefresh(showHome, 20000);
-}
-
-/* ---------- clip ---------- */
-
-function currentKinds(shot) {
-  const s = shot.status;
-  if (s.startsWith("image") || s === "image_todo") return ["image"];
-  if (s === "prompt_todo" || s.startsWith("draft")) return ["draft", "image"];
-  return ["lipsync", "final", "draft", "image"];
-}
-
-function shotAssets(shot) {
-  return shot.assets
-    .filter((a) => a.path && a.status !== "generating" && a.status !== "failed")
-    .sort((a, b) => (KIND_ORDER[a.kind] - KIND_ORDER[b.kind]) || (a.version - b.version));
-}
-
-function defaultAsset(shot) {
-  const list = shotAssets(shot);
-  for (const kind of currentKinds(shot)) {
-    const ofKind = list.filter((a) => a.kind === kind && a.status !== "superseded" && a.status !== "rejected");
-    if (ofKind.length) return ofKind[ofKind.length - 1];
-  }
-  for (const kind of currentKinds(shot)) {
-    const ofKind = list.filter((a) => a.kind === kind);
-    if (ofKind.length) return ofKind[ofKind.length - 1];
-  }
-  return null;
-}
-
-function renderMedia(asset, aspect, shotId, poster) {
-  const cls = aspect === "9:16" ? "v916" : aspect === "1:1" ? "v11" : "";
-  if (!asset) return `<div class="media ${cls}"><span class="none">Pas encore d'image</span></div>`;
-  const src = media(asset.path);
-  const inner = isVideo(asset.path)
-    ? `<video src="${src}" controls playsinline preload="metadata" muted data-shot="${shotId}"${poster ? ` poster="${media(poster)}"` : ""}></video>`
-    : `<img src="${src}" alt="Plan ${shotId}" loading="lazy" data-zoom="${src}">`;
-  return `<div class="media ${cls}">${inner}</div>`;
-}
-
-function renderShot(shot, clip) {
-  const picked = state.picked[shot.id];
-  const assets = shotAssets(shot);
-  const asset = assets.find((a) => a.id === picked) || defaultAsset(shot);
-  const gate = GATE_OF[shot.status];
-  const tags = [shot.framing, shot.motion && `mouvement ${shot.motion}`, shot.camera,
-    shot.tier && `${shot.tier}${shot.model_key ? " · " + shot.model_key : ""}`,
-    shot.singing ? "chanté" : null, ...(shot.characters || [])].filter(Boolean);
-  const lastReview = (shot.reviews || []).find((r) => r.decision === "change");
-  const versions = assets.map((a) => {
-    const cls = [a.id === asset?.id ? "on" : "", a.status].join(" ");
-    return `<button class="${cls}" data-pick="${shot.id}:${a.id}">${KIND_LABEL[a.kind]} v${a.version}</button>`;
-  }).join("");
-  const prompt = shot.video_prompt || shot.image_prompt;
-  return `<article class="shot ${gate ? "is-review" : ""}" id="shot-${shot.id}" data-shot="${shot.id}">
-    <div>
-      ${renderMedia(asset, clip.aspect_ratio, shot.id, (assets.filter((a) => a.kind === "image").pop() || {}).path)}
-      ${versions ? `<div class="versions">${versions}</div>` : ""}
-    </div>
-    <div class="info">
-      <div class="head"><span class="num">${shot.num}</span>
-        <span class="tc">${tc(shot.t_start)} → ${tc(shot.t_end)} · ${(shot.t_end - shot.t_start).toFixed(1)} s${shot.section ? " · " + esc(shot.section) : ""}</span>
-        ${statusBadge(shot.status)}</div>
-      <p class="desc">${esc(shot.description)}</p>
-      <div class="tags">${tags.map((t) => `<span class="tag">${esc(t)}</span>`).join("")}</div>
-      ${shot.notes ? `<p class="note ${shot.notes.startsWith("Retour de Michael") ? "from-michael" : ""}">${esc(shot.notes)}</p>` : ""}
-      ${lastReview && !shot.notes ? `<p class="note from-michael">Ton dernier retour : ${esc(lastReview.comment)}</p>` : ""}
-      ${prompt ? `<details class="prompt"><summary>Prompt${shot.video_prompt ? " vidéo" : " image"}</summary><p>${esc(prompt)}</p></details>` : ""}
-      <div class="actions">
-        <div class="row">
-          <button class="btn small ghost" data-play="${shot.id}">Lire dans le morceau</button>
-          ${shot.status === "failed" ? `<button class="btn small" data-retry="${shot.id}">Relancer</button>` : ""}
-          <span class="hint">${money(shot.cost_usd)}</span>
-        </div>
-        ${gate ? `<div class="row">
-            <button class="btn go" data-approve="${shot.id}">Valider ${gate === "images" ? "l'image" : gate === "drafts" ? "le draft" : "le final"}</button>
-            <button class="btn" data-change="${shot.id}">Demander une modif</button>
-          </div>
-          <div class="feedback" id="fb-${shot.id}" hidden>
-            <textarea placeholder="Ce qui ne va pas et ce que tu veux à la place (cadrage, geste, lumière, tenue…)"></textarea>
-            <div class="row"><button class="btn go" data-send="${shot.id}">Envoyer le retour</button>
-              <button class="btn ghost" data-cancel="${shot.id}">Annuler</button></div>
-          </div>` : ""}
+  const cards = d.clips.map((c) => {
+    const total = c.shots || 1;
+    const counts = {};
+    Object.entries(c.status_counts).forEach(([s, n]) => { const k = shotState({ status: s }); counts[k] = (counts[k] || 0) + n; });
+    const bar = ["done", "review", "work", "change", "failed"].map((k) => counts[k]
+      ? `<i class="c-${k}" style="width:${(100 * counts[k]) / total}%"></i>` : "").join("");
+    const [stLabel, stCls] = STAGE_LABEL[c.stage] || [c.stage, "wait"];
+    return `<a class="clipcard" href="#/clip/${encodeURIComponent(c.slug)}">
+      <div class="poster" style="${c.poster ? `background-image:url('${media(c.poster)}')` : ""}">
+        ${c.poster ? "" : `<span>${esc(c.aspect_ratio)}</span>`}
+        ${c.to_review ? `<span class="badge">${pill(`${c.to_review} à valider`, "review")}</span>` : ""}
       </div>
+      <div class="body">
+        <div class="row"><span class="title">${esc(c.title)}</span><span class="spacer"></span>${pill(stLabel, stCls)}</div>
+        ${c.pitch ? `<p class="pitch">${esc(c.pitch)}</p>` : ""}
+        ${c.shots ? `<div class="pipebar">${bar}</div>` : ""}
+        <div class="row hint"><span>${c.shots} plan${c.shots > 1 ? "s" : ""}</span><span class="spacer"></span>
+          <span class="mono">${money(c.cost_usd)}${c.budget_usd ? ` / ${c.budget_usd.toFixed(0)} $` : ""}</span></div>
+      </div></a>`;
+  }).join("");
+  $view.innerHTML = `
+    <div class="pagehead"><h1>Studio</h1>
+      <span class="sub">${pending ? `<span class="pill review">${led("review")}${pending} validation${pending > 1 ? "s" : ""} t'attendent</span>` : "Rien ne t'attend pour l'instant"}</span>
+      <span class="spacer"></span><a class="btn go" href="#/nouveau">＋ Nouveau clip</a></div>
+    <div class="clips">${cards}
+      <a class="newcard" href="#/nouveau"><span class="plus">＋</span><b>Nouveau clip</b><span class="hint">Morceau, dossier de réalisation, paroles</span></a>
     </div>
-  </article>`;
+    <div class="legend" style="margin-top:22px">
+      <span>${led("review")}t'attend</span><span>${led("work")}la machine travaille</span>
+      <span>${led("done")}validé</span><span>${led("change")}modif demandée</span><span>${led("failed")}échec</span></div>`;
+  every(20000, () => { if (!isBusy()) showStudio(); });
 }
 
-function renderStrip(clip) {
-  const shots = clip.shots;
-  if (!shots.length) return "";
-  const start = shots[0].t_start;
-  const total = Math.max(0.1, shots[shots.length - 1].t_end - start);
-  const segs = shots.map((s) => `<span class="seg ${colorClass(s.status)}" data-seek="${s.id}"
-      style="width:${(100 * (s.t_end - s.t_start)) / total}%" title="Plan ${s.num} · ${esc((STATUS[s.status] || [s.status])[0])}">${s.num}</span>`).join("");
-  return `<div class="strip" id="strip" data-start="${start}" data-total="${total}">${segs}<span class="head" id="head"></span></div>
-    <div class="strip-legend"><span><b class="c-review"></b>à valider</span><span><b class="c-work"></b>en production</span>
-      <span><b class="c-change"></b>modif demandée</span><span><b class="c-done"></b>validé</span><span><b class="c-failed"></b>échec</span></div>`;
+/* ---------- Clip ---------- */
+
+function defaultTab(clip) {
+  if (clip.stage === "script" || clip.stage === "decoupage_review") {
+    return clip.shots.length || clip.stage === "decoupage_review" ? "decoupage" : "dossier";
+  }
+  return "plans";
 }
 
-function renderDecoupage(clip) {
-  const rows = clip.shots.map((s) => `<tr><td>${s.num}</td><td>${tc(s.t_start)}–${tc(s.t_end)}</td>
-    <td>${esc(s.section || "")}</td><td>${esc(s.description)}</td>
-    <td>${esc([s.framing, s.motion, s.singing ? "chanté" : ""].filter(Boolean).join(" · "))}</td></tr>`).join("");
-  return `<section class="gate">
-    <h2>Découpage à valider</h2>
-    <p class="hint">${clip.shots.length} plans proposés par le script doctor. Valide pour lancer le storyboard, ou explique ce qu'il faut changer.</p>
-    ${clip.script_notes ? `<details><summary>Notes de relecture du script doctor</summary><div class="notes-doc">${esc(clip.script_notes)}</div></details>` : ""}
-    <div style="overflow-x:auto;margin-top:12px"><table class="cut"><thead><tr><th>#</th><th>Temps</th><th>Partie</th><th>Ce qu'on voit</th><th>Plan</th></tr></thead><tbody>${rows}</tbody></table></div>
-    <div class="row" style="margin-top:14px"><button class="btn go" data-cut="approve">Valider le découpage</button>
-      <button class="btn" data-cut="open">Demander des changements</button></div>
-    <div class="feedback" id="fb-cut" hidden style="margin-top:10px">
-      <textarea placeholder="Ex. : le refrain doit commencer sur un plan large, fusionner les plans 4 et 5, ajouter un plan de foule…"></textarea>
-      <div class="row"><button class="btn go" data-cut="change">Envoyer</button></div>
-    </div>
-  </section>`;
-}
-
-async function showClip(slug, keepScroll = false) {
+async function showClip(slug, tab, keep = false) {
   const clip = await api(`/api/clips/${encodeURIComponent(slug)}`);
   const json = JSON.stringify(clip);
-  if (keepScroll && json === state.lastJson) return;
-  state.lastJson = json;
-  state.data = clip;
-  const savedFilter = prefs("filter:" + slug);
-  if (!keepScroll && savedFilter) state.filter = savedFilter;
+  const changed = json !== state.clipJson;
+  const newClip = !state.clip || state.clip.slug !== slug;
+  state.clipJson = json;
+  state.clip = clip;
+  if (newClip) {
+    state.editor = null; state.editorDirty = false; state.filter = "all"; state.stepFilter = null;
+    state.picked = {}; state.tempOpen = {};
+    if (song.dataset.clip !== slug) {
+      song.pause();
+      song.src = clip.song_path ? media(clip.song_path) : "";
+      song.dataset.clip = slug;
+    }
+  }
+  state.tab = tab || defaultTab(clip);
+  if (keep && !changed) return;
+  if (keep && isBusy()) return;
+  if (keep && state.tab === "decoupage" && state.editorDirty) { renderDrawer(); return; }
+  if (keep && state.tab === "dossier") { renderDrawer(); return; }
   const scroll = window.scrollY;
-  const counts = clip.status_counts || {};
-  const toReview = Object.keys(GATE_OF).reduce((n, s) => n + (counts[s] || 0), 0);
-  if (!keepScroll && state.filter === "review" && !toReview && clip.stage !== "decoupage_review") state.filter = "all";
-
-  const filters = [
-    ["review", `À valider (${toReview})`, (s) => GATE_OF[s.status]],
-    ["work", "En production", (s) => (STATUS[s.status] || [0, ""])[1] === "work"],
-    ["change", "Retours & échecs", (s) => ["change_requested", "failed"].includes(s.status)],
-    ["done", "Validés", (s) => s.status === "done"],
-    ["all", "Tous", () => true],
-  ];
-  const active = filters.find((f) => f[0] === state.filter) || filters[4];
-  const visible = clip.stage === "decoupage_review" || clip.stage === "script" ? [] : clip.shots.filter(active[2]);
-  const gatesOpen = [...new Set(clip.shots.map((s) => GATE_OF[s.status]).filter(Boolean))];
-
-  let html = `<h1>${esc(clip.title)}</h1>
-    <div class="meta"><span>${esc(STAGE[clip.stage] || clip.stage)}</span><span>${clip.shots.length} plans</span>
-      <span>${money(clip.cost_usd)}${clip.budget_usd ? ` sur ${clip.budget_usd.toFixed(0)} $ <button class="btn small ghost" data-budget>modifier</button>` : ""}</span>
-      <span>${esc(clip.aspect_ratio)}</span>${clip.casting.map((c) => `<span>${esc(c.name)} v${c.version}${c.look_slug ? " · " + esc(c.look_slug) : ""}</span>`).join("")}</div>
-    <div class="player">
-      ${clip.song_path ? `<audio id="song" src="${media(clip.song_path)}" controls preload="metadata"></audio>` : `<p class="hint">Pas de morceau.</p>`}
-      ${renderStrip(clip)}
-    </div>`;
-
-  if (clip.stage === "script") {
-    html += `<section class="gate" style="border-color:var(--line)">
-      <h2>Ton script</h2>
-      <p class="hint">Le script doctor reprend tes plans et tes timecodes tels quels, puis complète cadrage,
-        mouvement et plans chantés. Une ligne par plan, par exemple : <b>Plan 1 — 0:00.0 → 0:04.2 — JJ chante face caméra</b>.
-        Enregistre quand c'est prêt : le script doctor le reprend dans la minute.</p>
-      <textarea id="script-text" rows="16">${esc(clip.script)}</textarea>
-      <div class="row" style="margin-top:10px"><button class="btn go" data-save-script>Enregistrer le script</button></div>
-      ${clip.script_notes ? `<details style="margin-top:12px" open><summary>Notes du script doctor</summary><div class="notes-doc">${esc(clip.script_notes)}</div></details>` : ""}
-    </section>`;
-  } else if (clip.stage === "decoupage_review") {
-    html += renderDecoupage(clip);
-  } else {
-    html += `<div class="filters">${filters.map(([k, label]) =>
-      `<button class="chip ${k === active[0] ? "on" : ""}" data-filter="${k}">${label}</button>`).join("")}
-      <span class="spacer"></span>
-      ${state.filter === "review" ? gatesOpen.map((g) => `<button class="btn small" data-approve-all="${g}">${APPROVE_ALL_LABEL[g]}</button>`).join("") : ""}
-      <button class="btn small" data-assemble>Monter le clip</button>
-      ${clip.montages.length ? `<a class="btn small ghost" href="${media(clip.montages[0])}" target="_blank" rel="noopener">Dernier montage</a>` : ""}
-    </div>`;
-    html += visible.length
-      ? `<div class="shots">${visible.map((s) => renderShot(s, clip)).join("")}</div>`
-      : `<p class="empty">${state.filter === "review" ? "Rien à valider : les agents travaillent, tu seras prévenu." : "Aucun plan ici."}</p>`;
-  }
-  if (clip.events.length) {
-    html += `<h2>Journal</h2><div class="hint">${clip.events.slice(0, 8).map((e) =>
-      `${esc(e.created_at.replace("T", " ").slice(0, 16))} — ${esc(e.message)}`).join("<br>")}</div>`;
-  }
-  $view.innerHTML = html;
-  bindClip(clip);
-  if (keepScroll) window.scrollTo(0, scroll);
-  autoRefresh(() => showClip(slug, true));
+  renderClip();
+  if (keep) window.scrollTo(0, scroll);
+  else window.scrollTo(0, 0);
+  renderDrawer();
+  every(8000, () => showClip(slug, state.tab, true));
 }
 
-let stopAt = null;
+function clipCounts(clip) {
+  const byState = { review: 0, work: 0, done: 0, change: 0, failed: 0 };
+  clip.shots.forEach((s) => { byState[shotState(s)] = (byState[shotState(s)] || 0) + 1; });
+  return byState;
+}
 
-function bindClip(clip) {
-  const song = document.getElementById("song");
-  const strip = document.getElementById("strip");
-  const head = document.getElementById("head");
-  if (song && strip) {
-    const start = parseFloat(strip.dataset.start);
-    const total = parseFloat(strip.dataset.total);
-    song.addEventListener("timeupdate", () => {
-      head.style.left = `${Math.min(100, Math.max(0, (100 * (song.currentTime - start)) / total))}%`;
-      if (stopAt && song.currentTime >= stopAt.end) {
-        song.pause();
-        stopAt.video?.pause();
-        stopAt = null;
-      }
-    });
+function renderClip() {
+  const clip = state.clip;
+  const c = clipCounts(clip);
+  const [stLabel, stCls] = STAGE_LABEL[clip.stage] || [clip.stage, "wait"];
+  const base = `#/clip/${encodeURIComponent(clip.slug)}`;
+  const tabs = [
+    ["plans", "Plans", c.review ? `<span class="count">${c.review}</span>` : ""],
+    ["decoupage", "Découpage", clip.stage === "decoupage_review" ? `<span class="count">à valider</span>` : ""],
+    ["dossier", "Dossier", ""],
+    ["journal", "Journal", ""],
+  ];
+  const casting = clip.casting.map((x) => `${esc(x.name)} v${x.version}${x.look_slug ? " · " + esc(x.look_slug) : ""}`).join(", ");
+  let html = `<div class="cliphead">
+      <div class="crumbs"><a href="#/">Studio</a> / ${esc(clip.title)}</div>
+      <div class="row"><h1>${esc(clip.title)}</h1>${pill(stLabel, stCls)}</div>
+      ${clip.pitch ? `<p class="pitch">${esc(clip.pitch)}</p>` : ""}
+      <div class="meta"><span>${clip.shots.length} plans · ${clip.blocks.length} blocs</span>
+        <span>${esc(clip.aspect_ratio)}</span>${casting ? `<span>${casting}</span>` : ""}
+        <span class="mono">${money(clip.cost_usd)}${clip.budget_usd ? ` / ${clip.budget_usd.toFixed(0)} $` : ""}</span></div>
+    </div>
+    <nav class="tabs">${tabs.map(([k, l, extra]) => `<a href="${base}/${k}" class="${state.tab === k ? "on" : ""}">${l}${extra}</a>`).join("")}</nav>`;
+  if (clip.agent_running) {
+    html += `<div class="agentbar">${led("work")}Un agent travaille sur ce clip en ce moment. La page se met à jour toute seule.</div>`;
   }
+  if (clip.song_path && (state.tab === "plans" || state.tab === "decoupage")) html += renderConsole(clip);
+  if (state.tab === "plans") html += renderPlans(clip);
+  else if (state.tab === "decoupage") html += renderDecoupageTab(clip);
+  else if (state.tab === "dossier") html += renderDossier(clip);
+  else html += renderJournal(clip);
+  $view.innerHTML = html;
+  bindClip();
+}
 
-  $view.onclick = async (ev) => {
-    const t = ev.target.closest("button, [data-seek], [data-zoom]");
-    if (!t) return;
-    const d = t.dataset;
-    try {
-      if (d.zoom) return lightbox(d.zoom);
-      if (d.filter) {
-        state.filter = d.filter;
-        prefs("filter:" + clip.slug, d.filter);
-        return showClip(clip.slug);
-      }
-      if (d.seek) {
-        const shot = clip.shots.find((s) => s.id === +d.seek);
-        if (song) { song.currentTime = shot.t_start; }
-        document.getElementById("shot-" + shot.id)?.scrollIntoView({ behavior: "smooth", block: "start" });
-        return;
-      }
-      if (d.pick) {
-        const [sid, aid] = d.pick.split(":").map(Number);
-        state.picked[sid] = aid;
-        const shot = clip.shots.find((s) => s.id === sid);
-        const node = document.getElementById("shot-" + sid);
-        node.outerHTML = renderShot(shot, clip);
-        return;
-      }
-      if (d.play) return playInSong(clip, +d.play);
-      if (d.change) {
-        const fb = document.getElementById("fb-" + d.change);
-        fb.hidden = false;
-        fb.querySelector("textarea").focus();
-        return;
-      }
-      if (d.cancel) { document.getElementById("fb-" + d.cancel).hidden = true; return; }
-      if (d.approve) {
-        const sid = +d.approve;
-        const shot = clip.shots.find((s) => s.id === sid);
-        const pickedId = state.picked[sid];
-        const assetId = pickedId && GATE_OF[shot.status] !== "finals" ? pickedId : null;
-        t.disabled = true;
-        await api(`/api/shots/${sid}/review`, { json: { decision: "approve", asset_id: assetId } });
-        toast(`Plan ${shot.num} validé`);
-        return showClip(clip.slug, false);
-      }
-      if (d.send) {
-        const sid = +d.send;
-        const text = document.querySelector(`#fb-${sid} textarea`).value.trim();
-        if (!text) { toast("Explique la modification souhaitée", true); return; }
-        t.disabled = true;
-        await api(`/api/shots/${sid}/review`, { json: { decision: "change", comment: text, asset_id: state.picked[sid] || null } });
-        toast("Retour envoyé à l'orchestrateur");
-        return showClip(clip.slug, false);
-      }
-      if (d.approveAll) {
-        if (!confirm(`${APPROVE_ALL_LABEL[d.approveAll]} en attente ?`)) return;
-        const r = await api(`/api/clips/${encodeURIComponent(clip.slug)}/approve-all/${d.approveAll}`, { method: "POST" });
-        toast(`${r.approved} plan(s) validé(s)`);
-        return showClip(clip.slug, false);
-      }
-      if (d.cut === "open") { const fb = document.getElementById("fb-cut"); fb.hidden = false; fb.querySelector("textarea").focus(); return; }
-      if (d.cut === "approve" || d.cut === "change") {
-        const comment = d.cut === "change" ? document.querySelector("#fb-cut textarea").value.trim() : "";
-        if (d.cut === "change" && !comment) { toast("Explique les changements voulus", true); return; }
-        await api(`/api/clips/${encodeURIComponent(clip.slug)}/decoupage`, { json: { decision: d.cut, comment } });
-        toast(d.cut === "approve" ? "Découpage validé : le storyboard démarre" : "Retour envoyé au script doctor");
-        return showClip(clip.slug, false);
-      }
-      if (d.retry !== undefined && d.retry !== "") {
-        await api(`/api/shots/${d.retry}/retry`, { method: "POST" });
-        toast("Plan relancé");
-        return showClip(clip.slug, false);
-      }
-      if (d.assemble !== undefined) {
-        await api(`/api/clips/${encodeURIComponent(clip.slug)}/assemble`, { method: "POST" });
-        toast("Montage lancé, il apparaîtra dans une à deux minutes");
-        return;
-      }
-      if (d.saveScript !== undefined) {
-        const text = document.getElementById("script-text").value;
-        t.disabled = true;
-        await api(`/api/clips/${encodeURIComponent(clip.slug)}/script`, { json: { text } });
-        toast("Script enregistré : le script doctor va le reprendre");
-        return showClip(clip.slug, false);
-      }
-      if (d.budget !== undefined) {
-        const v = prompt("Nouveau budget du clip, en dollars :", clip.budget_usd || "");
-        if (v === null) return;
-        await api(`/api/clips/${encodeURIComponent(clip.slug)}/budget`, { json: { budget_usd: parseFloat(v) } });
-        return showClip(clip.slug, false);
-      }
-    } catch (e) {
-      t.disabled = false;
-      toast(e.message, true);
+/* ----- console : transport + timeline ----- */
+
+function songDuration(clip) {
+  const last = clip.shots.length ? clip.shots[clip.shots.length - 1].t_end : 0;
+  return Math.max(clip.duration_s || 0, last, 1);
+}
+
+function renderConsole(clip) {
+  const total = songDuration(clip);
+  const pct = (t) => (100 * t) / total;
+  const shotById = Object.fromEntries(clip.shots.map((s) => [s.id, s]));
+  const blocks = clip.blocks.map((b) => {
+    const ss = b.shot_ids.map((id) => shotById[id]).filter(Boolean);
+    if (!ss.length) return "";
+    const a = ss[0].t_start; const z = ss[ss.length - 1].t_end;
+    return `<span class="tl-block" data-goblock="${b.id ?? ""}" style="left:${pct(a)}%;width:${pct(z - a)}%" title="${esc(b.name)}">${esc(b.name)}</span>`;
+  }).join("");
+  const pre = clip.stage === "script" || clip.stage === "decoupage_review";
+  const shots = clip.shots.map((s) => `<span class="tl-shot c-${pre ? "wait" : shotState(s)} ${s.id === state.shotId ? "sel" : ""}" data-openshot="${s.id}"
+      style="left:${pct(s.t_start)}%;width:${pct(s.t_end - s.t_start)}%" title="Plan ${s.num} · ${esc((STATUS[s.status] || [s.status])[0])}"></span>`).join("");
+  return `<section class="console" id="console">
+      <div class="transport">
+        <button class="playbtn" data-play aria-label="Lecture">${song.paused ? "▶" : "❚❚"}</button>
+        <span class="clock mono" id="clock">${tc(song.currentTime || 0)} <span>/ ${tc(total)}</span></span>
+        <span class="now" id="nowshot"></span>
+      </div>
+      <div class="timeline" id="timeline" data-total="${total}">
+        <div class="tl-blocks">${blocks}</div>
+        <div class="tl-wave" id="wave"><canvas id="wave-base"></canvas>
+          <div id="wave-played" style="position:absolute;inset:0;width:0;overflow:hidden"><canvas id="wave-top"></canvas></div></div>
+        <div class="tl-shots">${shots}</div>
+        <span class="tl-head" id="tlhead"></span>
+      </div>
+    </section>`;
+}
+
+async function drawWave() {
+  const clip = state.clip;
+  const base = document.getElementById("wave-base");
+  if (!base || !clip) return;
+  let data = state.peaks[clip.slug];
+  if (!data) {
+    try { data = await api(`/api/clips/${encodeURIComponent(clip.slug)}/waveform`); } catch (e) { data = { peaks: [] }; }
+    state.peaks[clip.slug] = data;
+  }
+  const total = songDuration(clip);
+  const wave = document.getElementById("wave");
+  const w = wave.clientWidth; const h = wave.clientHeight;
+  const dpr = window.devicePixelRatio || 1;
+  const paint = (canvas, colors) => {
+    canvas.width = w * dpr; canvas.height = h * dpr;
+    canvas.style.width = w + "px"; canvas.style.height = h + "px";
+    const ctx = canvas.getContext("2d");
+    ctx.scale(dpr, dpr);
+    const grad = ctx.createLinearGradient(0, 0, w, 0);
+    grad.addColorStop(0, colors[0]); grad.addColorStop(1, colors[1]);
+    ctx.fillStyle = grad;
+    const peaks = data.peaks || [];
+    const span = (data.duration || total) / total;
+    const bars = Math.floor(w / 3);
+    for (let i = 0; i < bars; i++) {
+      const x = i * 3;
+      const p = peaks.length ? peaks[Math.min(peaks.length - 1, Math.floor((i / bars) / span * peaks.length))] || 0 : 0.15;
+      const bh = Math.max(2, p * (h - 6));
+      ctx.fillRect(x, (h - bh) / 2, 2, bh);
     }
   };
+  paint(base, ["#5b3a8f", "#7a3a78"]);
+  paint(document.getElementById("wave-top"), ["#b46cff", "#ff3fbf"]);
+  updateHead();
 }
+window.addEventListener("resize", debounce(drawWave, 200));
 
-function playInSong(clip, shotId) {
-  const shot = clip.shots.find((s) => s.id === shotId);
-  const song = document.getElementById("song");
-  const video = document.querySelector(`#shot-${shotId} video`);
+let stopAt = null;
+function updateHead() {
+  const tl = document.getElementById("timeline");
+  if (!tl || !state.clip) return;
+  const total = +tl.dataset.total;
+  const pct = Math.min(100, (100 * (song.currentTime || 0)) / total);
+  document.getElementById("tlhead").style.left = pct + "%";
+  const played = document.getElementById("wave-played");
+  if (played) played.style.width = pct + "%";
+  const clock = document.getElementById("clock");
+  if (clock) clock.innerHTML = `${tc(song.currentTime || 0)} <span>/ ${tc(total)}</span>`;
+  const now = state.clip.shots.find((s) => song.currentTime >= s.t_start && song.currentTime < s.t_end);
+  const nowEl = document.getElementById("nowshot");
+  if (nowEl) nowEl.textContent = now ? `Plan ${now.num} · ${now.section || ""} · ${now.description}` : "";
+  const btn = document.querySelector("[data-play]");
+  if (btn) btn.textContent = song.paused ? "▶" : "❚❚";
+}
+song.addEventListener("timeupdate", () => {
+  updateHead();
+  if (stopAt && song.currentTime >= stopAt.end) {
+    song.pause();
+    stopAt.video?.pause();
+    stopAt = null;
+  }
+});
+song.addEventListener("play", updateHead);
+song.addEventListener("pause", updateHead);
+
+function playShot(shot) {
+  const video = $drawer.querySelector("video");
   document.querySelectorAll("video").forEach((v) => { if (v !== video) v.pause(); });
-  if (song) {
-    song.currentTime = shot.t_start;
-    song.play().catch(() => {});
-  }
-  if (video) {
-    video.muted = true;
-    video.currentTime = 0;
-    video.play().catch(() => {});
-  }
+  song.currentTime = shot.t_start;
+  song.play().catch(() => {});
+  if (video) { video.muted = true; video.currentTime = 0; video.play().catch(() => {}); }
   stopAt = { end: shot.t_end, video };
 }
 
-/* ---------- personnages ---------- */
+/* ----- onglet Plans ----- */
 
-async function showCharacters() {
-  const d = await api("/api/overview");
-  $view.innerHTML = `<h1>Personnages</h1>
-    <p class="hint">Le référentiel : chaque personnage a des versions. Seule une version validée peut être castée dans un clip.
-    Pour créer ou faire évoluer un personnage, lance <b>/casting &lt;nom&gt;</b> dans Claude Code.</p>
-    <div class="cast">${d.characters.map((c) => `<a href="#/personnages/${encodeURIComponent(c.slug)}">
-      ${c.canon_path ? `<img src="${media(c.canon_path)}" alt="${esc(c.name)}">` : ""}
-      <div class="cap"><b>${esc(c.name)}</b><br><span class="hint">canon v${c.canon_version || "–"}</span>
-      ${c.to_review ? `<br><span class="count-review">${c.to_review} image(s) à trier</span>` : ""}</div></a>`).join("")}</div>`;
-  autoRefresh(showCharacters, 30000);
+function stageSummary(clip) {
+  const keys = ["image", "hd", "plan", "draft", "final"];
+  const sums = Object.fromEntries(keys.map((k) => [k, { r: 0, w: 0, d: 0 }]));
+  clip.shots.forEach((s) => {
+    const cur = currentStep(s) === "lipsync" ? "final" : currentStep(s);
+    const idx = STEP_INDEX[cur];
+    const st = shotState(s);
+    keys.forEach((k) => {
+      const i = STEP_INDEX[k];
+      if (s.status === "done" || i < idx) sums[k].d++;
+      else if (i === idx) { if (st === "review") sums[k].r++; else if (st === "work") sums[k].w++; }
+    });
+  });
+  const labels = { image: "Visuel draft", hd: "Visuel HD", plan: "Plan vidéo", draft: "Vidéo draft", final: "Vidéo HD + lip-sync" };
+  const cards = keys.map((k) => `<button class="stage ${state.stepFilter === k ? "on" : ""}" data-stepfilter="${k}">
+      <span class="name">${labels[k]}</span>
+      <span class="nums"><span class="r" title="t'attendent">● ${sums[k].r}</span><span class="w" title="en cours">● ${sums[k].w}</span><span class="d" title="validés">● ${sums[k].d}</span></span>
+    </button>`).join("");
+  const done = clip.shots.filter((s) => s.status === "done").length;
+  return `<div class="stages">${cards}<div class="stage" style="cursor:default"><span class="name">Terminés</span>
+      <span class="nums"><span class="d">${done} / ${clip.shots.length}</span></span></div></div>`;
 }
 
-async function showCharacter(slug, keepScroll = false) {
-  const ch = await api(`/api/characters/${encodeURIComponent(slug)}`);
-  const json = JSON.stringify(ch);
-  if (keepScroll && json === state.lastJson) return;
-  state.lastJson = json;
-  const scroll = window.scrollY;
-  const versions = ch.versions.map((v) => {
-    const canon = v.assets.filter((a) => a.kind === "canon" && a.status === "kept").pop();
-    const labelSt = { draft: ["brouillon", "work"], validated: ["validée", "done"], archived: ["archivée", ""] }[v.status];
-    const isCanon = ch.canon_version === v.version;
-    const kinds = CHAR_KINDS.map((k) => {
-      const list = v.assets.filter((a) => a.kind === k && a.path && a.status !== "generating" && !(k === "canon" && a === canon));
-      if (!list.length) return "";
-      return `<div class="kind"><h3>${CHAR_KIND_LABEL[k]}</h3><div class="assets">${list.map((a) => `
-        <div class="asset ${a.status}">
-          <img src="${media(a.path)}" alt="${esc(a.label || k)}" loading="lazy" data-zoom="${media(a.path)}">
-          ${a.status === "proposed" && v.status === "draft" ? `<div class="row">
-            <button class="btn small go" data-pick-asset="${a.id}:keep">Garder</button>
-            <button class="btn small" data-pick-asset="${a.id}:reject">Rejeter</button>
-            <button class="btn small ghost" data-pick-asset="${a.id}:canon">Canon</button></div>`
-            : `<div class="row hint">${esc(a.label || "")}${a.status === "rejected" ? " · rejetée" : ""}</div>`}
-        </div>`).join("")}</div></div>`;
-    }).join("");
-    const generating = v.assets.filter((a) => a.status === "generating").length;
-    return `<section class="version">
-      <div class="version-head"><h2 style="margin:0">Version ${v.version}</h2>
-        <span class="row"><span class="st ${labelSt[1]}">${labelSt[0]}</span>${isCanon ? `<span class="st done">canon actuelle</span>` : ""}
-        ${generating ? `<span class="st work">${generating} en génération</span>` : ""}
-        ${v.status === "draft" ? `<button class="btn go small" data-validate="${v.version}" ${canon ? "" : "disabled title=\"Choisis d'abord une image canon\""}>Valider cette version</button>` : ""}</span></div>
-      <div class="version-body">
-        <div class="canon">${canon ? `<img src="${media(canon.path)}" alt="Canon" data-zoom="${media(canon.path)}">` : `<p class="hint">Pas encore de canon : choisis-en une parmi les propositions.</p>`}
-          ${v.adn ? `<details><summary class="hint">ADN</summary><pre class="adn">${esc(v.adn)}</pre></details>` : ""}</div>
-        <div>${kinds || `<p class="hint">Aucune autre image dans cette version.</p>`}</div>
-      </div></section>`;
-  }).join("");
-  $view.innerHTML = `<h1>${esc(ch.name)}</h1>
-    <div class="meta"><span>canon v${ch.canon_version || "–"}</span>
-      <span>${ch.clips.length ? "Clips : " + ch.clips.map((c) => `${esc(c.clip_slug)} (v${c.version})`).join(", ") : "Dans aucun clip"}</span>
-      ${ch.looks.length ? `<span>Looks : ${ch.looks.map((l) => esc(l.slug)).join(", ")}</span>` : ""}</div>
-    ${versions}`;
-  if (keepScroll) window.scrollTo(0, scroll);
-
-  $view.onclick = async (ev) => {
-    const t = ev.target.closest("button, [data-zoom]");
-    if (!t) return;
-    try {
-      if (t.dataset.zoom) return lightbox(t.dataset.zoom);
-      if (t.dataset.pickAsset) {
-        const [id, decision] = t.dataset.pickAsset.split(":");
-        await api(`/api/character-assets/${id}`, { json: { decision } });
-        toast({ keep: "Image gardée", reject: "Image rejetée", canon: "Nouvelle canon de la version" }[decision]);
-        return showCharacter(slug);
-      }
-      if (t.dataset.validate) {
-        if (!confirm(`Valider la version ${t.dataset.validate} ? Elle devient la canon de ${ch.name} pour les prochains clips.`)) return;
-        await api(`/api/characters/${encodeURIComponent(slug)}/versions/${t.dataset.validate}/validate`, { method: "POST" });
-        toast("Version validée");
-        return showCharacter(slug);
-      }
-    } catch (e) { toast(e.message, true); }
-  };
-  autoRefresh(() => showCharacter(slug, true), 20000);
+function matchesFilter(s) {
+  const st = shotState(s);
+  if (state.filter === "review" && st !== "review") return false;
+  if (state.filter === "work" && st !== "work") return false;
+  if (state.filter === "change" && !["change", "failed"].includes(st)) return false;
+  if (state.filter === "done" && st !== "done") return false;
+  if (state.stepFilter) {
+    const cur = currentStep(s) === "lipsync" ? "final" : currentStep(s);
+    if (cur !== state.stepFilter || s.status === "done") return false;
+  }
+  return true;
 }
 
-/* ---------- nouveau clip ---------- */
+function openBlocks(clip) {
+  const saved = prefs("open:" + clip.slug);
+  if (saved) return new Set(saved);
+  // par défaut : les blocs où quelque chose t'attend, sinon le premier où ça travaille
+  const shotById = Object.fromEntries(clip.shots.map((s) => [s.id, s]));
+  const open = clip.blocks.filter((b) => b.shot_ids.some((id) => shotState(shotById[id] || {}) === "review")).map((b) => String(b.id));
+  if (!open.length && clip.blocks.length) open.push(String(clip.blocks[0].id));
+  return new Set(open);
+}
 
-async function showNewClip() {
-  const d = await api("/api/overview");
-  const castable = d.characters.filter((c) => c.canon_version);
-  $view.innerHTML = `<h1>Nouveau clip</h1>
-    <p class="hint">Dépose le morceau et ton script : le script doctor propose un découpage, tu le valides, la production démarre.</p>
-    <form class="new">
-      <label>Titre<input type="text" name="title" required placeholder="Titre du morceau"></label>
-      <label>Morceau (mp3 ou wav exporté de Suno)<input type="file" name="song" accept="audio/*" required></label>
-      <label>Piste voix isolée (stem « vocals » de Suno, pour le lip-sync)<input type="file" name="vocals" accept="audio/*"></label>
-      <label>Script : tes plans avec leurs timecodes, tes intentions, les paroles<textarea name="script" rows="12" placeholder="Intention : JJ seule dans un entrepôt au petit matin…&#10;&#10;Plan 1 — 0:00.0 → 0:04.2 — JJ chante face caméra, gros plan, lumière de fenêtre&#10;Plan 2 — 0:04.2 → 0:08.0 — Profil, elle ferme les yeux sur la fin de phrase&#10;…&#10;&#10;Paroles :&#10;…"></textarea></label>
-      <div><span class="hint">Personnages</span><div class="checks">${castable.map((c, i) =>
-        `<label><input type="checkbox" name="characters" value="${esc(c.slug)}" ${i === 0 ? "checked" : ""}> ${esc(c.name)}</label>`).join("")}</div></div>
-      <div class="two">
-        <label>Format<select name="aspect"><option value="16:9">16:9 — YouTube</option><option value="9:16">9:16 — Reels, TikTok</option><option value="1:1">1:1</option></select></label>
-        <label>Budget ($)<input type="number" name="budget" min="1" step="1" value="80"></label>
-        <label>BPM (facultatif)<input type="number" name="bpm" min="40" max="220" step="0.1"></label>
+function renderTile(s, clip) {
+  const t = thumbOf(s);
+  const st = shotState(s);
+  const steps = stepStates(s).filter((x) => x.state !== "off")
+    .map((x) => `<i class="c-${x.state === "wait" ? "wait" : x.state}" title="${esc(x.label)} : ${esc(x.text)}"></i>`).join("");
+  const stepLabel = STEPS[STEP_INDEX[currentStep(s)]].label;
+  return `<button class="tile ${st} ${s.id === state.shotId ? "sel" : ""}" data-openshot="${s.id}">
+      <div class="thumb ${aspectClass(clip)}" style="${t ? `background-image:url('${media(t.path)}')` : ""}">
+        ${t ? "" : "pas encore de visuel"}
+        <span class="num">${s.num}</span>${s.singing ? `<span class="sing" title="Plan chanté">♪</span>` : ""}
+        <span class="kind">${esc(stepLabel)}</span>
       </div>
-      <div class="row"><button class="btn go" type="submit">Créer le clip</button><span class="hint" id="up"></span></div>
-    </form>`;
-  const form = $view.querySelector("form");
-  form.onsubmit = async (ev) => {
-    ev.preventDefault();
-    const fd = new FormData(form);
-    const chars = fd.getAll("characters");
-    fd.delete("characters");
-    fd.set("characters", chars.join(","));
-    if (!fd.get("bpm")) fd.delete("bpm");
-    if (!fd.get("vocals")?.size) fd.delete("vocals");
-    const btn = form.querySelector("button[type=submit]");
-    btn.disabled = true;
-    document.getElementById("up").textContent = "Envoi des fichiers…";
+      <div class="info">
+        <p class="desc">${esc(s.description)}</p>
+        <div class="foot">${led(st)}<span>${esc((STATUS[s.status] || [s.status])[0])}</span></div>
+        <div class="foot"><span class="mono" style="font-size:11px">${tc(s.t_start)} → ${tc(s.t_end)}</span>
+          <span class="steps-mini">${steps}</span></div>
+      </div>
+    </button>`;
+}
+
+function renderPlans(clip) {
+  if (!clip.shots.length) {
+    return `<div class="panel"><h2>Pas encore de plans</h2><p class="hint" style="margin-top:8px">
+      Les plans apparaissent ici une fois le découpage validé. Commence par l'onglet
+      <a href="#/clip/${encodeURIComponent(clip.slug)}/decoupage">Découpage</a>.</p></div>`;
+  }
+  const c = clipCounts(clip);
+  const filters = [
+    ["all", "Tous", clip.shots.length], ["review", "À valider", c.review], ["work", "En cours", c.work],
+    ["change", "Retours et échecs", (c.change || 0) + (c.failed || 0)], ["done", "Terminés", c.done],
+  ];
+  const shotById = Object.fromEntries(clip.shots.map((s) => [s.id, s]));
+  const open = openBlocks(clip);
+  const filtering = state.filter !== "all" || state.stepFilter;
+  const blocks = clip.blocks.map((b) => {
+    const shots = b.shot_ids.map((id) => shotById[id]).filter(Boolean);
+    const visible = shots.filter(matchesFilter);
+    if (filtering && !visible.length) return "";
+    const key = String(b.id);
+    const isOpen = filtering ? state.tempOpen[key] !== false : open.has(key);
+    const toReview = shots.filter((s) => shotState(s) === "review");
+    const gates = {};
+    toReview.forEach((s) => { const g = gateOf(s); gates[g] = (gates[g] || 0) + 1; });
+    const leds = shots.map((s) => `<span class="led ${shotState(s)}" title="Plan ${s.num} · ${esc((STATUS[s.status] || [s.status])[0])}"></span>`).join("");
+    const a = shots.length ? shots[0].t_start : 0; const z = shots.length ? shots[shots.length - 1].t_end : 0;
+    const bulk = Object.entries(gates).filter(([g]) => g !== "hd").map(([g, n]) => {
+      const cost = g === "videoplan" ? shots.filter((s) => s.status === "video_review").reduce((t, s) => t + ((s.estimate || {}).cost_total_usd || 0), 0) : 0;
+      return `<button class="btn small" data-approveblock="${g}:${b.id ?? ""}">Valider les ${n} ${APPROVE_LABEL[g][1]}${cost ? ` · ~${money(cost)}` : ""}</button>`;
+    }).join("");
+    return `<section class="block ${isOpen ? "open" : ""} ${toReview.length ? "has-review" : ""}" id="block-${key}">
+      <div class="block-head" data-toggleblock="${key}">
+        <span class="chev">▶</span>
+        <div class="block-title"><div class="name">${esc(b.name)}<span class="mono">${tc(a)} → ${tc(z)} · ${shots.length} plan${shots.length > 1 ? "s" : ""}</span></div>
+          ${b.intention ? `<div class="intent">${esc(b.intention)}</div>` : ""}</div>
+        <div class="block-side"><div class="leds">${leds}</div>
+          ${toReview.length ? pill(`${toReview.length} à valider`, "review") : ""}</div>
+      </div>
+      <div class="block-body">
+        ${bulk ? `<div class="block-actions">${bulk}</div>` : ""}
+        <div class="tiles">${(filtering ? visible : shots).map((s) => renderTile(s, clip)).join("")}</div>
+      </div>
+    </section>`;
+  }).join("");
+  const nextReview = clip.shots.find((s) => shotState(s) === "review");
+  return `${stageSummary(clip)}
+    <div class="toolbar">
+      ${filters.map(([k, l, n]) => `<button class="chip ${state.filter === k ? "on" : ""}" data-filter="${k}">${l}${n ? `<span class="n">${n}</span>` : ""}</button>`).join("")}
+      ${state.stepFilter ? `<button class="chip on" data-stepfilter="">${esc(STEPS[STEP_INDEX[state.stepFilter]].label)} ✕</button>` : ""}
+      <span class="spacer"></span>
+      ${nextReview ? `<button class="btn small" data-openshot="${nextReview.id}">Prochain à valider →</button>` : ""}
+      <button class="btn small ghost" data-allblocks="open">Tout déplier</button>
+      <button class="btn small ghost" data-allblocks="close">Tout replier</button>
+      <button class="btn small" data-assemble>Monter le clip</button>
+      ${clip.montages.length ? `<a class="btn small ghost" href="${media(clip.montages[0])}" target="_blank" rel="noopener">Dernier montage</a>` : ""}
+    </div>
+    ${blocks || `<p class="empty">Aucun plan dans ce filtre.</p>`}
+    <div class="legend" style="margin-top:16px">
+      <span>${led("review")}t'attend</span><span>${led("work")}la machine travaille</span>
+      <span>${led("done")}validé</span><span>${led("change")}modif demandée</span><span>${led("failed")}échec</span><span>${led("wait")}à venir</span></div>`;
+}
+
+/* ----- panneau de détail d'un plan ----- */
+
+function shotHref(id) {
+  return `#/clip/${encodeURIComponent(state.clip.slug)}/${state.tab}/p/${id}`;
+}
+
+function closeDrawerUi() {
+  $drawer.hidden = true;
+  $drawer.innerHTML = "";
+  document.querySelector(".drawer-backdrop")?.remove();
+}
+
+function renderDrawer() {
+  const clip = state.clip;
+  const shot = clip && state.shotId ? clip.shots.find((s) => s.id === state.shotId) : null;
+  document.querySelectorAll(".tile.sel, .tl-shot.sel").forEach((n) => n.classList.remove("sel"));
+  if (!shot) { closeDrawerUi(); return; }
+  document.querySelectorAll(`[data-openshot="${shot.id}"]`).forEach((n) => n.classList.add("sel"));
+  if (!$drawer.hidden && $drawer.dataset.shot === String(shot.id) && $drawer.dataset.json === JSON.stringify(shot)) return;
+  if (!$drawer.hidden && $drawer.dataset.shot === String(shot.id) && isBusy()) return;
+  if ($drawer.dataset.shot !== String(shot.id)) state.step = null;
+  const scroll = $drawer.querySelector(".drawer-body")?.scrollTop || 0;
+  const sameShot = $drawer.dataset.shot === String(shot.id);
+  $drawer.dataset.shot = shot.id;
+  $drawer.dataset.json = JSON.stringify(shot);
+
+  const idx = clip.shots.indexOf(shot);
+  const prev = clip.shots[idx - 1]; const next = clip.shots[idx + 1];
+  const nextReview = clip.shots.slice(idx + 1).concat(clip.shots.slice(0, idx)).find((s) => shotState(s) === "review");
+  const steps = stepStates(shot);
+  const step = state.step || currentStep(shot);
+  const st = shotState(shot);
+  const tags = [shot.framing, shot.motion && `mouvement ${shot.motion}`, shot.camera,
+    shot.singing ? "♪ chanté" : null, ...(shot.characters || [])].filter(Boolean);
+
+  const pipeline = steps.map((s) => `<button class="pstep ${s.state} ${s.key === step ? "on" : ""}" data-step="${s.key}" ${s.state === "off" ? "disabled" : ""}>
+      <span class="lbl">${esc(s.label)}</span><span class="st">${led(s.state === "off" ? "wait" : s.state)}${esc(s.text)}</span></button>`).join("");
+
+  const notes = [];
+  if (shot.notes) {
+    const cls = shot.notes.startsWith("Retour de Michael") ? "michael" : shot.notes.includes("ontrôle") ? "qc" : "";
+    notes.push(`<p class="note ${cls}">${esc(shot.notes)}</p>`);
+  }
+
+  if (!document.querySelector(".drawer-backdrop")) {
+    const bd = document.createElement("div");
+    bd.className = "drawer-backdrop";
+    bd.addEventListener("click", () => { location.hash = `#/clip/${encodeURIComponent(clip.slug)}/${state.tab}`; });
+    document.body.appendChild(bd);
+  }
+  $drawer.hidden = false;
+  $drawer.innerHTML = `
+    <div class="drawer-head">
+      <button class="iconbtn" data-goshot="${prev ? prev.id : ""}" ${prev ? "" : "disabled"} aria-label="Plan précédent">‹</button>
+      <button class="iconbtn" data-goshot="${next ? next.id : ""}" ${next ? "" : "disabled"} aria-label="Plan suivant">›</button>
+      <div class="title"><b>Plan ${shot.num} · ${esc(shot.section || "")}</b>
+        <span class="mono">${tc(shot.t_start)} → ${tc(shot.t_end)} · ${(shot.t_end - shot.t_start).toFixed(1)} s</span></div>
+      <span class="spacer"></span>
+      ${nextReview ? `<button class="btn small" data-goshot="${nextReview.id}">Prochain à valider</button>` : ""}
+      <button class="iconbtn" data-closedrawer aria-label="Fermer">✕</button>
+    </div>
+    <div class="drawer-body">
+      <div class="stack" style="gap:8px">
+        <div class="row">${pill((STATUS[shot.status] || [shot.status])[0], st)}
+          <span class="spacer"></span><button class="btn small ghost" data-playshot="${shot.id}">▶ Lire dans le morceau</button></div>
+        <p>${esc(shot.description)}</p>
+        <div class="row" style="gap:6px">${tags.map((t) => `<span class="tag">${esc(t)}</span>`).join("")}</div>
+      </div>
+      <div class="pipeline">${pipeline}</div>
+      ${notes.join("")}
+      ${renderStepPanel(shot, step)}
+      ${shot.image_prompt ? `<details class="fold"><summary>Prompt du visuel</summary><div><pre class="text">${esc(shot.image_prompt)}</pre></div></details>` : ""}
+      ${(shot.reviews || []).length ? `<details class="fold"><summary>Historique des validations</summary><div class="journal">${shot.reviews.map((r) =>
+        `<div><span class="t">${esc(r.created_at.replace("T", " ").slice(5, 16))}</span><span>${esc(APPROVE_LABEL[r.gate]?.[1] || r.gate)} : ${r.decision === "approve" ? "validé" : "modif : " + esc(r.comment || "")}${r.handled_note ? ` <span class="dim">(${esc(r.handled_note)})</span>` : ""}</span></div>`).join("")}</div></details>` : ""}
+      <p class="hint mono">Dépensé sur ce plan : ${money(shot.cost_usd)}</p>
+    </div>`;
+  if (sameShot) $drawer.querySelector(".drawer-body").scrollTop = scroll;
+  bindCompare($drawer);
+  $drawer.onclick = drawerClick;
+}
+
+function viewerFor(shot, kinds, clip, emptyText) {
+  const list = assetsOf(shot, kinds);
+  const key = `${shot.id}:${kinds.join(",")}`;
+  const picked = list.find((a) => a.id === state.picked[key]) || bestAsset(shot, kinds);
+  const generating = (shot.assets || []).some((a) => kinds.includes(a.kind) && a.status === "generating");
+  let inner;
+  if (!picked) {
+    inner = `<div class="none">${generating ? `${led("work")} Génération en cours…` : esc(emptyText)}</div>`;
+  } else if (isVideo(picked.path)) {
+    const poster = thumbOf(shot);
+    inner = `<video src="${media(picked.path)}" controls playsinline preload="metadata" muted ${poster ? `poster="${media(poster.path)}"` : ""}></video>`;
+  } else {
+    inner = `<img src="${media(picked.path)}" alt="" data-zoom="${media(picked.path)}">`;
+  }
+  const versions = list.length > 1 || (picked && list.length) ? `<div class="versions">${list.map((a) =>
+    `<button class="${a.id === picked?.id ? "on" : ""} ${a.status}" data-pick="${key}|${a.id}" title="${esc(a.status)}${a.error ? " · " + esc(a.error) : ""}">v${a.version}${a.status === "validated" ? " ✓" : ""}</button>`).join("")}
+    ${picked && picked.model_key ? `<span class="hint">${esc(picked.model_key)} · ${money(picked.cost_usd)}</span>` : ""}</div>` : "";
+  return { html: `<div class="viewer">${inner}</div>${versions}`, asset: picked };
+}
+
+function feedbackBox(shot, placeholder) {
+  return `<div class="feedback stack" id="fb-${shot.id}" hidden>
+      <textarea placeholder="${esc(placeholder)}"></textarea>
+      <div class="row"><button class="btn go" data-sendchange="${shot.id}">Envoyer le retour</button>
+        <button class="btn ghost" data-cancelchange="${shot.id}">Annuler</button></div>
+    </div>`;
+}
+
+function renderStepPanel(shot, step) {
+  const clip = state.clip;
+  const gate = gateOf(shot);
+  const isGate = gate && GATE_STEP[gate] === step || (gate === "finals" && step === "lipsync");
+  if (step === "plan") return renderPlanVideo(shot, gate === "videoplan");
+  const def = STEPS[STEP_INDEX[step]];
+  if (step === "hd" && gate === "hd") {
+    const work = bestAsset(shot, ["image"]);
+    const hd = bestAsset(shot, ["image_hd"]);
+    return `<div class="actionbox"><h3>Écart signalé sur la HD</h3>
+      <p class="hint">Le contrôleur a trouvé une différence entre le visuel draft que tu as validé et sa version HD.
+        Fais glisser le curseur pour comparer.</p>
+      ${work && hd ? compareWidget(media(work.path), media(hd.path), "Visuel draft validé", "Visuel HD") : ""}
+      <div class="row">
+        <button class="btn ok" data-approve="${shot.id}">Valider la HD</button>
+        <button class="btn" data-decision="${shot.id}:use_work_image">Partir du visuel draft</button>
+        <button class="btn ghost" data-openchange="${shot.id}">Demander une modif</button>
+      </div>
+      ${feedbackBox(shot, "Ce que la HD a perdu ou changé (boucles, regard, grain de peau…)")}
+    </div>`;
+  }
+  const v = viewerFor(shot, def.kinds, clip, {
+    image: "Le storyboard prépare ce visuel.",
+    hd: "La HD part dès que le visuel draft est validé.",
+    draft: "La vidéo draft part dès que le plan vidéo est validé.",
+    final: "La vidéo HD part dès que la vidéo draft est validée.",
+    lipsync: "Le lip-sync se fait après la vidéo HD.",
+  }[step]);
+  let html = v.html;
+  if (isGate) {
+    const label = step === "lipsync" || step === "final" ? APPROVE_LABEL.finals[0] : APPROVE_LABEL[gate][0];
+    const ph = {
+      images: "Ce qui ne va pas et ce que tu veux à la place (cadrage, pose, lumière, tenue, décor…)",
+      drafts: "Mouvement, rythme, caméra, rendu : ce que tu veux changer",
+      finals: "Ce qui ne va pas sur la vidéo HD ou le lip-sync",
+    }[gate];
+    html += `<div class="actionbox"><h3>À toi de valider</h3>
+      <div class="row">
+        <button class="btn ok" data-approve="${shot.id}">${esc(label)}</button>
+        <button class="btn ghost" data-openchange="${shot.id}">Demander une modif</button>
+      </div>
+      ${feedbackBox(shot, ph)}</div>`;
+  }
+  if (step === "hd" && shot.status !== "hd_review") {
+    const work = bestAsset(shot, ["image"]);
+    const hd = bestAsset(shot, ["image_hd"]);
+    if (work && hd) html += `<details class="fold"><summary>Comparer avec le visuel draft</summary><div>${compareWidget(media(work.path), media(hd.path), "Visuel draft", "Visuel HD")}</div></details>`;
+  }
+  if (shot.status === "failed") {
+    html += `<div class="actionbox" style="border-color:#ff4d6688"><h3 style="color:var(--red)">Échec</h3>
+      <p class="hint">L'orchestrateur va tenter de relancer. Tu peux aussi le faire toi-même.</p>
+      <div class="row"><button class="btn" data-retry="${shot.id}">Relancer l'étape</button></div></div>`;
+  }
+  return html;
+}
+
+function renderPlanVideo(shot, isGate) {
+  const est = shot.estimate;
+  if (!shot.model_key && !shot.video_prompt) {
+    return `<div class="viewer"><div class="none">${shot.status === "prompt_todo" ? `${led("work")} Le routeur choisit le modèle, le prompteur écrit le prompt.` : "Le plan vidéo se prépare une fois le visuel HD prêt."}</div></div>`;
+  }
+  const hd = bestAsset(shot, ["image_hd"]) || bestAsset(shot, ["image"]);
+  const costs = est ? `<div class="costline">
+      <span>Vidéo draft <b>${money(est.cost_draft_usd)}</b></span>
+      <span>Vidéo HD <b>${est.final_mode === "keep" ? "incluse" : money(est.cost_final_usd)}</b></span>
+      ${shot.singing ? `<span>Lip-sync <b>${money(est.cost_lipsync_usd)}</b></span>` : ""}
+      <span>Total estimé <b>${money(est.cost_total_usd)}</b></span>
+      <span>Durée générée <b>${est.duration} s</b> pour un plan de ${est.shot_seconds} s</span></div>` : "";
+  const providers = state.clip.providers || [];
+  const provLabel = (k) => (providers.find((p) => p.key === k) || { label: k }).label;
+  let modelHtml;
+  if (isGate && shot.model_options) {
+    const opts = shot.model_options.slice().sort((a, b) => (b.usable - a.usable) || (a.cost_total_usd - b.cost_total_usd));
+    modelHtml = `<div class="models">${opts.map((m) => `<label class="model ${m.key === shot.model_key ? "on" : ""} ${m.usable ? "" : "off"}">
+        <input type="radio" name="model-${shot.id}" value="${m.key}" ${m.key === shot.model_key ? "checked" : ""} ${m.usable ? "" : "disabled"} data-model="${shot.id}">
+        <span><span class="nm">${esc(m.label)}</span> <span class="hint">· ${esc(provLabel(m.provider))}${m.usable ? "" : " (à brancher)"}</span><br>
+          <span class="uf">${esc(m.use_for)}</span></span>
+        <span class="cost">~${money(m.cost_total_usd)}<small>${m.duration} s générées</small></span></label>`).join("")}</div>
+      ${providers.filter((p) => !p.usable).length ? `<p class="hint">Fournisseurs en attente : ${providers.filter((p) => !p.usable).map((p) => esc(p.label)).join(", ")}. Ils apparaîtront ici une fois branchés.</p>` : ""}`;
+  } else {
+    modelHtml = est ? `<dl class="kv"><dt>Fournisseur</dt><dd>${esc(provLabel(est.provider))}</dd><dt>Modèle</dt><dd>${esc(est.model_label)}</dd></dl>` : "";
+  }
+  return `<div class="two-col">
+      <div>${hd ? `<div class="viewer"><img src="${media(hd.path)}" data-zoom="${media(hd.path)}" alt=""></div><p class="hint" style="margin-top:6px">Image de départ de la vidéo</p>` : ""}</div>
+      <div class="stack" style="gap:10px">
+        <h3>Choix du modèle</h3>
+        ${shot.route_reason ? `<p class="note">Raison du routeur : ${esc(shot.route_reason)}</p>` : ""}
+        ${isGate ? "" : modelHtml}
+      </div>
+    </div>
+    ${isGate ? modelHtml : ""}
+    ${costs}
+    <div class="stack" style="gap:6px">
+      <h3>Prompt vidéo</h3>
+      ${isGate ? `<textarea id="vp-${shot.id}" rows="6">${esc(shot.video_prompt || "")}</textarea>
+        <div class="row"><button class="btn small" data-saveprompt="${shot.id}">Enregistrer le prompt</button>
+        <span class="hint">Le prompt est en anglais, c'est la langue des modèles.</span></div>`
+        : `<pre class="text">${esc(shot.video_prompt || "")}</pre>`}
+      ${shot.negative_prompt ? `<p class="hint">À éviter : ${esc(shot.negative_prompt)}</p>` : ""}
+    </div>
+    ${isGate ? `<div class="actionbox"><h3>À toi de valider</h3>
+      <p class="hint">Rien n'est dépensé tant que tu n'as pas validé. Ensuite la vidéo draft part, puis la vidéo HD
+        ${shot.singing ? "et le lip-sync " : ""}après ta validation de la draft.</p>
+      <div class="row">
+        <button class="btn ok" data-approve="${shot.id}">Valider et lancer la vidéo${est ? ` · ~${money(est.cost_draft_usd)}` : ""}</button>
+        <button class="btn ghost" data-openchange="${shot.id}">Demander une modif</button>
+      </div>
+      ${feedbackBox(shot, "Mouvement, caméra, action, ou modèle à reconsidérer")}</div>` : ""}`;
+}
+
+async function drawerClick(ev) {
+  const t = ev.target.closest("button, [data-zoom], input[data-model]");
+  if (!t) return;
+  const d = t.dataset;
+  const clip = state.clip;
+  const reload = () => showClip(clip.slug, state.tab, false);
+  try {
+    if (d.zoom) return lightbox(d.zoom);
+    if (d.closedrawer !== undefined) { location.hash = `#/clip/${encodeURIComponent(clip.slug)}/${state.tab}`; return; }
+    if (d.goshot) { location.hash = shotHref(d.goshot); return; }
+    if (d.step) { state.step = d.step; $drawer.dataset.json = ""; renderDrawer(); return; }
+    if (d.pick) {
+      const [key, id] = d.pick.split("|");
+      state.picked[key] = +id; $drawer.dataset.json = ""; renderDrawer(); return;
+    }
+    if (d.playshot) return playShot(clip.shots.find((s) => s.id === +d.playshot));
+    if (d.openchange) {
+      const fb = document.getElementById("fb-" + d.openchange);
+      fb.hidden = false; fb.querySelector("textarea").focus(); return;
+    }
+    if (d.cancelchange) { document.getElementById("fb-" + d.cancelchange).hidden = true; return; }
+    if (d.model) {
+      await api(`/api/shots/${d.model}/model`, { json: { model_key: t.value } });
+      toast("Modèle changé");
+      return reload();
+    }
+    if (d.saveprompt) {
+      const text = document.getElementById("vp-" + d.saveprompt).value;
+      await api(`/api/shots/${d.saveprompt}/video-prompt`, { json: { text } });
+      toast("Prompt enregistré");
+      return reload();
+    }
+    if (d.approve) {
+      const sid = +d.approve;
+      const shot = clip.shots.find((s) => s.id === sid);
+      const gate = gateOf(shot);
+      const kinds = gate === "images" ? ["image"] : gate === "drafts" ? ["draft"] : null;
+      const assetId = kinds ? state.picked[`${sid}:${kinds.join(",")}`] || null : null;
+      const vp = document.getElementById("vp-" + sid);
+      if (vp && vp.value.trim() !== (shot.video_prompt || "").trim()) {
+        await api(`/api/shots/${sid}/video-prompt`, { json: { text: vp.value } });
+      }
+      t.disabled = true;
+      await api(`/api/shots/${sid}/review`, { json: { decision: "approve", asset_id: assetId } });
+      toast(`Plan ${shot.num} validé`);
+      state.step = null;
+      const next = clip.shots.slice(clip.shots.indexOf(shot) + 1).find((s) => shotState(s) === "review" && s.id !== sid);
+      await showClip(clip.slug, state.tab, false);
+      if (next) location.hash = shotHref(next.id);
+      return;
+    }
+    if (d.decision) {
+      const [sid, decision] = d.decision.split(":");
+      await api(`/api/shots/${sid}/review`, { json: { decision } });
+      toast("C'est noté");
+      return reload();
+    }
+    if (d.sendchange) {
+      const sid = +d.sendchange;
+      const text = document.querySelector(`#fb-${sid} textarea`).value.trim();
+      if (!text) { toast("Explique la modification souhaitée", "err"); return; }
+      t.disabled = true;
+      await api(`/api/shots/${sid}/review`, { json: { decision: "change", comment: text } });
+      toast("Retour envoyé à l'orchestrateur");
+      return reload();
+    }
+    if (d.retry) {
+      await api(`/api/shots/${d.retry}/retry`, { method: "POST" });
+      toast("Étape relancée");
+      return reload();
+    }
+  } catch (e) {
+    t.disabled = false;
+    toast(e.message, "err");
+  }
+}
+
+/* ----- onglet Découpage ----- */
+
+function editorFromClip(clip) {
+  const shotById = Object.fromEntries(clip.shots.map((s) => [s.id, s]));
+  const blocks = clip.blocks.map((b) => ({
+    name: b.name, intention: b.intention || "",
+    shots: b.shot_ids.map((id) => shotById[id]).filter(Boolean).map((s) => ({
+      t_start: tc(s.t_start), t_end: tc(s.t_end), description: s.description, singing: !!s.singing,
+      framing: s.framing, motion: s.motion, camera: s.camera, characters: s.characters, notes: s.notes,
+    })),
+  }));
+  if (!blocks.length) blocks.push({ name: "Intro", intention: "", shots: [{ t_start: "0:00.0", t_end: "", description: "", singing: false, characters: defaultCast(clip) }] });
+  return blocks;
+}
+
+function defaultCast(clip) { return clip.casting.map((c) => c.character_slug); }
+
+function renderDecoupageTab(clip) {
+  const editable = clip.stage === "script" || clip.stage === "decoupage_review";
+  if (!editable) return renderDecoupageRead(clip);
+  if (!state.editor || !state.editorDirty) state.editor = editorFromClip(clip);
+  let head = "";
+  if (clip.stage === "decoupage_review") {
+    head = `<div class="actionbox" style="margin-bottom:16px"><h3>Découpage à valider</h3>
+      <p class="hint">Le script doctor a complété chaque plan : cadrage, mouvement, caméra, plan chanté ou non.
+        Tu peux corriger directement ci-dessous, puis valider pour lancer le storyboard.</p>
+      ${clip.script_notes ? `<details class="fold"><summary>Notes de relecture du script doctor</summary><div><pre class="text">${esc(clip.script_notes)}</pre></div></details>` : ""}
+      <div class="row"><button class="btn ok" data-cut="approve">Valider le découpage</button>
+        <button class="btn ghost" data-cut="open">Demander des changements</button></div>
+      <div class="feedback stack" id="fb-cut" hidden>
+        <textarea placeholder="Ex. : fusionner les plans 4 et 5, le refrain commence sur un plan large…"></textarea>
+        <div class="row"><button class="btn go" data-cut="change">Envoyer au script doctor</button></div></div>
+    </div>`;
+  } else {
+    head = `<div class="panel" style="margin-bottom:16px"><div class="panel-head"><h2>Ton découpage</h2></div>
+      <p class="hint">Saisis tes blocs (intro, couplet, refrain…) et les plans de chaque bloc avec leurs timecodes,
+        en écoutant le morceau. Format des temps : <span class="mono">1:04.2</span> ou <span class="mono">64.2</span>.
+        Tu peux aussi déposer ton découpage dans le dossier de réalisation : le script doctor le reprendra.
+        Une fois prêt, envoie le tout depuis l'onglet <a href="#/clip/${encodeURIComponent(clip.slug)}/dossier">Dossier</a>.</p>
+      ${clip.script_notes ? `<details class="fold" style="margin-top:10px" open><summary>Notes du script doctor</summary><div><pre class="text">${esc(clip.script_notes)}</pre></div></details>` : ""}
+    </div>`;
+  }
+  let n = 0;
+  const blocks = state.editor.map((b, bi) => `<div class="dec-block">
+      <div class="dec-block-head">
+        <input type="text" value="${esc(b.name)}" data-bf="${bi}:name" placeholder="Nom du bloc (couplet 1…)">
+        <input type="text" value="${esc(b.intention)}" data-bf="${bi}:intention" placeholder="Intention du bloc (facultatif)">
+        <button class="iconbtn" data-delblock="${bi}" title="Supprimer le bloc">✕</button>
+      </div>
+      <div class="colhead"><span>#</span><span>Début</span><span>Fin</span><span>Ce qu'on voit</span><span>Chanté</span><span></span></div>
+      ${b.shots.map((s, si) => {
+        n++;
+        const tech = [s.framing, s.motion && `mouvement ${s.motion}`, s.camera, (s.characters || []).join(", ")].filter(Boolean).join(" · ");
+        return `<div class="dec-shot">
+          <span class="n">${n}</span>
+          <input class="tc" type="text" inputmode="decimal" value="${esc(s.t_start)}" data-sf="${bi}:${si}:t_start" placeholder="0:00.0">
+          <input class="tc" type="text" inputmode="decimal" value="${esc(s.t_end)}" data-sf="${bi}:${si}:t_end" placeholder="0:04.0">
+          <textarea rows="1" data-sf="${bi}:${si}:description" placeholder="Ce qu'on voit dans ce plan">${esc(s.description)}</textarea>
+          <label class="sing"><input type="checkbox" ${s.singing ? "checked" : ""} data-sf="${bi}:${si}:singing"> ♪</label>
+          <button class="iconbtn" data-delshot="${bi}:${si}" title="Supprimer le plan">✕</button>
+          ${tech ? `<span class="tech">${esc(tech)}</span>` : ""}
+        </div>`;
+      }).join("")}
+      <div class="row" style="margin-top:8px"><button class="btn small" data-addshot="${bi}">＋ Plan</button></div>
+    </div>`).join("");
+  return `${head}${blocks}
+    <div class="row" style="position:sticky;bottom:12px;z-index:5;background:#0a0911ee;padding:10px;border-radius:12px;border:1px solid var(--line)">
+      <button class="btn" data-addblock>＋ Bloc</button><span class="spacer"></span>
+      <span class="hint" id="dec-status">${state.editorDirty ? "Modifications non enregistrées" : `${n} plans`}</span>
+      <button class="btn go" data-savedec>Enregistrer le découpage</button>
+    </div>`;
+}
+
+function renderDecoupageRead(clip) {
+  const shotById = Object.fromEntries(clip.shots.map((s) => [s.id, s]));
+  return clip.blocks.map((b) => {
+    const shots = b.shot_ids.map((id) => shotById[id]).filter(Boolean);
+    return `<div class="dec-block"><div class="row" style="margin-bottom:8px"><h2>${esc(b.name)}</h2>
+        <span class="hint">${esc(b.intention || "")}</span></div>
+      ${shots.map((s) => `<div class="dec-shot" style="grid-template-columns:34px 170px 1fr auto">
+        <span class="n">${s.num}</span><span class="mono" style="padding-top:2px">${tc(s.t_start)} → ${tc(s.t_end)}</span>
+        <span><a href="${shotHref(s.id)}">${esc(s.description)}</a><br><span class="hint">${esc([s.framing, s.motion, s.camera].filter(Boolean).join(" · "))}</span></span>
+        <span>${s.singing ? "♪" : ""}</span></div>`).join("")}</div>`;
+  }).join("") + `<p class="hint">Le découpage est validé : pour changer un plan, ouvre-le et demande une modif.</p>`;
+}
+
+function collectEditor() {
+  const blocks = state.editor.map((b, bi) => ({
+    name: b.name.trim(), intention: b.intention.trim() || null,
+    shots: b.shots.map((s, si) => {
+      const a = parseTc(s.t_start); const z = parseTc(s.t_end);
+      if (a == null || isNaN(a)) throw new Error(`Bloc « ${b.name || bi + 1} », plan ${si + 1} : début illisible`);
+      if (z == null || isNaN(z)) throw new Error(`Bloc « ${b.name || bi + 1} », plan ${si + 1} : fin illisible`);
+      const out = { t_start: a, t_end: z, description: s.description.trim(), singing: !!s.singing };
+      ["framing", "motion", "camera", "notes"].forEach((k) => { if (s[k]) out[k] = s[k]; });
+      out.characters = s.characters || [];
+      return out;
+    }),
+  }));
+  return blocks;
+}
+
+/* ----- onglet Dossier ----- */
+
+function fileRow(f, removable = true) {
+  const e = ext(f.path);
+  return `<div class="file"><span class="ico">${esc(FILE_ICON[e] || e.toUpperCase().slice(0, 3))}</span>
+    <span class="nm">${esc(f.label)}</span>
+    <a href="${media(f.path)}" target="_blank" rel="noopener">ouvrir</a>
+    ${removable ? `<button class="iconbtn" data-rmfile="${f.id}" title="Retirer">✕</button>` : ""}</div>`;
+}
+
+function renderDossier(clip) {
+  const files = clip.files || [];
+  const of = (k) => files.filter((f) => f.kind === k);
+  const lyricsTyped = of("lyrics").find((f) => f.path.endsWith("script/paroles.md"));
+  const lyricsFiles = of("lyrics").filter((f) => f !== lyricsTyped);
+  const spent = clip.cost_usd || 0;
+  let cta = "";
+  if (clip.stage === "script") {
+    const hasDec = clip.shots.length > 0;
+    const hasDocs = of("dossier").length || of("lyrics").length;
+    const ready = clip.song_path && (hasDec || hasDocs);
+    cta = clip.brief_ready
+      ? `<div class="agentbar">${led("work")}Dossier envoyé au script doctor. Il prépare le découpage ; tu seras prévenu.
+          Si tu ajoutes un fichier ou modifies ton découpage, il le reprendra.</div>`
+      : `<div class="actionbox" style="margin-bottom:16px"><h3>Prêt pour le découpage ?</h3>
+        <div class="checklist">
+          <div>${led(clip.song_path ? "done" : "wait")}Morceau ${clip.song_path ? "déposé" : "manquant"}</div>
+          <div>${led(hasDec ? "done" : "wait")}Découpage saisi ${hasDec ? `(${clip.shots.length} plans)` : "(facultatif si ton dossier le contient)"}</div>
+          <div>${led(of("dossier").length ? "done" : "wait")}Dossier de réalisation ${of("dossier").length ? `(${of("dossier").length} fichier${of("dossier").length > 1 ? "s" : ""})` : "(facultatif)"}</div>
+          <div>${led(of("lyrics").length ? "done" : "wait")}Paroles ${of("lyrics").length ? "déposées" : "(recommandées pour le timing et les plans chantés)"}</div>
+        </div>
+        <p class="hint">Le script doctor reprend tes timecodes tels quels, puis complète chaque plan
+          (cadrage, mouvement, caméra, plan chanté). Il ne crée ni ne déplace aucun plan.</p>
+        <div class="row"><button class="btn go" data-submitbrief ${ready ? "" : "disabled"}>Envoyer au script doctor</button></div>
+      </div>`;
+  }
+  const formats = [["16:9", "Horizontal", "YouTube, écran", 48, 27], ["9:16", "Vertical", "Reels, TikTok, Shorts", 22, 39], ["1:1", "Carré", "Posts", 34, 34]];
+  const formatLocked = clip.stage !== "script" && clip.stage !== "decoupage_review";
+  return `${cta}
+    <div class="two-col">
+      <div class="panel stack">
+        <div class="panel-head"><h2>Concept</h2></div>
+        <label class="field">Titre<input type="text" id="b-title" value="${esc(clip.title)}"></label>
+        <label class="field">Pitch <span class="hint">L'idée du clip en une ou deux phrases.</span>
+          <textarea id="b-pitch" rows="2">${esc(clip.pitch || "")}</textarea></label>
+        <label class="field">Concept <span class="hint">Histoire, univers, direction artistique, ce qui compte pour toi.</span>
+          <textarea id="b-concept" rows="9">${esc(clip.concept || "")}</textarea></label>
+        <div class="row"><button class="btn go" data-savebrief>Enregistrer</button></div>
+      </div>
+      <div class="stack">
+        <div class="panel stack">
+          <div class="panel-head"><h2>Morceau</h2></div>
+          ${of("song").map((f) => fileRow(f, false)).join("") || `<p class="hint">Pas encore de morceau.</p>`}
+          ${dropZone("song", clip.song_path ? "Remplacer le morceau" : "Déposer le morceau", "mp3 ou wav exporté de Suno", "audio/*", false)}
+          <h3 style="margin-top:6px">Voix isolée</h3>
+          <p class="hint">Le stem « vocals » de Suno. Il sert au lip-sync des plans chantés : sans lui, le lip-sync se cale sur le morceau complet, moins précis.</p>
+          ${of("vocals").map((f) => fileRow(f)).join("")}
+          ${dropZone("vocals", of("vocals").length ? "Remplacer la voix isolée" : "Déposer la voix isolée", "mp3 ou wav", "audio/*", false)}
+        </div>
+        <div class="panel stack">
+          <div class="panel-head"><h2>Dossier de réalisation</h2></div>
+          <p class="hint">Direction artistique, storytelling, plans, références, infos clés. PDF, Word, texte ou images.
+            Les agents lisent tout avant de travailler.</p>
+          <div class="files">${of("dossier").map((f) => fileRow(f)).join("") + of("reference").map((f) => fileRow(f)).join("")}</div>
+          ${dropZone("dossier", "Ajouter des fichiers", "Glisse-les ici ou touche pour choisir", "", true)}
+        </div>
+      </div>
+    </div>
+    <div class="panel stack" style="margin-top:16px">
+      <div class="panel-head"><h2>Paroles</h2><span class="hint">Indispensables pour bien caler les plans chantés.</span></div>
+      <div class="two-col">
+        <div class="stack"><textarea id="lyrics" rows="12" placeholder="[Couplet 1]&#10;…&#10;&#10;[Refrain]&#10;…">${esc(state.lyricsText || "")}</textarea>
+          <div class="row"><button class="btn" data-savelyrics>Enregistrer les paroles</button></div></div>
+        <div class="stack"><div class="files">${lyricsFiles.map((f) => fileRow(f)).join("")}</div>
+          ${dropZone("lyrics", "Ou déposer un fichier de paroles", "txt, md, pdf, docx, lrc (paroles horodatées)", "", true)}</div>
+      </div>
+    </div>
+    <div class="two-col" style="margin-top:16px">
+      <div class="panel stack">
+        <div class="panel-head"><h2>Format de l'image</h2></div>
+        <p class="hint">La forme de la vidéo finale. Tous les visuels et vidéos sont générés dans ce format.${formatLocked ? " Il ne se change plus une fois la production lancée." : ""}</p>
+        <div class="formats">${formats.map(([v, n, u, w, h]) => `<button class="format ${clip.aspect_ratio === v ? "on" : ""}" data-format="${v}" ${formatLocked ? "disabled" : ""}>
+          <span class="shape" style="width:${w}px;height:${h}px"></span><b>${n} ${v}</b><span>${u}</span></button>`).join("")}</div>
+      </div>
+      <div class="panel stack">
+        <div class="panel-head"><h2>Budget de génération</h2></div>
+        <p class="hint">Le plafond de dépense chez les fournisseurs (fal.ai) pour ce clip. Avant chaque génération,
+          la machine vérifie qu'elle ne le dépasse pas ; sinon elle s'arrête et te prévient. Tu peux le relever à tout moment.</p>
+        <div class="progress"><i style="width:${clip.budget_usd ? Math.min(100, (100 * spent) / clip.budget_usd) : 0}%"></i></div>
+        <p class="mono">${money(spent)} dépensés${clip.budget_usd ? ` sur ${clip.budget_usd.toFixed(0)} $` : ""}</p>
+        <div class="row"><input type="number" id="b-budget" min="1" step="1" value="${clip.budget_usd || 80}" style="max-width:140px"> <span>$</span>
+          <button class="btn" data-savebudget>Mettre à jour</button></div>
+      </div>
+    </div>
+    <div class="panel" style="margin-top:16px"><div class="panel-head"><h2>Casting</h2></div>
+      ${clip.casting.length ? clip.casting.map((c) => `<div class="row"><a href="#/personnages/${encodeURIComponent(c.character_slug)}"><b>${esc(c.name)}</b></a>
+        <span class="hint">version ${c.version}${c.look_slug ? " · look " + esc(c.look_slug) : ""}</span></div>`).join("") : `<p class="hint">Aucun personnage.</p>`}
+    </div>`;
+}
+
+async function loadLyrics(clip) {
+  const typed = (clip.files || []).find((f) => f.kind === "lyrics" && f.path.endsWith("script/paroles.md"));
+  state.lyricsText = "";
+  if (!typed) return;
+  try { state.lyricsText = await (await fetch(media(typed.path))).text(); } catch (e) { /* pas grave */ }
+  const ta = document.getElementById("lyrics");
+  if (ta && !ta.value) ta.value = state.lyricsText;
+}
+
+/* ----- onglet Journal ----- */
+
+function renderJournal(clip) {
+  return `<div class="panel"><div class="panel-head"><h2>Journal</h2><span class="hint">Les 30 derniers événements</span></div>
+    <div class="journal">${clip.events.map((e) => `<div><span class="t">${esc(e.created_at.replace("T", " ").slice(5, 16))}</span><span>${esc(e.message)}</span></div>`).join("") || `<p class="hint">Rien pour l'instant.</p>`}</div></div>`;
+}
+
+/* ----- interactions de la page clip ----- */
+
+function bindClip() {
+  const clip = state.clip;
+  drawWave();
+  bindCompare($view);
+  if (state.tab === "dossier") {
+    loadLyrics(clip);
+    bindDrops($view, async (kind, files) => {
+      const fd = new FormData();
+      fd.set("kind", kind);
+      [...files].forEach((f) => fd.append("files", f));
+      toast("Envoi en cours…");
+      try {
+        await upload(`/api/clips/${encodeURIComponent(clip.slug)}/files`, fd, (p) => toast(`Envoi : ${Math.round(p * 100)} %`));
+        toast("Fichier ajouté");
+        if (kind === "song") delete state.peaks[clip.slug];
+        await showClip(clip.slug, "dossier");
+      } catch (e) { toast(e.message, "err"); }
+    });
+  }
+  const tl = document.getElementById("timeline");
+  if (tl) {
+    tl.addEventListener("click", (e) => {
+      if (e.target.closest("[data-openshot], [data-goblock]")) return;
+      const r = tl.getBoundingClientRect();
+      song.currentTime = ((e.clientX - r.left) / r.width) * +tl.dataset.total;
+      updateHead();
+    });
+  }
+  $view.oninput = (e) => {
+    const t = e.target;
+    if (t.dataset.sf) {
+      const [bi, si, f] = t.dataset.sf.split(":");
+      state.editor[+bi].shots[+si][f] = t.type === "checkbox" ? t.checked : t.value;
+      markDirty();
+    } else if (t.dataset.bf) {
+      const [bi, f] = t.dataset.bf.split(":");
+      state.editor[+bi][f] = t.value;
+      markDirty();
+    }
+  };
+  $view.onclick = async (ev) => {
+    const t = ev.target.closest("button, [data-openshot], [data-goblock], [data-toggleblock], [data-zoom]");
+    if (!t) return;
+    const d = t.dataset;
+    const reload = (tab = state.tab) => showClip(clip.slug, tab, false);
     try {
-      const r = await api("/api/clips", { method: "POST", body: fd });
-      toast("Clip créé : le script doctor démarre");
-      location.hash = `#/clip/${encodeURIComponent(r.slug)}`;
+      if (d.zoom) return lightbox(d.zoom);
+      if (d.play !== undefined) { if (song.paused) song.play().catch(() => {}); else song.pause(); return; }
+      if (d.openshot) {
+        const shot = clip.shots.find((s) => s.id === +d.openshot);
+        if (shot && t.classList.contains("tl-shot")) { song.currentTime = shot.t_start; updateHead(); }
+        location.hash = shotHref(d.openshot);
+        return;
+      }
+      if (d.goblock !== undefined) {
+        if (state.tab !== "plans") { location.hash = `#/clip/${encodeURIComponent(clip.slug)}/plans`; return; }
+        const open = openBlocks(clip); open.add(d.goblock); prefs("open:" + clip.slug, [...open]);
+        state.tempOpen[d.goblock] = true;
+        renderClip();
+        document.getElementById("block-" + d.goblock)?.scrollIntoView({ behavior: "smooth", block: "start" });
+        return;
+      }
+      if (d.toggleblock) {
+        const filtering = state.filter !== "all" || state.stepFilter;
+        const node = document.getElementById("block-" + d.toggleblock);
+        const willOpen = !node.classList.contains("open");
+        node.classList.toggle("open", willOpen);
+        if (filtering) state.tempOpen[d.toggleblock] = willOpen;
+        else {
+          const open = openBlocks(clip);
+          if (willOpen) open.add(d.toggleblock); else open.delete(d.toggleblock);
+          prefs("open:" + clip.slug, [...open]);
+        }
+        return;
+      }
+      if (d.allblocks) {
+        const ids = clip.blocks.map((b) => String(b.id));
+        prefs("open:" + clip.slug, d.allblocks === "open" ? ids : []);
+        ids.forEach((id) => { state.tempOpen[id] = d.allblocks === "open"; });
+        return renderClip();
+      }
+      if (d.filter) { state.filter = d.filter; state.tempOpen = {}; return renderClip(); }
+      if (d.stepfilter !== undefined) {
+        state.stepFilter = d.stepfilter && state.stepFilter !== d.stepfilter ? d.stepfilter : null;
+        state.tempOpen = {};
+        return renderClip();
+      }
+      if (d.approveblock) {
+        const [gate, block] = d.approveblock.split(":");
+        if (needsConfirm(t, d.approveblock)) return;
+        const r = await api(`/api/clips/${encodeURIComponent(clip.slug)}/approve-all/${gate}${block ? `?block=${block}` : ""}`, { method: "POST" });
+        toast(`${r.approved} plan${r.approved > 1 ? "s" : ""} validé${r.approved > 1 ? "s" : ""}`);
+        return reload();
+      }
+      if (d.assemble !== undefined) {
+        await api(`/api/clips/${encodeURIComponent(clip.slug)}/assemble`, { method: "POST" });
+        toast("Montage lancé : il apparaît dans une à deux minutes");
+        return;
+      }
+      // découpage
+      if (d.addshot) {
+        const b = state.editor[+d.addshot];
+        const last = b.shots[b.shots.length - 1];
+        b.shots.push({ t_start: last ? last.t_end : "", t_end: "", description: "", singing: false, characters: defaultCast(clip) });
+        markDirty(); return renderClip();
+      }
+      if (d.addblock !== undefined) {
+        const lastB = state.editor[state.editor.length - 1];
+        const lastS = lastB && lastB.shots[lastB.shots.length - 1];
+        state.editor.push({ name: "", intention: "", shots: [{ t_start: lastS ? lastS.t_end : "0:00.0", t_end: "", description: "", singing: false, characters: defaultCast(clip) }] });
+        markDirty(); return renderClip();
+      }
+      if (d.delshot) {
+        const [bi, si] = d.delshot.split(":").map(Number);
+        state.editor[bi].shots.splice(si, 1);
+        markDirty(); return renderClip();
+      }
+      if (d.delblock) {
+        if (needsConfirm(t, "delblock" + d.delblock)) return;
+        state.editor.splice(+d.delblock, 1);
+        markDirty(); return renderClip();
+      }
+      if (d.savedec !== undefined) {
+        const blocks = collectEditor();
+        t.disabled = true;
+        const r = await api(`/api/clips/${encodeURIComponent(clip.slug)}/decoupage-edit`, { json: { blocks } });
+        state.editorDirty = false;
+        toast(`Découpage enregistré : ${r.shots} plans`);
+        return reload("decoupage");
+      }
+      if (d.cut === "open") { const fb = document.getElementById("fb-cut"); fb.hidden = false; fb.querySelector("textarea").focus(); return; }
+      if (d.cut === "approve" || d.cut === "change") {
+        if (state.editorDirty) { toast("Enregistre d'abord tes modifications du découpage", "err"); return; }
+        const comment = d.cut === "change" ? document.querySelector("#fb-cut textarea").value.trim() : "";
+        if (d.cut === "change" && !comment) { toast("Explique les changements voulus", "err"); return; }
+        await api(`/api/clips/${encodeURIComponent(clip.slug)}/decoupage`, { json: { decision: d.cut, comment } });
+        toast(d.cut === "approve" ? "Découpage validé : le storyboard démarre" : "Retour envoyé au script doctor");
+        return reload(d.cut === "approve" ? "plans" : "decoupage");
+      }
+      // dossier
+      if (d.savebrief !== undefined) {
+        await api(`/api/clips/${encodeURIComponent(clip.slug)}/brief`, { json: {
+          title: document.getElementById("b-title").value, pitch: document.getElementById("b-pitch").value,
+          concept: document.getElementById("b-concept").value } });
+        toast("Concept enregistré");
+        return reload();
+      }
+      if (d.savelyrics !== undefined) {
+        await api(`/api/clips/${encodeURIComponent(clip.slug)}/lyrics`, { json: { text: document.getElementById("lyrics").value } });
+        toast("Paroles enregistrées");
+        return reload();
+      }
+      if (d.savebudget !== undefined) {
+        await api(`/api/clips/${encodeURIComponent(clip.slug)}/brief`, { json: { budget_usd: parseFloat(document.getElementById("b-budget").value) } });
+        toast("Budget mis à jour");
+        return reload();
+      }
+      if (d.format) {
+        await api(`/api/clips/${encodeURIComponent(clip.slug)}/brief`, { json: { aspect: d.format } });
+        toast(`Format ${d.format}`);
+        return reload();
+      }
+      if (d.rmfile) {
+        if (needsConfirm(t, "rm" + d.rmfile)) return;
+        await api(`/api/files/${d.rmfile}`, { method: "DELETE" });
+        toast("Fichier retiré (gardé dans le dossier « retires »)");
+        return reload();
+      }
+      if (d.submitbrief !== undefined) {
+        await api(`/api/clips/${encodeURIComponent(clip.slug)}/submit-brief`, { method: "POST" });
+        toast("Envoyé au script doctor");
+        return reload();
+      }
     } catch (e) {
-      btn.disabled = false;
-      document.getElementById("up").textContent = "";
-      toast(e.message, true);
+      t.disabled = false;
+      toast(e.message, "err");
     }
   };
 }
 
+function markDirty() {
+  state.editorDirty = true;
+  const s = document.getElementById("dec-status");
+  if (s) s.textContent = "Modifications non enregistrées";
+}
+
+/* ---------- Nouveau clip ---------- */
+
+async function showNewClip() {
+  stopTimer();
+  const d = await api("/api/overview");
+  const castable = d.characters.filter((c) => c.canon_version);
+  const formats = [["16:9", "Horizontal", "YouTube, écran", 48, 27], ["9:16", "Vertical", "Reels, TikTok, Shorts", 22, 39], ["1:1", "Carré", "Posts", 34, 34]];
+  $view.innerHTML = `
+    <div class="pagehead"><h1>Nouveau clip</h1></div>
+    <form class="stack" id="newclip" style="gap:16px">
+      <div class="panel stack">
+        <div class="row"><span class="step-num">1</span><h2>Le morceau</h2></div>
+        <label class="field">Titre du clip<input type="text" name="title" required placeholder="Titre du morceau"></label>
+        <div class="formgrid">
+          <div class="stack">${dropZone("song", "Morceau", "mp3 ou wav exporté de Suno (obligatoire)", "audio/*", false)}</div>
+          <div class="stack">${dropZone("vocals", "Voix isolée", "Le stem « vocals » de Suno, pour un lip-sync précis (facultatif)", "audio/*", false)}</div>
+        </div>
+      </div>
+      <div class="panel stack">
+        <div class="row"><span class="step-num">2</span><h2>Le concept</h2></div>
+        <label class="field">Pitch <span class="hint">L'idée du clip en une ou deux phrases.</span><textarea name="pitch" rows="2"></textarea></label>
+        <label class="field">Concept <span class="hint">Histoire, univers, direction artistique. Tu peux aussi tout mettre dans le dossier ci-dessous.</span>
+          <textarea name="concept" rows="5"></textarea></label>
+      </div>
+      <div class="panel stack">
+        <div class="row"><span class="step-num">3</span><h2>Dossier de réalisation</h2></div>
+        <p class="hint">Direction artistique, storytelling, plans, références, infos clés. PDF, Word, texte ou images, autant de fichiers que tu veux.</p>
+        ${dropZone("dossier", "Déposer les fichiers du dossier", "Glisse-les ici ou touche pour choisir", "", true)}
+      </div>
+      <div class="panel stack">
+        <div class="row"><span class="step-num">4</span><h2>Paroles</h2></div>
+        <p class="hint">Elles servent à caler les plans chantés et à comprendre ce que chaque plan doit montrer.</p>
+        <div class="formgrid">
+          <textarea name="lyrics_text" rows="8" placeholder="Colle les paroles ici&#10;&#10;[Couplet 1]&#10;…"></textarea>
+          <div>${dropZone("lyrics", "Ou un fichier de paroles", "txt, md, pdf, docx, lrc", "", true)}</div>
+        </div>
+      </div>
+      <div class="panel stack">
+        <div class="row"><span class="step-num">5</span><h2>Casting et réglages</h2></div>
+        <div class="row">${castable.map((c, i) => `<label class="chip ${i === 0 ? "on" : ""}" style="display:inline-flex;gap:8px;align-items:center">
+          <input type="checkbox" name="characters" value="${esc(c.slug)}" ${i === 0 ? "checked" : ""}> ${esc(c.name)} <span class="hint">v${c.canon_version}</span></label>`).join("") || `<span class="hint">Aucun personnage validé.</span>`}</div>
+        <div class="formgrid">
+          <div class="stack"><b>Format de l'image</b><span class="hint">La forme de la vidéo finale : tout est généré dans ce format.</span>
+            <div class="formats">${formats.map(([v, n, u, w, h], i) => `<button type="button" class="format ${i === 0 ? "on" : ""}" data-format="${v}">
+              <span class="shape" style="width:${w}px;height:${h}px"></span><b>${n} ${v}</b><span>${u}</span></button>`).join("")}</div>
+            <input type="hidden" name="aspect" value="16:9"></div>
+          <div class="stack"><b>Budget de génération</b>
+            <span class="hint">Plafond de dépense chez les fournisseurs (fal.ai) pour ce clip. La machine s'arrête et te prévient avant de le dépasser. Modifiable à tout moment.</span>
+            <div class="row"><input type="number" name="budget" min="1" step="1" value="80" style="max-width:140px"> <span>$</span></div></div>
+        </div>
+      </div>
+      <div class="panel stack">
+        <div class="progress" id="up-bar" hidden><i></i></div>
+        <div class="row"><button class="btn go" type="submit">Créer le clip</button>
+          <span class="hint" id="up-msg">Ensuite, tu saisis ton découpage (blocs et plans) ou tu laisses le script doctor le tirer de ton dossier.</span></div>
+      </div>
+    </form>`;
+  const form = document.getElementById("newclip");
+  bindDrops(form);
+  form.addEventListener("click", (e) => {
+    const f = e.target.closest("[data-format]");
+    if (f) {
+      form.querySelectorAll("[data-format]").forEach((x) => x.classList.toggle("on", x === f));
+      form.aspect.value = f.dataset.format;
+    }
+    const chip = e.target.closest("label.chip");
+    if (chip) setTimeout(() => chip.classList.toggle("on", chip.querySelector("input").checked));
+  });
+  form.onsubmit = async (ev) => {
+    ev.preventDefault();
+    const fd = new FormData(form);
+    if (!fd.get("song")?.size) { toast("Ajoute le morceau", "err"); return; }
+    const chars = fd.getAll("characters");
+    fd.delete("characters");
+    fd.set("characters", chars.join(","));
+    if (!fd.get("vocals")?.size) fd.delete("vocals");
+    ["dossier", "lyrics"].forEach((k) => {
+      const list = fd.getAll(k).filter((f) => f.size);
+      fd.delete(k);
+      list.forEach((f) => fd.append(k, f));
+    });
+    const btn = form.querySelector("button[type=submit]");
+    const bar = document.getElementById("up-bar");
+    btn.disabled = true;
+    bar.hidden = false;
+    document.getElementById("up-msg").textContent = "Envoi des fichiers…";
+    try {
+      const r = await upload("/api/clips", fd, (p) => { bar.firstElementChild.style.width = `${Math.round(p * 100)}%`; });
+      toast("Clip créé");
+      location.hash = `#/clip/${encodeURIComponent(r.slug)}/decoupage`;
+    } catch (e) {
+      btn.disabled = false;
+      document.getElementById("up-msg").textContent = "";
+      toast(e.message, "err");
+    }
+  };
+}
+
+/* ---------- Personnages ---------- */
+
+async function showCharacters() {
+  const d = await api("/api/overview");
+  $view.innerHTML = `<div class="pagehead"><h1>Personnages</h1>
+      <span class="sub">Chaque personnage a des versions. Seule une version validée peut jouer dans un clip.</span></div>
+    <div class="cast">${d.characters.map((c) => `<a class="castcard" href="#/personnages/${encodeURIComponent(c.slug)}">
+      <div class="face" style="${c.canon_path ? `background-image:url('${media(c.canon_path)}')` : ""}">${c.canon_path ? "" : "pas encore de canon"}</div>
+      <div class="cap"><b>${esc(c.name)}</b><span class="hint">${c.canon_version ? `canon v${c.canon_version}` : "aucune version validée"}</span>
+        ${c.hd_to_review ? pill("canon HD à vérifier", "review") : ""}
+        ${c.to_review ? pill(`${c.to_review} image${c.to_review > 1 ? "s" : ""} à trier`, "review") : ""}</div></a>`).join("")}
+      <div class="newcard" style="min-height:300px;padding:18px">
+        <span class="plus">＋</span><b>Nouveau personnage</b>
+        <input type="text" id="newchar" placeholder="Nom du personnage" style="max-width:220px">
+        <button class="btn small go" data-newchar>Créer</button>
+      </div></div>`;
+  $view.onclick = async (e) => {
+    if (!e.target.closest("[data-newchar]")) return;
+    const name = document.getElementById("newchar").value.trim();
+    if (!name) { toast("Donne un nom", "err"); return; }
+    try {
+      const r = await api("/api/characters", { json: { name } });
+      location.hash = `#/personnages/${encodeURIComponent(r.slug)}`;
+    } catch (err) { toast(err.message, "err"); }
+  };
+  every(30000, () => { if (!isBusy()) showCharacters(); });
+}
+
+function versionSteps(v) {
+  const draft = v.assets.filter((a) => a.kind === "canon_draft" && a.status === "kept").pop();
+  const canon = v.assets.filter((a) => a.kind === "canon" && a.status === "kept").pop();
+  const hdPending = v.assets.filter((a) => a.kind === "canon" && a.parent_id && ["generating", "proposed"].includes(a.status)).pop();
+  const pack = v.assets.filter((a) => !["canon", "canon_draft"].includes(a.kind) && a.status !== "failed");
+  return { draft, canon, hdPending, pack };
+}
+
+async function showCharacter(slug, keep = false) {
+  const ch = await api(`/api/characters/${encodeURIComponent(slug)}`);
+  const json = JSON.stringify(ch);
+  if (keep && (json === state.charJson || isBusy())) return;
+  state.charJson = json;
+  if (!state.character || state.character.slug !== slug) state.charVersion = null;
+  state.character = ch;
+  const scroll = window.scrollY;
+  const drafts = ch.versions.filter((v) => v.status === "draft");
+  const vnum = state.charVersion || (drafts[0] || ch.versions.find((v) => v.version === ch.canon_version) || ch.versions[0] || {}).version;
+  const v = ch.versions.find((x) => x.version === vnum);
+  const vtabs = ch.versions.map((x) => `<button class="chip ${x.version === vnum ? "on" : ""}" data-version="${x.version}">
+      v${x.version} · ${x.status === "draft" ? "brouillon" : x.status === "validated" ? "validée" : "archivée"}${x.version === ch.canon_version ? " · canon actuelle" : ""}</button>`).join("");
+  $view.innerHTML = `<div class="cliphead"><div class="crumbs"><a href="#/personnages">Personnages</a> / ${esc(ch.name)}</div>
+      <div class="row"><h1>${esc(ch.name)}</h1></div>
+      <div class="meta"><span>${ch.clips.length ? "Joue dans : " + ch.clips.map((c) => `${esc(c.clip_slug)} (v${c.version})`).join(", ") : "Dans aucun clip"}</span>
+        ${ch.looks.length ? `<span>Looks : ${ch.looks.map((l) => esc(l.slug)).join(", ")}</span>` : ""}</div></div>
+    <div class="toolbar">${vtabs}<span class="spacer"></span>
+      ${drafts.length ? "" : `<button class="btn small" data-newversion>Faire évoluer : nouvelle version</button>`}</div>
+    ${v ? (v.status === "draft" ? renderDraftVersion(ch, v) : renderValidatedVersion(ch, v)) : `<p class="empty">Aucune version.</p>`}`;
+  if (keep) window.scrollTo(0, scroll);
+  bindCompare($view);
+  bindDrops($view, async (kind, files) => {
+    const fd = new FormData();
+    fd.set("file", files[0]);
+    toast("Envoi du brouillon…");
+    try {
+      await upload(`/api/characters/${encodeURIComponent(slug)}/versions/${v.version}/canon-draft`, fd);
+      toast("Brouillon déposé : la canon HD est lancée");
+      showCharacter(slug);
+    } catch (e) { toast(e.message, "err"); }
+  });
+  $view.onclick = (e) => characterClick(e, ch, v);
+  every(10000, () => showCharacter(slug, true));
+}
+
+function renderDraftVersion(ch, v) {
+  const { draft, canon, hdPending, pack } = versionSteps(v);
+  const step = !draft && !canon ? 1 : !canon ? 2 : v.pack_status !== "done" && !pack.length ? 3 : 4;
+  const stepDefs = [
+    ["Brouillon de la canon", draft || canon ? "Déposé" : "À déposer"],
+    ["Canon HD", canon ? "Validée" : hdPending ? (hdPending.status === "generating" ? "En génération" : "À vérifier") : "En attente"],
+    ["Instructions et pack", v.pack_status === "requested" ? "Demandé" : pack.length ? `${pack.length} images` : "À écrire"],
+    ["Tri et validation", "Garde, rejette, valide"],
+  ];
+  const vsteps = `<div class="vsteps">${stepDefs.map(([l, s], i) => `<div class="vstep ${i + 1 === step ? "on" : ""} ${i + 1 < step ? "done" : ""}">
+      <span class="lbl">${i + 1}. ${l}</span><span class="st">${led(i + 1 < step ? "done" : i + 1 === step ? (hdPending && hdPending.status === "generating" && i === 1 ? "work" : "review") : "wait")}${esc(s)}</span></div>`).join("")}</div>`;
+
+  let hdPanel;
+  if (canon) {
+    hdPanel = `<img class="canonbig" src="${media(canon.path)}" data-zoom="${media(canon.path)}" alt="Canon">
+      <p class="hint">${led("done")} Canon validée. C'est la référence n°1 de toutes les générations.</p>`;
+  } else if (hdPending && hdPending.status === "generating") {
+    hdPanel = `<p>${led("work")} Agrandissement en cours… (une à deux minutes)</p>`;
+  } else if (hdPending && draft) {
+    hdPanel = `<div class="actionbox"><h3>Compare le brouillon et la HD</h3>
+      <p class="hint">Fais glisser le curseur : vérifie le visage, les yeux, la texture de peau et des cheveux. Rien ne doit avoir changé.</p>
+      ${compareWidget(media(draft.path), media(hdPending.path), "Brouillon", "HD")}
+      <div class="row"><button class="btn ok" data-canonhd="${hdPending.id}:approve">Valider la canon HD</button>
+        <button class="btn" data-canonhd="${hdPending.id}:redo">Refaire la HD</button>
+        <button class="btn ghost" data-canonhd="${hdPending.id}:use_draft">Garder le brouillon tel quel</button></div>
+      <input type="text" id="hd-comment" placeholder="Ce qui a changé (facultatif, gardé pour mémoire)">
+    </div>`;
+  } else {
+    hdPanel = `<p class="hint">La canon HD se lance dès que tu déposes le brouillon.</p>`;
+  }
+  const rejectedHd = v.assets.filter((a) => a.kind !== "canon_draft" && a.parent_id && a.status === "rejected");
+
+  const byKind = {};
+  pack.filter((a) => a.path && !(a.kind === "canon" && (a.status === "kept" || a.parent_id))).forEach((a) => { (byKind[a.kind] = byKind[a.kind] || []).push(a); });
+  const packHtml = Object.entries(byKind).map(([k, list]) => `<h3 style="margin:14px 0 8px">${esc(CHAR_KIND_LABEL[k] || k)}</h3>
+    <div class="packgrid">${list.map((a) => `<div class="packitem ${a.status}">
+      ${a.status === "generating" ? `<div class="none" style="aspect-ratio:3/4;display:grid;place-items:center">${led("work")}</div>` : `<img src="${media(a.path)}" data-zoom="${media(a.path)}" alt="">`}
+      <div class="pi"><span>${esc(a.label || "")}${a.status === "kept" ? " · gardée" : a.status === "rejected" ? " · rejetée" : ""}</span>
+        ${a.comment ? `<span class="hint">« ${esc(a.comment)} »</span>` : ""}
+        ${a.status === "proposed" ? `<input type="text" data-cm="${a.id}" placeholder="Pourquoi, si tu rejettes" style="padding:6px 8px;font-size:12px">
+          <div class="row" style="gap:6px">
+          <button class="btn small ok" data-pickasset="${a.id}:keep">Garder</button>
+          <button class="btn small" data-pickasset="${a.id}:reject">Rejeter</button>
+          ${a.kind === "canon" ? `<button class="btn small ghost" data-pickasset="${a.id}:canon">Canon</button>` : ""}</div>` : ""}
+      </div></div>`).join("")}</div>`).join("");
+  const proposed = pack.filter((a) => a.status === "proposed").length;
+
+  return `${vsteps}
+    <div class="two-col">
+      <div class="panel stack"><div class="panel-head"><span class="step-num">1</span><h2>Brouillon de la canon</h2></div>
+        <p class="hint">L'image de vérité du personnage, telle que tu l'as faite. La HD sera générée à partir d'elle.</p>
+        ${draft ? `<img class="canonbig" src="${media(draft.path)}" data-zoom="${media(draft.path)}" alt="Brouillon">` : ""}
+        ${dropZone("canon", draft ? "Déposer un autre brouillon" : "Déposer le brouillon de la canon", "png, jpg ou webp", "image/*", false)}
+      </div>
+      <div class="panel stack"><div class="panel-head"><span class="step-num">2</span><h2>Canon HD</h2></div>
+        ${hdPanel}
+        ${rejectedHd.length ? `<details class="fold"><summary>HD écartées (${rejectedHd.length})</summary><div class="packgrid">${rejectedHd.map((a) =>
+          `<div class="packitem rejected"><img src="${media(a.path)}" data-zoom="${media(a.path)}" alt=""><div class="pi">${esc(a.model_key || "")}${a.comment ? ` · « ${esc(a.comment)} »` : ""}</div></div>`).join("")}</div></details>` : ""}
+      </div>
+    </div>
+    <div class="panel stack" style="margin-top:16px"><div class="panel-head"><span class="step-num">3</span><h2>Instructions pour le pack</h2>
+        ${v.pack_status === "requested" ? pill("Pack demandé : le directeur de casting s'en occupe", "work") : v.pack_status === "done" ? pill("Pack lancé", "done") : ""}</div>
+      <p class="hint">Dis ce que tu veux comme images de référence : angles, plans en pied, expressions, lumières, tenues, détails.
+        Le directeur de casting les génère toutes à partir de la canon validée.</p>
+      <textarea id="instructions" rows="8" placeholder="Ex. :&#10;- turnaround 5 angles, fond gris neutre, même lumière douce&#10;- 2 plans en pied, tenue streetwear du clip&#10;- 4 expressions : rire, colère, larmes, concentration&#10;- 3 lumières : néon violet, soleil couchant, contre-jour&#10;- détails : mains, boucles, tache de naissance">${esc(v.instructions || "")}</textarea>
+      <div class="row"><button class="btn" data-saveinstr>Enregistrer</button>
+        <button class="btn go" data-pack ${canon ? "" : "disabled title=\"Valide d'abord la canon HD\""}>${pack.length ? "Relancer le pack avec ces instructions" : "Lancer le pack"}</button>
+        ${canon ? "" : `<span class="hint">Disponible une fois la canon HD validée.</span>`}</div>
+    </div>
+    <div class="panel" style="margin-top:16px"><div class="panel-head"><span class="step-num">4</span><h2>Pack de référence</h2>
+        ${proposed ? pill(`${proposed} à trier`, "review") : ""}<span class="spacer"></span>
+        <button class="btn ok" data-validate="${v.version}" ${canon ? "" : "disabled"}>Valider la version ${v.version}</button></div>
+      ${packHtml || `<p class="hint">Les images arrivent ici au fil de la génération.</p>`}
+      ${v.adn ? `<details class="fold" style="margin-top:14px"><summary>ADN du personnage (texte injecté dans les prompts)</summary><div><pre class="text">${esc(v.adn)}</pre></div></details>` : ""}
+    </div>`;
+}
+
+function renderValidatedVersion(ch, v) {
+  const canon = v.assets.filter((a) => a.kind === "canon" && a.status === "kept").pop();
+  const byKind = {};
+  v.assets.filter((a) => a.status === "kept" && !["canon", "canon_draft"].includes(a.kind) && a.path)
+    .forEach((a) => { (byKind[a.kind] = byKind[a.kind] || []).push(a); });
+  return `<div class="two-col">
+      <div class="panel stack"><div class="panel-head"><h2>Canon</h2>${pill("validée", "done")}</div>
+        ${canon ? `<img class="canonbig" src="${media(canon.path)}" data-zoom="${media(canon.path)}" alt="Canon">` : `<p class="hint">Pas de canon.</p>`}</div>
+      <div class="panel">${v.adn ? `<h3 style="margin-bottom:8px">ADN</h3><pre class="text">${esc(v.adn)}</pre>` : `<p class="hint">Pas d'ADN écrit pour cette version.</p>`}</div>
+    </div>
+    <div class="panel" style="margin-top:16px"><div class="panel-head"><h2>Pack de référence</h2></div>
+      ${Object.entries(byKind).map(([k, list]) => `<h3 style="margin:14px 0 8px">${esc(CHAR_KIND_LABEL[k] || k)}</h3>
+        <div class="packgrid">${list.map((a) => `<div class="packitem"><img src="${media(a.path)}" data-zoom="${media(a.path)}" alt="">
+          <div class="pi">${esc(a.label || "")}</div></div>`).join("")}</div>`).join("") || `<p class="hint">Aucune autre image.</p>`}
+    </div>`;
+}
+
+async function characterClick(e, ch, v) {
+  const t = e.target.closest("button, [data-zoom]");
+  if (!t) return;
+  const d = t.dataset;
+  const slug = ch.slug;
+  const reload = () => showCharacter(slug);
+  try {
+    if (d.zoom) return lightbox(d.zoom);
+    if (d.version) { state.charVersion = +d.version; return reload(); }
+    if (d.newversion !== undefined) {
+      const r = await api(`/api/characters/${encodeURIComponent(slug)}/versions`, { method: "POST" });
+      state.charVersion = r.version;
+      toast(`Version ${r.version} créée`);
+      return reload();
+    }
+    if (d.canonhd) {
+      const [id, decision] = d.canonhd.split(":");
+      const comment = document.getElementById("hd-comment")?.value || "";
+      await api(`/api/character-assets/${id}/canon-hd`, { json: { decision, comment } });
+      toast({ approve: "Canon HD validée", redo: "Nouvelle HD lancée avec l'autre outil", use_draft: "Le brouillon devient la canon" }[decision]);
+      return reload();
+    }
+    if (d.saveinstr !== undefined || d.pack !== undefined) {
+      await api(`/api/characters/${encodeURIComponent(slug)}/versions/${v.version}/instructions`, { json: { text: document.getElementById("instructions").value } });
+      if (d.pack !== undefined) {
+        await api(`/api/characters/${encodeURIComponent(slug)}/versions/${v.version}/pack`, { method: "POST" });
+        toast("Pack demandé : le directeur de casting démarre dans la minute");
+      } else toast("Instructions enregistrées");
+      return reload();
+    }
+    if (d.pickasset) {
+      const [id, decision] = d.pickasset.split(":");
+      const comment = decision === "reject" ? ($view.querySelector(`[data-cm="${id}"]`)?.value || "").trim() : "";
+      await api(`/api/character-assets/${id}`, { json: { decision, comment } });
+      toast({ keep: "Image gardée", reject: "Image rejetée", canon: "Nouvelle canon" }[decision]);
+      return reload();
+    }
+    if (d.validate) {
+      if (needsConfirm(t, "validate" + d.validate)) return;
+      await api(`/api/characters/${encodeURIComponent(slug)}/versions/${d.validate}/validate`, { method: "POST" });
+      toast("Version validée : elle devient la canon des prochains clips");
+      return reload();
+    }
+  } catch (err) { toast(err.message, "err"); }
+}
+
+/* ---------- clavier ---------- */
+
+document.addEventListener("keydown", (e) => {
+  if (isBusy()) return;
+  if (e.key === "Escape" && !$drawer.hidden) {
+    location.hash = `#/clip/${encodeURIComponent(state.clip.slug)}/${state.tab}`;
+  } else if (e.key === " " && state.clip && document.getElementById("console")) {
+    e.preventDefault();
+    if (song.paused) song.play().catch(() => {}); else song.pause();
+  } else if ((e.key === "ArrowRight" || e.key === "ArrowLeft") && !$drawer.hidden) {
+    const btns = $drawer.querySelectorAll(".drawer-head [data-goshot]");
+    const b = e.key === "ArrowLeft" ? btns[0] : btns[1];
+    if (b && b.dataset.goshot) location.hash = shotHref(b.dataset.goshot);
+  }
+});
+
+refreshSys();
 router();

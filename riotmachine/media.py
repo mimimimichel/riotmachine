@@ -118,3 +118,55 @@ def assemble(segments: list[dict[str, Any]], song: str | Path | None, dest: Path
         shutil.copy(video_only, dest)
     shutil.rmtree(work, ignore_errors=True)
     return dest
+
+
+TEXT_EXT = {".txt", ".md", ".markdown", ".srt", ".lrc", ".csv"}
+
+
+def extract_text(path: Path) -> Path | None:
+    """Version texte d'un document (pdf, docx, txt, md) pour que les agents la lisent.
+
+    Écrit <fichier>.txt à côté de l'original et retourne son chemin, ou None si le
+    fichier n'est pas un document (audio, image) ou si l'extraction échoue.
+    """
+    path = Path(path)
+    suffix = path.suffix.lower()
+    if suffix in TEXT_EXT:
+        return path
+    out = path.with_name(path.name + ".txt")
+    try:
+        if suffix == ".pdf":
+            subprocess.run(["pdftotext", "-layout", str(path), str(out)], check=True, capture_output=True)
+            return out if out.is_file() and out.stat().st_size else None
+        if suffix == ".docx":
+            import re
+            import zipfile
+            with zipfile.ZipFile(path) as z:
+                xml = z.read("word/document.xml").decode("utf-8", "ignore")
+            xml = re.sub(r"</w:p>", "\n", xml)
+            xml = re.sub(r"<w:tab/>", "\t", xml)
+            text = re.sub(r"<[^>]+>", "", xml)
+            import html
+            out.write_text(html.unescape(text), encoding="utf-8")
+            return out
+    except (OSError, subprocess.CalledProcessError, KeyError, ValueError):
+        return None
+    return None
+
+
+def waveform(path: str | Path, points: int = 1200) -> list[float]:
+    """Enveloppe du morceau (valeurs 0..1) pour dessiner la forme d'onde dans la régie."""
+    import array
+    if shutil.which("ffmpeg") is None:
+        raise MediaError("ffmpeg introuvable")
+    proc = subprocess.run(["ffmpeg", "-v", "error", "-i", str(path), "-ac", "1", "-ar", "4000", "-f", "s16le", "-"],
+                          capture_output=True)
+    if proc.returncode != 0:
+        raise MediaError(proc.stderr.decode(errors="ignore")[-400:])
+    samples = array.array("h", proc.stdout)
+    if not samples:
+        return []
+    step = max(1, len(samples) // points)
+    peaks = [max(abs(x) for x in samples[i:i + step]) for i in range(0, len(samples), step)]
+    top = max(peaks) or 1
+    return [round(p / top, 3) for p in peaks]

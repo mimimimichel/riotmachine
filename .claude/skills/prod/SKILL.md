@@ -14,26 +14,29 @@ et `needs_agent`. Si `needs_agent` est vide, dis-le et arrête-toi.
 
 ## 2. Dans cet ordre
 
-1. **Étape `script`** → délègue à l'agent `script-doctor` (outil Agent) : relecture +
-   découpage + import + passage en `decoupage_review`. Puis arrête-toi : Michael
-   doit valider le découpage.
+1. **Étape `script`** (Michael a envoyé son dossier) → délègue à l'agent
+   `script-doctor` (outil Agent) : lecture du dossier, découpage en blocs et plans,
+   import, passage en `decoupage_review`. Puis arrête-toi : Michael valide.
 2. **Retours sur le découpage** (`pending_reviews` de gate `decoupage`) → agent
    `script-doctor` pour corriger. Puis arrête-toi.
 3. **Plans `change_requested`** → trie toi-même chaque retour de Michael
    (`riot review list --clip $ARGUMENTS`, tableau des routes dans CLAUDE.md),
-   puis `riot review handle`. Les plans repartent en `image_todo` ou `prompt_todo`
-   et sont traités aux étapes suivantes de ce même passage.
+   puis `riot review handle`. Les plans repartent à la bonne étape et sont traités
+   aux étapes suivantes de ce même passage.
 4. **Plans `failed`** → lis `notes`. Erreur passagère : `riot shot retry <id>`.
-   Rendu final / lip-sync : agent `finition`. Image ou draft refusé par fal
+   Vidéo HD / lip-sync : agent `finition`. Visuel ou vidéo refusé par le fournisseur
    (contenu, paramètre) : ajuste le prompt via l'agent concerné. Si tu es bloqué,
    `riot notify` à Michael avec le problème en une phrase.
-5. **Plans `image_qc` et `draft_qc`** → agent `controleur` (tous les plans du lot
-   dans une seule délégation).
-6. **Plans `image_todo`** → agent `storyboard`, par lots de 6 plans maximum
-   (plusieurs agents en parallèle si besoin). Donne-leur le slug du clip et les ids.
+5. **Plans `image_qc`, `hd_qc` et `draft_qc`** → agent `controleur` (tous les plans
+   du lot dans une seule délégation, en précisant le statut de chacun).
+6. **Plans `image_todo`** → agent `storyboard`, par lots de 6 plans maximum, un
+   bloc après l'autre (plusieurs agents en parallèle si besoin). Donne-leur le slug
+   du clip, le nom du bloc et les ids.
 7. **Plans `prompt_todo`** → agent `routeur` sur tout le lot, puis agent
-   `prompteur` sur le même lot, puis lance toi-même `riot gen draft <id>` pour
-   chaque plan qui a un modèle et un prompt vidéo.
+   `prompteur` sur le même lot, puis `riot shot submit <id>` pour chaque plan qui a
+   un modèle et un prompt vidéo. Le plan passe en `video_review` : Michael valide
+   le prompt, le modèle et le coût. **Ne lance jamais `riot gen draft`** : le
+   worker lance la vidéo après sa validation.
 
 Après chaque délégation, relis `riot clip show $ARGUMENTS` pour vérifier que les
 statuts ont bien avancé. Ne refais pas le travail d'un agent toi-même.
