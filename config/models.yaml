@@ -62,8 +62,25 @@ providers:
     label: Google Gemini API
     env: [GEMINI_API_KEY]
     note: Gemini Omni Flash (Veo n'y est plus depuis le 22/10/2026). Non payable par les crédits Cloud.
+  minimax:
+    label: MiniMax (API officielle)
+    env: [MINIMAX_API_KEY]
+    note: Hailuo 2.3 Fast (0,33 $ le plan de 6 s en 1080p) et H3.
+  replicate:
+    label: Replicate
+    env: [REPLICATE_API_TOKEN]
+    note: Seedance 2.5 (480p et 720p), Wan 2.6 et 2.7. Fichiers purgés après une heure.
+  atlas:
+    label: Atlas Cloud (revendeur)
+    env: [ATLASCLOUD_API_KEY]
+    note: Revendeur aux prix cassés (Wan 2.6 Flash, Kling 3, Seedance 2.5). Tester avec un petit dépôt.
+  evolink:
+    label: EvoLink (revendeur)
+    env: [EVOLINK_API_KEY]
+    note: Revendeur Kling 3. Image de départ en URL publique. Tester avec un petit dépôt.
 
-lipsync: sync-lipsync-2-pro
+lipsync: kling-lipsync            # 0,014 $/s, plans de 2 à 10 s
+lipsync_fallback: sync-lipsync-2-pro   # au-delà de 10 s
 upscale: seedvr-1080p
 
 tier_order: [eco, standard, premium]
@@ -182,7 +199,7 @@ models:
     output: video.url
     durations: [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
     duration_format: str
-    final_mode: keep            # pas de basse résolution : le draft est déjà en qualité finale
+    final_mode: upscale         # sort en 720p (vérifié le 23/10/2026) : agrandi en 1080p pour le final
     price: {per_second: 0.084}
     input: {prompt: prompt, image: start_image_url, duration: duration, negative_prompt: negative_prompt}
     defaults: {generate_audio: false}
@@ -489,6 +506,190 @@ models:
     draft_params: {resolution: "1080p"}
     final_params: {resolution: "1080p"}
 
+  # ------------------------------------------------------------ vidéo : fal.ai (suite)
+  veo-31-lite-fal:
+    label: Veo 3.1 Lite
+    provider: fal
+    kind: video
+    endpoint: fal-ai/veo3.1/lite/image-to-video
+    tiers: [eco]
+    aspects: ["16:9", "9:16"]
+    use_for: Le moins cher de Google, pour plans secondaires et tests. Pas de format carré.
+    output: video.url
+    durations: [4, 6, 8]
+    duration_format: str_s
+    final_mode: keep
+    price: {per_second: {"720p": 0.03, "1080p": 0.05}}
+    input: {prompt: prompt, image: image_url, duration: duration, negative_prompt: negative_prompt, aspect_ratio: aspect_ratio}
+    defaults: {generate_audio: false}
+    draft_params: {resolution: "1080p"}
+    final_params: {resolution: "1080p"}
+
+  wan-26-flash-fal:
+    label: Wan 2.6 Flash
+    provider: fal
+    kind: video
+    endpoint: wan/v2.6/image-to-video/flash
+    tiers: [eco]
+    use_for: Très économique, plans calmes. 5, 10 ou 15 s.
+    output: video.url
+    durations: [5, 10, 15]
+    duration_format: str
+    final_mode: keep
+    price: {per_second: {"720p": 0.05, "1080p": 0.075}}
+    input: {prompt: prompt, image: image_url, duration: duration, negative_prompt: negative_prompt, seed: seed}
+    defaults: {generate_audio: false}
+    draft_params: {resolution: "1080p"}
+    final_params: {resolution: "1080p"}
+
+  # ---------------------------------------------------- vidéo : MiniMax (officiel)
+  hailuo-23-fast-minimax:
+    label: Hailuo 2.3 Fast
+    provider: minimax
+    kind: video
+    endpoint: MiniMax-Hailuo-2.3-Fast
+    api: v1
+    tiers: [eco, standard]
+    use_for: Très bon prix en 1080p, plans de 6 s au plus. Caméra entre crochets dans le prompt.
+    output: video.url
+    durations: [6]
+    final_mode: keep
+    price: {per_video: {"1080P": {"6": 0.33}}}
+    input: {prompt: prompt, image: image, duration: duration, negative_prompt: negative_prompt}
+    draft_params: {resolution: "1080P"}
+    final_params: {resolution: "1080P"}
+
+  hailuo-23-fast-768-minimax:
+    label: Hailuo 2.3 Fast 768p
+    provider: minimax
+    kind: video
+    endpoint: MiniMax-Hailuo-2.3-Fast
+    api: v1
+    tiers: [eco, standard]
+    use_for: Plans jusqu'à 10 s, 768p puis agrandi.
+    output: video.url
+    durations: [6, 10]
+    final_mode: upscale
+    price: {per_video: {"768P": {"6": 0.19, "10": 0.32}}}
+    input: {prompt: prompt, image: image, duration: duration, negative_prompt: negative_prompt}
+    draft_params: {resolution: "768P"}
+    final_params: {resolution: "768P"}
+
+  h3-minimax:
+    label: MiniMax H3
+    provider: minimax
+    kind: video
+    endpoint: MiniMax-H3
+    tiers: [eco, standard]
+    use_for: Hailuo 3 en direct, 768p puis agrandi. Son retiré après coup.
+    output: video.url
+    durations: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    final_mode: upscale
+    price: {per_second: {"768P": 0.08, "2K": 0.13}}
+    input: {prompt: prompt, image: image, duration: duration, negative_prompt: negative_prompt}
+    draft_params: {resolution: "768P"}
+    final_params: {resolution: "768P"}
+
+  # ------------------------------------------------------------- vidéo : Replicate
+  seedance-25-replicate:
+    label: Seedance 2.5
+    provider: replicate
+    kind: video
+    endpoint: bytedance/seedance-2.5
+    tiers: [eco, standard, premium]
+    use_for: Danse et chorégraphie, moins cher qu'ailleurs. 720p puis agrandi.
+    output: video.url
+    durations: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    final_mode: upscale
+    price: {per_second: {"480p": 0.1028, "720p": 0.2312}}
+    input: {prompt: prompt, image: image, duration: duration, seed: seed}
+    defaults: {aspect_ratio: adaptive, generate_audio: false, watermark: false}
+    draft_params: {resolution: "720p"}
+    final_params: {resolution: "720p"}
+
+  wan-26-replicate:
+    label: Wan 2.6
+    provider: replicate
+    kind: video
+    endpoint: wan-video/wan-2.6-i2v
+    tiers: [eco, standard]
+    use_for: Wan 2.6 en 1080p. 5, 10 ou 15 s.
+    output: video.url
+    durations: [5, 10, 15]
+    final_mode: keep
+    price: {per_second: {"720p": 0.10, "1080p": 0.15}}
+    input: {prompt: prompt, image: image, duration: duration, negative_prompt: negative_prompt, seed: seed}
+    draft_params: {resolution: "1080p"}
+    final_params: {resolution: "1080p"}
+
+  # ------------------------------------------------- vidéo : Atlas Cloud (revendeur)
+  wan-26-flash-atlas:
+    label: Wan 2.6 Flash
+    provider: atlas
+    kind: video
+    endpoint: alibaba/wan-2.6/image-to-video-flash
+    to_test: true                # revendeur : valider la qualité et la fiabilité d'abord
+    tiers: [eco]
+    use_for: Le moins cher en 1080p (0,026 $/s). Revendeur à tester.
+    output: video.url
+    durations: [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    final_mode: keep
+    price: {per_second: {"720p": 0.0175, "1080p": 0.02625}}
+    input: {prompt: prompt, image: image, duration: duration, negative_prompt: negative_prompt, seed: seed}
+    defaults: {generate_audio: false}
+    draft_params: {resolution: "1080p"}
+    final_params: {resolution: "1080p"}
+
+  kling-3-std-atlas:
+    label: Kling 3.0 Standard
+    provider: atlas
+    kind: video
+    endpoint: kwaivgi/kling-v3.0-std/image-to-video
+    to_test: true
+    tiers: [eco, standard]
+    use_for: Kling 3 en 720p à prix revendeur, puis agrandi. À tester.
+    output: video.url
+    durations: [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    final_mode: upscale
+    price: {per_second: 0.0714}
+    input: {prompt: prompt, image: image, duration: duration, negative_prompt: negative_prompt}
+    defaults: {sound: false}
+
+  seedance-25-atlas:
+    label: Seedance 2.5
+    provider: atlas
+    kind: video
+    endpoint: bytedance/seedance-2.5/image-to-video
+    to_test: true
+    tiers: [eco, standard, premium]
+    use_for: Seedance 2.5 en 720p puis agrandi. Facturé au token. À tester.
+    output: video.url
+    durations: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    final_mode: upscale
+    price: {per_second: {"720p": 0.302}}
+    input: {prompt: prompt, image: image, duration: duration}
+    defaults: {ratio: adaptive, generate_audio: false, watermark: false, output_format: mp4}
+    draft_params: {resolution: "720p"}
+    final_params: {resolution: "720p"}
+
+  # ----------------------------------------------------- vidéo : EvoLink (revendeur)
+  kling-3-evolink:
+    label: Kling 3.0
+    provider: evolink
+    kind: video
+    endpoint: kling-v3-image-to-video
+    to_test: true
+    tiers: [eco, standard, premium]
+    use_for: Kling 3 en 1080p à prix revendeur. À tester.
+    output: video.url
+    durations: [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    final_mode: keep
+    price: {per_second: {"720p": 0.08, "1080p": 0.106}}
+    input: {prompt: prompt, image: image_start, duration: duration, negative_prompt: negative_prompt}
+    defaults: {sound: "off"}
+    draft_params: {quality: "1080p", resolution: "1080p"}
+    final_params: {quality: "1080p", resolution: "1080p"}
+
   # ------------------------------------------------------------- finition
   topaz-image-hf:
     label: Topaz haute fidélité (image)
@@ -531,6 +732,17 @@ models:
     price: {per_second: 0.02}
     input: {video: video_url}
     defaults: {upscale_factor: 2, H264_output: true}
+
+  kling-lipsync:
+    label: Kling LipSync
+    provider: fal
+    kind: lipsync
+    endpoint: fal-ai/kling-video/lipsync/audio-to-video
+    output: video.url
+    min_seconds: 2
+    max_seconds: 10             # vidéo de 2 à 10 s, en 720p ou 1080p
+    price: {per_second: 0.014, round_to: 5}   # facturé par tranche de 5 s
+    input: {video: video_url, audio: audio_url}
 
   sync-lipsync-2-pro:
     label: Sync Lipsync 2 Pro

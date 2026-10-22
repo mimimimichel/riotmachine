@@ -157,3 +157,60 @@ def test_cheapest_respects_format_duration_and_credits(studio, monkeypatch):
         assert "crédits Google Cloud" in why
     finally:
         cfg["providers"]["vertex"]["credits"]["usd"] = 0
+
+
+def test_minimax_v1_and_v2(fake_http, monkeypatch):
+    from riotmachine.providers import minimax
+    calls, routes = fake_http
+    monkeypatch.setenv("MINIMAX_API_KEY", "mm")
+    routes[("POST", "/v1/video_generation")] = {"task_id": "m1", "base_resp": {"status_code": 0}}
+    routes[("GET", "/v1/query/video_generation?task_id=m1")] = {"status": "Success", "file_id": "f9"}
+    routes[("GET", "/v1/files/retrieve?file_id=f9")] = {"file": {"download_url": "https://mm/v.mp4"}}
+    cfg = routing.model("hailuo-23-fast-minimax")
+    sub = minimax.submit(cfg, routing.build_payload(cfg, prompt="p", image_urls=[PNG], duration=6, mode="final"))
+    assert calls[0]["json"]["first_frame_image"] == PNG and calls[0]["json"]["resolution"] == "1080P"
+    assert minimax.status(sub) == "COMPLETED" and minimax.result(sub)["video"]["url"] == "https://mm/v.mp4"
+    routes[("POST", "/v2/video_generation")] = {"task_id": "m2"}
+    routes[("GET", "/v2/query/video_generation/m2")] = {"task": {"status": "succeeded", "content": {"url": "https://mm/h3.mp4"}}}
+    cfg = routing.model("h3-minimax")
+    sub = minimax.submit(cfg, routing.build_payload(cfg, prompt="p", image_urls=[PNG], duration=5))
+    body = calls[-1]["json"]
+    assert body["ratio"] == "adaptive" and body["content"][1]["role"] == "first_frame"
+    assert minimax.result(sub)["video"]["url"] == "https://mm/h3.mp4"
+    # refus métier (solde insuffisant) : message lisible
+    routes[("POST", "/v1/video_generation")] = {"base_resp": {"status_code": 1008, "status_msg": "insufficient balance"}}
+    with pytest.raises(providers.ProviderError, match="insufficient balance"):
+        minimax.submit(routing.model("hailuo-23-fast-minimax"), {"prompt": "p", "image": PNG})
+
+
+def test_atlas_and_replicate(fake_http, monkeypatch):
+    from riotmachine.providers import atlas, replicate
+    calls, routes = fake_http
+    monkeypatch.setenv("ATLASCLOUD_API_KEY", "at")
+    monkeypatch.setenv("REPLICATE_API_TOKEN", "rp")
+    routes[("POST", "/model/generateVideo")] = {"code": 200, "data": {"id": "a1", "status": "processing"}}
+    routes[("GET", "/model/prediction/a1")] = {"data": {"status": "completed", "outputs": ["https://at/v.mp4"]}}
+    cfg = routing.model("wan-26-flash-atlas")
+    sub = atlas.submit(cfg, routing.build_payload(cfg, prompt="p", image_urls=[PNG], duration=5, mode="final"))
+    body = calls[0]["json"]
+    assert body["model"] == "alibaba/wan-2.6/image-to-video-flash" and body["image"] == PNG.split(",", 1)[1]
+    assert body["generate_audio"] is False and body["resolution"] == "1080p"
+    assert atlas.status(sub) == "COMPLETED" and atlas.result(sub)["video"]["url"] == "https://at/v.mp4"
+    routes[("POST", "/models/bytedance/seedance-2.5/predictions")] = {
+        "id": "r1", "urls": {"get": "https://api.replicate.com/v1/predictions/r1"}}
+    routes[("GET", "/v1/predictions/r1")] = {"status": "succeeded", "output": "https://rd/v.mp4"}
+    cfg = routing.model("seedance-25-replicate")
+    sub = replicate.submit(cfg, routing.build_payload(cfg, prompt="p", image_urls=[PNG], duration=6))
+    inp = calls[-1]["json"]["input"]
+    assert inp["aspect_ratio"] == "adaptive" and inp["generate_audio"] is False and inp["resolution"] == "720p"
+    assert replicate.status(sub) == "COMPLETED" and replicate.result(sub)["video"]["url"] == "https://rd/v.mp4"
+
+
+def test_prices_per_video_and_lipsync_choice(studio):
+    hailuo = routing.model("hailuo-23-fast-768-minimax")
+    assert routing.estimate_cost(hailuo, 6, "draft") == 0.19 and routing.estimate_cost(hailuo, 10, "draft") == 0.32
+    kl = routing.model("kling-lipsync")
+    assert routing.estimate_cost(kl, 3, "final") == 0.07      # facturé 5 s
+    assert routing.lipsync_model_key(6) == "kling-lipsync"
+    assert routing.lipsync_model_key(12) == "sync-lipsync-2-pro"
+    assert routing.model("kling-3-standard")["final_mode"] == "upscale"   # sort en 720p

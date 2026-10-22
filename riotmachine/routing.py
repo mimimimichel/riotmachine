@@ -91,8 +91,18 @@ def _price_for(model_cfg: dict[str, Any], mode: str) -> float:
 
 
 def estimate_cost(model_cfg: dict[str, Any], seconds: float = 0.0, mode: str = "draft") -> float:
-    unit_price = _price_for(model_cfg, mode)
     price = model_cfg.get("price") or {}
+    if "per_video" in price:
+        # prix par vidéo, selon la résolution puis la durée : {"1080P": {"6": 0.33}}
+        res = str((model_cfg.get(f"{mode}_params") or {}).get("resolution", "default"))
+        table = price["per_video"].get(res) or next(iter(price["per_video"].values()))
+        key = str(int(math.ceil(seconds - 1e-6))) if seconds else next(iter(table))
+        return round(float(table.get(key, max(table.values()))), 4)
+    unit_price = _price_for(model_cfg, mode)
+    if price.get("round_to"):
+        # facturé par tranches (ex. lip-sync Kling : tranches de 5 s)
+        step = float(price["round_to"])
+        seconds = math.ceil(max(seconds, 1.0) / step) * step
     if "per_second" in price:
         extra = float(price.get("per_run") or 0) if not isinstance(price.get("per_run"), dict) else 0.0
         return round(unit_price * max(seconds, 1.0) + extra, 4)
@@ -169,7 +179,7 @@ def shot_seconds(shot: dict[str, Any]) -> float:
 
 # Fournisseurs dont l'appel est écrit dans le code. Les autres sont déclarés
 # dans models.yaml mais attendent leur branchement.
-IMPLEMENTED_PROVIDERS = {"fal", "vertex", "kling", "runway", "gemini"}
+IMPLEMENTED_PROVIDERS = {"fal", "vertex", "kling", "runway", "gemini", "minimax", "atlas", "replicate", "evolink"}
 
 
 def providers() -> list[dict[str, Any]]:
@@ -304,7 +314,7 @@ def route_shot(shot: dict[str, Any], force_tier: str | None = None,
         final_cost = estimate_cost(cfg, duration, "final")
     lipsync_cost = 0.0
     if shot.get("singing"):
-        lipsync_cost = estimate_cost(model(models_cfg()["lipsync"]), seconds, "final")
+        lipsync_cost = estimate_cost(model(lipsync_model_key(seconds)), seconds, "final")
     return {
         "tier": tier,
         "why": why,
@@ -319,6 +329,16 @@ def route_shot(shot: dict[str, Any], force_tier: str | None = None,
         "cost_lipsync_usd": lipsync_cost,
         "cost_total_usd": round(draft_cost + final_cost + lipsync_cost, 3),
     }
+
+
+def lipsync_model_key(seconds: float) -> str:
+    """Le lip-sync par défaut s'il accepte cette durée, sinon celui de secours."""
+    cfg = models_cfg()
+    key = cfg["lipsync"]
+    m = model(key)
+    if float(m.get("min_seconds", 0)) <= seconds <= float(m.get("max_seconds", 1e9)):
+        return key
+    return cfg.get("lipsync_fallback", key)
 
 
 def ceil_seconds(x: float) -> int:

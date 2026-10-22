@@ -165,7 +165,7 @@ def test_unplugged_provider_refused(studio, tmp_path):
     run("init")
     conn = db.connect()
     # en simulation, tout fournisseur branché dans le code est utilisable ; un fournisseur inconnu, jamais
-    assert {p["key"] for p in routing.providers() if p["usable"]} == {"fal", "vertex", "kling", "runway", "gemini"}
+    assert {p["key"] for p in routing.providers() if p["usable"]} == routing.IMPLEMENTED_PROVIDERS
     production.create_clip(conn, "Fournisseurs", song=studio["song"], characters=["jj"])
     production.import_shots(conn, "fournisseurs", [{"t_start": 0, "t_end": 4, "description": "x", "characters": ["jj"]}])
     sid = conn.execute("SELECT id FROM shots").fetchone()["id"]

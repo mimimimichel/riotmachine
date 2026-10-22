@@ -152,6 +152,10 @@ lisent en priorité.
 4. Michael voit tous les modèles avec leur coût pour ce plan et peut en choisir
    un autre avant de valider.
 
+Les offres des revendeurs et des modèles non éprouvés sont marquées « à
+tester » : jamais choisies automatiquement, mais proposées à Michael dans le plan
+vidéo. On retire la marque une fois la qualité vérifiée.
+
 **Période de rodage.** Les prix et les forces des modèles bougent vite. Pendant
 le rodage, on regarde au cas par cas. Le carnet de rodage (`riot rodage`) tire de
 l'historique, pour chaque modèle : combien de vidéos draft validées du premier
@@ -194,7 +198,16 @@ Section à enrichir au fil des clips : une ligne par leçon, avec sa date.
 - 22/10/2026 : l'agrandissement d'image avec retouche des visages change
   l'identité du personnage. On le désactive toujours.
 - 22/10/2026 : les vidéos sont générées sans son, la musique vient de Suno. Ça
-  évite de payer 50 à 100 % de plus.
+  évite de payer 50 à 100 % de plus. Quand un modèle impose le son, la piste est
+  retirée après téléchargement.
+- 22/10/2026 : pour un même modèle, le prix va souvent du simple au double selon
+  le fournisseur. On compare des offres (modèle + fournisseur), pas des modèles.
+- 22/10/2026 : Google a fermé Veo 3.1 sur l'API Gemini. Veo passe par Vertex AI,
+  seule voie payable par les crédits de l'essai Google Cloud.
+- 23/10/2026 : Kling 3 Standard chez fal.ai sort en 720p. Une sortie en dessous de
+  1080p doit être agrandie : son coût entre dans la comparaison.
+- 23/10/2026 : le lip-sync Kling (0,014 $/s) remplace Sync Lipsync (0,08 $/s) sur
+  les plans de 2 à 10 s.
 
 ## 9. Où vivent les choses
 

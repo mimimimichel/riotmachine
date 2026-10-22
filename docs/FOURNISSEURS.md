@@ -26,7 +26,11 @@ restants, toutes les offres classées par coût et le carnet de rodage.
 ### fal.ai (indispensable)
 
 - **Rôle** : visuels draft (Nano Banana), visuel HD (Topaz), vidéo HD (SeedVR),
-  lip-sync, et une partie des modèles vidéo (Kling 3, Seedance 2, Wan 3, MiniMax H3).
+  lip-sync, et une partie des modèles vidéo : Veo 3.1 Lite (0,05 $/s en 1080p, le
+  moins cher de Google), Wan 2.6 Flash (0,075 $/s), Kling 3 (le Standard sort en
+  720p, il est donc agrandi), Seedance 2, Wan 3, MiniMax H3.
+- **Lip-sync** : Kling LipSync (0,014 $/s, facturé par tranches de 5 s) pour les
+  plans de 2 à 10 s ; Sync Lipsync 2 Pro (0,08 $/s) au-delà.
 - **Clé** : fal.ai/dashboard/keys → `.env` : `FAL_KEY`. Sans elle, toute la machine
   reste en simulation.
 
@@ -91,6 +95,33 @@ restants, toutes les offres classées par coût et le carnet de rodage.
 - **Limites** : le son ne peut pas être coupé (retiré après coup, mais payé) ;
   pas de carré ; non payable par les crédits Google Cloud.
 - **Clé** : aistudio.google.com → `.env` : `GEMINI_API_KEY`.
+
+### MiniMax, API officielle
+
+- **Rôle** : Hailuo 2.3 Fast, 0,33 $ le plan de 6 s en 1080p (6 s au plus), ou
+  0,19 à 0,32 $ en 768p jusqu'à 10 s ; MiniMax H3 (0,08 $/s en 768p, son retiré
+  après coup).
+- **Clé** : platform.minimax.io → `.env` : `MINIMAX_API_KEY`.
+- **Limites** : pas de negative prompt ; la sortie suit le ratio de l'image ; les
+  mouvements de caméra s'écrivent entre crochets dans le prompt (Hailuo).
+
+### Replicate
+
+- **Rôle** : Seedance 2.5 (0,23 $/s en 720p, le moins cher pour la danse), Wan 2.6
+  (0,15 $/s en 1080p).
+- **Clé** : replicate.com → `.env` : `REPLICATE_API_TOKEN`.
+- **Limites** : fichiers purgés une heure après la génération (la machine
+  télécharge tout de suite).
+
+### Revendeurs : Atlas Cloud et EvoLink
+
+- **Atlas Cloud** : Wan 2.6 Flash à 0,026 $/s en 1080p, Kling 3 Standard à
+  0,071 $/s, Seedance 2.5 à 0,30 $/s. Clé : `ATLASCLOUD_API_KEY`.
+- **EvoLink** : Kling 3 à 0,08 $/s en 720p, environ 0,106 $/s en 1080p (à
+  confirmer). Image de départ en URL publique. Clé : `EVOLINK_API_KEY`.
+- Ce sont des acteurs moins établis. Leurs offres sont marquées `to_test` :
+  faire un petit dépôt, essayer quelques plans à la main depuis le plan vidéo,
+  puis retirer la marque si la qualité et la fiabilité tiennent.
 
 ## Crédits gratuits des applications web
 

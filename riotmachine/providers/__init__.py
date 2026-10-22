@@ -27,8 +27,9 @@ from ._http import ProviderError  # noqa: E402,F401
 
 
 def _adapters() -> dict[str, Any]:
-    from . import gemini, kling, runway, vertex
-    return {"fal": fal_adapter, "kling": kling, "vertex": vertex, "gemini": gemini, "runway": runway}
+    from . import atlas, evolink, gemini, kling, minimax, replicate, runway, vertex
+    return {"fal": fal_adapter, "kling": kling, "vertex": vertex, "gemini": gemini, "runway": runway,
+            "minimax": minimax, "atlas": atlas, "replicate": replicate, "evolink": evolink}
 
 
 def simulated() -> bool:

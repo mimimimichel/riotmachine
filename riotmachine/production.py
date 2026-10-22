@@ -1104,7 +1104,7 @@ def launch_lipsync(conn: sqlite3.Connection, shot_id: int, force: bool = False) 
         raise ProductionError("Ni piste voix ni morceau pour ce clip")
     slice_path = studio() / clip["dir"] / "work" / f"voix-plan-{shot['num']:03d}.mp3"
     media.cut_audio(absp(voice), float(shot["t_start"]), float(shot["t_end"]), slice_path)
-    key = load_models()["lipsync"]
+    key = routing.lipsync_model_key(routing.shot_seconds(shot))
     mcfg = routing.model(key)
     video_ref = final["remote_url"] or fal.to_data_uri(absp(final["path"]))
     payload = routing.build_payload(mcfg, video_url=video_ref, audio_url=fal.to_data_uri(slice_path), mode="final")
@@ -1145,6 +1145,10 @@ def on_job_done(conn: sqlite3.Connection, job: dict, result: dict) -> None:
     dest = absp(job["output_path"])
     dest = dest.with_suffix(_ext_from_url(url, dest.suffix))
     providers.download(url, dest, job.get("provider") or "fal")
+    if asset["kind"] in ("draft", "final"):
+        # la musique vient de Suno : aucune piste son ne doit rester dans les plans
+        from .providers._http import strip_audio
+        strip_audio(dest)
     seed = result.get("seed") if isinstance(result, dict) else None
     shot = db.get_shot(conn, asset["shot_id"])
     qc = load_models().get("qc", {})
