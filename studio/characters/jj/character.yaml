@@ -1,0 +1,13 @@
+# Fiche du personnage — lue par `riot init` / `riot character sync`.
+# La base fait foi pour les statuts ; ce fichier sert à l'import initial.
+slug: jj
+name: JJ
+notes: Chanteuse principale. Première artiste du groupe.
+canon_version: 1
+versions:
+  1:
+    status: validated
+    notes: >
+      Version de départ (images faites dans Google Flow). Canon = portrait studio,
+      turnaround = planche 4 vues. Incohérences connues entre les deux images,
+      voir brief-v2.md : la v2 est à construire avec l'agent casting.

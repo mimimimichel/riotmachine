@@ -1,0 +1,15 @@
+[Unit]
+Description=Riot Machine — régie web
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/riotmachine
+Environment=PATH=%h/riotmachine/.venv/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=%h/riotmachine/.venv/bin/riot regie
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

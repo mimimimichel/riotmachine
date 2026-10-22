@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(riot *)",
+      "Bash(ffmpeg *)",
+      "Bash(ffprobe *)",
+      "Bash(ls *)",
+      "Read",
+      "Glob",
+      "Grep",
+      "Edit(studio/**)",
+      "Write(studio/**)"
+    ],
+    "deny": [
+      "Bash(riot decide *)",
+      "Bash(riot character validate *)",
+      "Bash(riot character pick *)",
+      "Bash(riot shot status *)",
+      "Bash(riot gen * --force*)",
+      "Bash(rm *)",
+      "Bash(sqlite3 *)",
+      "Bash(git push *)",
+      "Read(.env)",
+      "Edit(config/**)",
+      "Write(config/**)"
+    ]
+  }
+}

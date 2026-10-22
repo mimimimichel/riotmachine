@@ -1,0 +1,15 @@
+[Unit]
+Description=Riot Machine — worker (générations fal, notifications, réveil des agents Claude)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/riotmachine
+Environment=PATH=%h/riotmachine/.venv/bin:%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=%h/riotmachine/.venv/bin/riot worker
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=default.target

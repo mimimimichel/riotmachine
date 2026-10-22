@@ -1,0 +1,20 @@
+# secrets
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+.venv/
+.pytest_cache/
+
+# données de production (sur le PC, sauvegardées avec `riot backup`)
+studio/riot.db
+studio/riot.db-*
+studio/clips/*
+!studio/clips/.gitkeep
+studio/logs/
+*.part
+.frames-*
+
+# Le référentiel des personnages (studio/characters) est versionné

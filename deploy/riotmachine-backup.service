@@ -1,0 +1,8 @@
+[Unit]
+Description=Riot Machine — sauvegarde de la base et du studio
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/riotmachine
+# Remplace la destination par ton disque externe ou un dossier synchronisé
+ExecStart=%h/riotmachine/.venv/bin/riot backup %h/riotmachine-sauvegardes

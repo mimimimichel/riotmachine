@@ -1,0 +1,242 @@
+# Table des modèles et du routage — Riot Machine
+#
+# Endpoints et prix vérifiés sur fal.ai le 22/10/2026. Les prix bougent :
+# revérifie de temps en temps sur https://fal.ai/models/<endpoint>.
+# Les endpoints Veo 3.1 de fal sont annoncés dépréciés au 17/11/2026 : non utilisés.
+#
+# Principe :
+#   - l'agent routeur décrit le plan (cadrage, mouvement, personnages) ;
+#   - les règles ci-dessous choisissent le palier, donc le modèle ;
+#   - le draft est fait sur LE MÊME modèle que le final, en basse résolution
+#     quand le modèle le permet ;
+#   - le final reprend le draft validé (final_mode) :
+#       upscale  : le draft validé passe dans l'upscaler -> identique à ce que tu as validé
+#       keep     : le draft est déjà en qualité finale (modèle sans basse résolution)
+#       rerender : même prompt + même seed en haute résolution (peut légèrement différer)
+#   - les vidéos sont générées SANS audio : la musique vient de Suno.
+
+budget:
+  default_clip_usd: 80        # budget par défaut d'un clip, modifiable par clip
+  alert_ratio: 0.8            # alerte Telegram à 80 % du budget
+
+qc:                           # contrôle automatique par un agent avant de te montrer
+  images: true                # cohérence du personnage vs la canon
+  drafts: true                # anatomie, artefacts, respect du plan (sur 3 images clés)
+  max_auto_retries:
+    images: 2
+    drafts: 1
+
+image:
+  storyboard: nano-banana-2   # images clés des plans
+  casting: nano-banana-pro    # pack de référence des personnages (plus haut de gamme)
+
+lipsync: sync-lipsync-2-pro
+upscale: seedvr-1080p
+
+tier_order: [eco, standard, premium]
+
+tiers:
+  eco:
+    model: wan-3
+    description: Plans fixes, gros plans calmes, objets, inserts
+  standard:
+    model: kling-3-standard
+    description: Mouvement modéré, marche, travelling, plans moyens
+  premium:
+    model: seedance-2
+    description: Danse, chorégraphie, plans larges en mouvement, plusieurs personnages
+
+routing:
+  # Première règle qui correspond = palier choisi.
+  # Champs possibles : motion, framing, min_characters, singing
+  rules:
+    - tier: premium
+      why: mouvement fort (danse, action)
+      when: {motion: [high]}
+    - tier: premium
+      why: plan large en mouvement
+      when: {motion: [medium], framing: [WS, EWS]}
+    - tier: premium
+      why: plusieurs personnages en mouvement
+      when: {motion: [medium], min_characters: 2}
+    - tier: standard
+      why: mouvement modéré
+      when: {motion: [medium]}
+    - tier: standard
+      why: plan large peu animé
+      when: {motion: [low], framing: [MWS, WS, EWS]}
+    - tier: eco
+      why: plan calme ou serré
+      when: {}
+
+models:
+  # ------------------------------------------------------------------ images
+  nano-banana-2:
+    kind: image
+    endpoint: fal-ai/nano-banana-2/edit
+    output: images[0].url
+    max_refs: 6
+    price:
+      per_image: {"0.5K": 0.06, "1K": 0.08, "2K": 0.12, "4K": 0.16}
+    input: {prompt: prompt, images: image_urls, aspect_ratio: aspect_ratio, seed: seed}
+    defaults: {num_images: 1, output_format: png}
+    draft_params: {resolution: "1K"}
+    final_params: {resolution: "2K"}
+
+  nano-banana-pro:
+    kind: image
+    endpoint: fal-ai/nano-banana-pro/edit
+    output: images[0].url
+    max_refs: 8
+    price:
+      per_image: {"1K": 0.15, "2K": 0.15, "4K": 0.30}
+    input: {prompt: prompt, images: image_urls, aspect_ratio: aspect_ratio, seed: seed}
+    defaults: {num_images: 1, output_format: png}
+    draft_params: {resolution: "1K"}
+    final_params: {resolution: "2K"}
+
+  seedream-5-lite:
+    kind: image
+    endpoint: fal-ai/bytedance/seedream/v5/lite/edit
+    output: images[0].url
+    max_refs: 10
+    price: {per_image: 0.035}
+    input: {prompt: prompt, images: image_urls}
+    defaults: {num_images: 1}
+    draft_params: {image_size: auto_2K}
+    final_params: {image_size: auto_2K}
+
+  # ------------------------------------------------------------------ vidéo
+  wan-3:
+    kind: video
+    endpoint: alibaba/wan-3.0/image-to-video
+    output: video.url
+    durations: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    duration_format: int
+    final_mode: upscale
+    price:
+      per_second: {"480p": 0.05, "720p": 0.10, "1080p": 0.20}
+    input: {prompt: prompt, image: start_image_url, duration: duration, seed: seed, aspect_ratio: aspect_ratio}
+    defaults: {audio: false, enable_prompt_expansion: false}
+    draft_params: {resolution: "480p"}
+    final_params: {resolution: "1080p"}
+    prompt_guide: |
+      Wan 3.0 : une seule action claire par plan, décrite au présent.
+      Ordre conseillé : sujet + action, mouvement de caméra, lumière/ambiance, style.
+      Mouvements de caméra explicites : "slow push-in", "static camera", "gentle handheld".
+      Éviter les longues listes d'adjectifs ; 40 à 80 mots.
+
+  kling-3-standard:
+    kind: video
+    endpoint: fal-ai/kling-video/v3/standard/image-to-video
+    output: video.url
+    durations: [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    duration_format: str
+    final_mode: keep            # pas de basse résolution : le draft est déjà en qualité finale
+    price: {per_second: 0.084}
+    input: {prompt: prompt, image: start_image_url, duration: duration, negative_prompt: negative_prompt}
+    defaults: {generate_audio: false}
+    prompt_guide: |
+      Kling 3 : très bon sur les mouvements de corps et la physique des cheveux et tissus.
+      Décrire l'action pas à pas dans l'ordre chronologique, puis la caméra.
+      Préciser ce qui reste stable ("her face stays consistent, same outfit").
+      negative_prompt utile : "blur, distorted hands, extra fingers, morphing face, low quality".
+
+  kling-3-pro:
+    kind: video
+    endpoint: fal-ai/kling-video/v3/pro/image-to-video
+    output: video.url
+    durations: [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    duration_format: str
+    final_mode: keep
+    price: {per_second: 0.112}
+    input: {prompt: prompt, image: start_image_url, duration: duration, negative_prompt: negative_prompt}
+    defaults: {generate_audio: false}
+    prompt_guide: |
+      Comme Kling 3 standard, qualité supérieure. À utiliser en forçant le modèle
+      (riot shot set <id> --model kling-3-pro) quand standard ne suffit pas.
+
+  seedance-2:
+    kind: video
+    endpoint: bytedance/seedance-2.0/image-to-video
+    output: video.url
+    durations: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    duration_format: str
+    final_mode: upscale
+    price:
+      # facturé au token : ~0,135 $/s en 480p, ~0,30 $/s en 720p, ~0,68 $/s en 1080p
+      per_second: {"480p": 0.135, "720p": 0.3034, "1080p": 0.682}
+    input: {prompt: prompt, image: image_url, duration: duration, aspect_ratio: aspect_ratio}
+    defaults: {generate_audio: false}
+    draft_params: {resolution: "480p"}
+    final_params: {resolution: "1080p"}
+    prompt_guide: |
+      Seedance 2.0 : le meilleur pour la danse et les mouvements complexes.
+      Décrire la chorégraphie en 2-3 temps ("she steps left, spins, then raises both arms on the beat").
+      Préciser la caméra ("camera orbits slowly around her", "wide static shot").
+      Indiquer le tempo du morceau en mots ("energetic, on the beat", "slow sensual groove").
+
+  seedance-2-mini:
+    kind: video
+    endpoint: bytedance/seedance-2.0/mini/image-to-video
+    output: video.url
+    durations: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    duration_format: str
+    final_mode: upscale
+    price:
+      per_second: {"480p": 0.0721, "720p": 0.1547}
+    input: {prompt: prompt, image: image_url, duration: duration, aspect_ratio: aspect_ratio}
+    defaults: {generate_audio: false}
+    draft_params: {resolution: "480p"}
+    final_params: {resolution: "720p"}
+    prompt_guide: |
+      Version économique de Seedance 2.0, mêmes conseils de prompt.
+
+  minimax-h3:
+    kind: video
+    endpoint: minimax/h3/image-to-video
+    output: video.url
+    durations: [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    duration_format: int
+    final_mode: upscale
+    price:
+      per_second: {"480P": 0.05, "768P": 0.06, "2K": 0.13}
+    input: {prompt: prompt, image: image_url, duration: duration, seed: seed}
+    draft_params: {resolution: "480P"}
+    final_params: {resolution: "768P"}
+    prompt_guide: |
+      MiniMax H3 : alternative économique à Wan pour les plans calmes.
+
+  # ------------------------------------------------------------- finition
+  seedvr-1080p:
+    kind: upscale
+    endpoint: fal-ai/seedvr/upscale/video
+    output: video.url
+    # 0,001 $ par mégapixel : ~0,05 $/s en 1080p à 24 i/s
+    price: {per_second: 0.05}
+    input: {video: video_url}
+    defaults: {upscale_mode: target, target_resolution: 1080p, output_format: "X264 (.mp4)"}
+
+  topaz-2x:
+    kind: upscale
+    endpoint: fal-ai/topaz/upscale/video
+    output: video.url
+    price: {per_second: 0.02}
+    input: {video: video_url}
+    defaults: {upscale_factor: 2, H264_output: true}
+
+  sync-lipsync-2-pro:
+    kind: lipsync
+    endpoint: fal-ai/sync-lipsync/v2
+    output: video.url
+    price: {per_second: 0.0835}   # ~5 $ par minute en lipsync-2-pro
+    input: {video: video_url, audio: audio_url}
+    defaults: {model: lipsync-2-pro, sync_mode: cut_off}
+
+  sync-lipsync-2:
+    kind: lipsync
+    endpoint: fal-ai/sync-lipsync/v2
+    output: video.url
+    price: {per_second: 0.05}     # 3 $ par minute
+    input: {video: video_url, audio: audio_url}
+    defaults: {model: lipsync-2, sync_mode: cut_off}
