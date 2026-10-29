@@ -208,10 +208,11 @@ Section à enrichir au fil des clips : une ligne par leçon, avec sa date.
   1080p doit être agrandie : son coût entre dans la comparaison.
 - 23/10/2026 : le lip-sync Kling (0,014 $/s) remplace Sync Lipsync (0,08 $/s) sur
   les plans de 2 à 10 s.
-- 29/10/2026 : Veo (Vertex) refuse la canon de JJ comme image de départ (code
-  15236754, catégorie « personnalité connue »). Une image sans personne passe.
-  Veo n'est donc pas fiable pour les plans où JJ apparaît : à confirmer sur de
-  vrais visuels de plans.
+- 29/10/2026 : Veo (Vertex) refuse la canon v1 de JJ (code 15236754, « personnalité
+  connue »), même réduite dans un plan large. Les trois vues de sa planche
+  turnaround (face, trois quarts, profil) passent, et l'identité tient. Le
+  filtre vise une image précise, pas JJ : une image refusée se remplace par une
+  autre de la même version. Un refus à l'entrée ne produit rien.
 - 29/10/2026 : un test de fournisseur se fait au plus court et en plus basse
   résolution (2 s, ~420p), ou au plancher du modèle (Veo : 4 s, 720p).
 

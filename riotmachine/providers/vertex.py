@@ -102,7 +102,8 @@ def result(job: dict) -> dict:
     videos = resp.get("videos") or []
     if not videos:
         filtered = resp.get("raiMediaFilteredCount")
-        raise _http.ProviderError(f"Veo n'a rendu aucune vidéo{' (refusée par la modération)' if filtered else ''}")
+        why = "; ".join(resp.get("raiMediaFilteredReasons") or [])
+        raise _http.ProviderError(f"Veo n'a rendu aucune vidéo{' (refusée par la modération' + (' : ' + why if why else '') + ')' if filtered else ''}")
     v = videos[0]
     if v.get("bytesBase64Encoded"):
         return {"video": {"url": f"data:{v.get('mimeType', 'video/mp4')};base64,{v['bytesBase64Encoded']}"}}
