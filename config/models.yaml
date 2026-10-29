@@ -35,7 +35,7 @@ approval:
 
 image:
   # Listes par ordre de préférence : le premier dont le fournisseur est branché sert.
-  storyboard: [nano-banana-2-vertex, nano-banana-2]      # visuel draft de chaque plan (1K)
+  storyboard: [nano-banana-vertex, nano-banana-2-vertex, nano-banana-2]   # visuel draft de chaque plan : le moins cher d'abord
   casting: [nano-banana-pro-vertex, nano-banana-pro]     # pack de référence des personnages
   canon_hd: [nano-banana-pro-vertex, nano-banana-pro]    # brouillon de Michael -> canon photoréaliste 2K
   upscale: [topaz-image-hf, nano-banana-pro-vertex-hd]   # HD d'un visuel de plan validé, fidèle
@@ -147,6 +147,17 @@ models:
 
   # Nano Banana chez Google (Vertex AI) : payé par les crédits Google Cloud.
   # Prix Vertex à revérifier (29/10/2026) : 3 Pro Image ~0,134 $ en 1K/2K, 0,24 $ en 4K.
+  nano-banana-vertex:
+    label: Nano Banana (Google)
+    provider: vertex
+    kind: image
+    endpoint: gemini-2.5-flash-image
+    output: images[0].url
+    max_refs: 3
+    price:
+      per_image: {"default": 0.039}
+    input: {prompt: prompt, images: images, aspect_ratio: aspect_ratio}
+
   nano-banana-2-vertex:
     label: Nano Banana 2 (Google)
     provider: vertex

@@ -88,6 +88,13 @@ Accepte toute variante lisible (« 0:04-0:08 », « de 4,2 s à 8 s », un table
 3. Import : `riot shots import <clip> studio/clips/<clip>/script/shots.json`, puis
    `riot clip stage <clip> decoupage_review`.
 
+## Le nombre de plans n'est pas figé
+
+Le nombre de plans d'un dossier est une estimation de Michael. Si deux plans
+racontent la même chose ou tombent sur moins d'une demi-mesure, propose de les
+fusionner ; si un plan est trop long pour son action, propose de le couper. Écris
+ces propositions dans `notes.md`, sans les appliquer d'office.
+
 ## Si Michael a commenté le découpage
 
 Applique exactement ce qu'il demande, réimporte, puis marque chaque retour traité :

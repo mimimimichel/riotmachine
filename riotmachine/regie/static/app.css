@@ -470,7 +470,7 @@ pre.text { white-space: pre-wrap; font-family: var(--mono); font-size: 12px; col
 .dec-block { border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); padding: 14px; margin-bottom: 12px; }
 .dec-block-head { display: grid; grid-template-columns: 1fr 2fr auto; gap: 10px; margin-bottom: 10px; }
 .dec-shot {
-  display: grid; grid-template-columns: 34px 92px 92px 1fr auto auto; gap: 8px; align-items: start;
+  display: grid; grid-template-columns: 34px 92px 92px 64px minmax(0, 1fr) auto; gap: 8px; align-items: start;
   padding: 6px 0; border-top: 1px solid var(--line);
 }
 .dec-shot .n { font-family: var(--mono); color: var(--dim); padding-top: 10px; text-align: right; font-size: 12px; }
@@ -479,7 +479,7 @@ pre.text { white-space: pre-wrap; font-family: var(--mono); font-size: 12px; col
 .dec-shot .sing { display: flex; align-items: center; gap: 6px; padding-top: 10px; font-size: 13px; color: var(--muted); white-space: nowrap; }
 .dec-shot .tech { grid-column: 4 / -1; font-size: 12px; color: var(--muted); margin-top: -2px; }
 .dec-shot .err { border-color: var(--red); }
-.colhead { display: grid; grid-template-columns: 34px 92px 92px 1fr auto auto; gap: 8px; font-size: 11px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.06em; padding: 0 0 4px; }
+.colhead { display: grid; grid-template-columns: 34px 92px 92px 64px minmax(0, 1fr) auto; gap: 8px; font-size: 11px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.06em; padding: 0 0 4px; }
 
 /* ---------- personnages ---------- */
 
@@ -536,14 +536,29 @@ pre.text { white-space: pre-wrap; font-family: var(--mono); font-size: 12px; col
   h1 { font-size: 21px; }
   .topbar { gap: 10px; }
   .brand { font-size: 13px; }
-  .sysstat { display: none; }
+  .topbar { flex-wrap: wrap; row-gap: 6px; padding-top: 8px; padding-bottom: 8px; }
+  .mainnav { order: 3; width: 100%; overflow-x: auto; scrollbar-width: none; }
+  .mainnav a { padding: 6px 12px; white-space: nowrap; }
+  .sysstat { gap: 8px; }
+  .sysstat > span { display: none; }
+  .tiles { grid-template-columns: 1fr; }
+  .tile { display: grid; grid-template-columns: 128px minmax(0, 1fr); text-align: left; }
+  .tile .thumb { aspect-ratio: auto; min-height: 100%; }
+  .tile .desc { -webkit-line-clamp: unset; display: block; overflow: visible; min-height: 0; }
+  .packgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .panel { padding: 14px; }
+  .dec-block { padding: 10px; }
+  .console { position: static; }
+  .block-title .intent { white-space: normal; overflow: visible; }
   .stages { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .block-head { grid-template-columns: auto 1fr; }
   .block-side { grid-column: 1 / -1; justify-items: start; }
   .leds { justify-content: flex-start; }
   .pipeline { grid-auto-flow: row; grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .dec-shot, .colhead { grid-template-columns: 26px 1fr 1fr auto; }
+  .dec-shot, .colhead { grid-template-columns: 22px minmax(0, 1fr) minmax(0, 1fr) 58px; }
+  .dec-shot .shot-acts { grid-column: 1 / -1; }
+  .dec-block-head textarea { grid-column: 1 / -1; grid-row: 2; }
+  .btn { white-space: normal; }
   .dec-shot textarea { grid-column: 1 / -1; }
   .dec-shot .tech { grid-column: 1 / -1; }
   .colhead { display: none; }
@@ -578,3 +593,18 @@ table td { padding: 10px; border-bottom: 1px solid var(--line); vertical-align: 
 .lookcard { border: 1px solid #ffffff14; border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
 .spendbox { border: 1px solid #ffad4288; background: var(--amber-soft); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 6px; }
 .packitem video { width: 100%; aspect-ratio: 3/4; object-fit: cover; border-radius: 8px; background: #000; display: block; }
+
+/* aucun débordement horizontal, sur aucun écran */
+html, body { max-width: 100%; overflow-x: hidden; }
+img, video, canvas { max-width: 100%; }
+.panel, .stack, .two-col > *, .row > *, .charsec, .lookcard, .spendbox { min-width: 0; }
+.panel, .hint, p, .desc { overflow-wrap: anywhere; }
+pre.text { white-space: pre-wrap; overflow-wrap: anywhere; }
+input, textarea, select { max-width: 100%; box-sizing: border-box; }
+textarea { overflow-y: hidden; }
+.dec-block-head textarea { min-height: 42px; padding: 9px 10px; }
+.canonbig { max-width: 100%; height: auto; }
+
+.dec-shot .dur { font-family: var(--mono); font-size: 13px; color: var(--led); padding-top: 10px; white-space: nowrap; }
+.dec-shot .shot-acts { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: flex-end; }
+.dec-shot .shot-acts .sing { padding-top: 0; }

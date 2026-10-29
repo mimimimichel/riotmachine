@@ -88,6 +88,13 @@ function tc(s, digits = 1) {
   const r = (s - m * 60).toFixed(digits).padStart(digits ? 3 + digits : 2, "0");
   return `${m}:${r}`;
 }
+function durText(s) {
+  const a = parseTc(s.t_start), b = parseTc(s.t_end);
+  if (a == null || b == null || isNaN(a) || isNaN(b)) return "";
+  const d = b - a;
+  return d > 0 ? `${d.toFixed(1).replace(".", ",")} s` : "fin avant début";
+}
+
 function parseTc(v) {
   v = String(v ?? "").trim().replace(",", ".");
   if (!v) return null;
@@ -393,7 +400,7 @@ async function showStudio() {
   }).join("");
   $view.innerHTML = `
     <div class="pagehead"><h1>Studio</h1>
-      <span class="sub">${pending ? `<span class="pill review">${led("review")}${pending} validation${pending > 1 ? "s" : ""} t'attendent</span>` : "Rien ne t'attend pour l'instant"}</span>
+      <span class="sub">${pending ? `<span class="pill review">${led("review")}${pending} validation${pending > 1 ? "s t'attendent" : " t'attend"}</span>` : "Rien ne t'attend pour l'instant"}</span>
       <span class="spacer"></span><a class="btn go" href="#/nouveau">＋ Nouveau clip</a></div>
     <div class="clips">${cards}
       <a class="newcard" href="#/nouveau"><span class="plus">＋</span><b>Nouveau clip</b><span class="hint">Morceau, dossier de réalisation, paroles</span></a>
@@ -653,7 +660,8 @@ function renderTile(s, clip) {
       </div>
       <div class="info">
         <p class="desc">${esc(s.description)}</p>
-        <div class="foot">${led(st)}<span>${esc((STATUS[s.status] || [s.status])[0])}</span></div>
+        <div class="foot">${clip.stage === "production" ? `${led(st)}<span>${esc((STATUS[s.status] || [s.status])[0])}</span>`
+          : `${led("wait")}<span>${clip.stage === "decoupage_review" ? "Attend la validation du découpage" : "Découpage en préparation"}</span>`}</div>
         <div class="foot"><span class="mono" style="font-size:11px">${tc(s.t_start)} → ${tc(s.t_end)}</span>
           <span class="steps-mini">${steps}</span></div>
       </div>
@@ -1067,10 +1075,10 @@ function renderDecoupageTab(clip) {
   const blocks = state.editor.map((b, bi) => `<div class="dec-block">
       <div class="dec-block-head">
         <input type="text" value="${esc(b.name)}" data-bf="${bi}:name" placeholder="Nom du bloc (couplet 1…)">
-        <input type="text" value="${esc(b.intention)}" data-bf="${bi}:intention" placeholder="Intention du bloc (facultatif)">
+        <textarea rows="1" data-bf="${bi}:intention" placeholder="Intention du bloc (facultatif)">${esc(b.intention)}</textarea>
         <button class="iconbtn" data-delblock="${bi}" title="Supprimer le bloc">✕</button>
       </div>
-      <div class="colhead"><span>#</span><span>Début</span><span>Fin</span><span>Ce qu'on voit</span><span>Chanté</span><span></span></div>
+      <div class="colhead"><span>#</span><span>Début</span><span>Fin</span><span>Durée</span><span>Ce qu'on voit</span><span></span></div>
       ${b.shots.map((s, si) => {
         n++;
         const tech = [s.framing, s.motion && `mouvement ${s.motion}`, s.camera, (s.characters || []).join(", ")].filter(Boolean).join(" · ");
@@ -1078,9 +1086,14 @@ function renderDecoupageTab(clip) {
           <span class="n">${n}</span>
           <input class="tc" type="text" inputmode="decimal" value="${esc(s.t_start)}" data-sf="${bi}:${si}:t_start" placeholder="0:00.0">
           <input class="tc" type="text" inputmode="decimal" value="${esc(s.t_end)}" data-sf="${bi}:${si}:t_end" placeholder="0:04.0">
+          <span class="dur" data-dur="${bi}:${si}">${durText(s)}</span>
           <textarea rows="1" data-sf="${bi}:${si}:description" placeholder="Ce qu'on voit dans ce plan">${esc(s.description)}</textarea>
-          <label class="sing"><input type="checkbox" ${s.singing ? "checked" : ""} data-sf="${bi}:${si}:singing"> ♪</label>
-          <button class="iconbtn" data-delshot="${bi}:${si}" title="Supprimer le plan">✕</button>
+          <span class="shot-acts">
+            <label class="sing" title="Plan chanté face caméra : lip-sync"><input type="checkbox" ${s.singing ? "checked" : ""} data-sf="${bi}:${si}:singing"> ♪ chanté</label>
+            ${si < b.shots.length - 1 ? `<button class="btn small ghost" data-mergeshot="${bi}:${si}" title="Fusionner avec le plan suivant">Fusionner avec le suivant</button>` : ""}
+            <button class="btn small ghost" data-splitshot="${bi}:${si}" title="Couper ce plan en deux au milieu">Couper en deux</button>
+            <button class="iconbtn" data-delshot="${bi}:${si}" title="Supprimer le plan">✕</button>
+          </span>
           ${tech ? `<span class="tech">${esc(tech)}</span>` : ""}
         </div>`;
       }).join("")}
@@ -1274,6 +1287,10 @@ function bindClip() {
     if (t.dataset.sf) {
       const [bi, si, f] = t.dataset.sf.split(":");
       state.editor[+bi].shots[+si][f] = t.type === "checkbox" ? t.checked : t.value;
+      if (f === "t_start" || f === "t_end") {
+        const el = $view.querySelector(`[data-dur="${bi}:${si}"]`);
+        if (el) el.textContent = durText(state.editor[+bi].shots[+si]);
+      }
       markDirty();
     } else if (t.dataset.bf) {
       const [bi, f] = t.dataset.bf.split(":");
@@ -1351,6 +1368,26 @@ function bindClip() {
         const lastB = state.editor[state.editor.length - 1];
         const lastS = lastB && lastB.shots[lastB.shots.length - 1];
         state.editor.push({ name: "", intention: "", shots: [{ t_start: lastS ? lastS.t_end : "0:00.0", t_end: "", description: "", singing: false, characters: defaultCast(clip) }] });
+        markDirty(); return renderClip();
+      }
+      if (d.mergeshot) {
+        const [bi, si] = d.mergeshot.split(":").map(Number);
+        const shots = state.editor[bi].shots, a = shots[si], b = shots[si + 1];
+        a.t_end = b.t_end;
+        a.description = `${a.description.trim()} Puis : ${b.description.trim()}`;
+        a.singing = a.singing || b.singing;
+        a.characters = [...new Set([...(a.characters || []), ...(b.characters || [])])];
+        shots.splice(si + 1, 1);
+        markDirty(); return renderClip();
+      }
+      if (d.splitshot) {
+        const [bi, si] = d.splitshot.split(":").map(Number);
+        const shots = state.editor[bi].shots, a = shots[si];
+        const t0 = parseTc(a.t_start), t1 = parseTc(a.t_end);
+        if (t0 == null || t1 == null || isNaN(t0) || isNaN(t1) || t1 - t0 < 1) { toast("Plan trop court pour être coupé", "err"); return; }
+        const mid = tc(t0 + (t1 - t0) / 2);
+        shots.splice(si + 1, 0, { ...a, t_start: mid, description: "" });
+        a.t_end = mid;
         markDirty(); return renderClip();
       }
       if (d.delshot) {
@@ -1888,3 +1925,17 @@ async function showSpend() {
     } catch (e) { toast(e.message, "err"); b.disabled = false; }
   }));
 }
+
+
+/* ---------- champs de texte : hauteur ajustée au contenu (lisible sur téléphone) ---------- */
+function fitTextarea(t) {
+  if (!t || t.offsetParent === null) return;
+  t.style.height = "auto";
+  t.style.height = `${t.scrollHeight + 2}px`;
+}
+function fitAll(root = document) { root.querySelectorAll("textarea").forEach(fitTextarea); }
+document.addEventListener("input", (e) => { if (e.target.tagName === "TEXTAREA") fitTextarea(e.target); });
+["view", "drawer"].forEach((id) => new MutationObserver(() => requestAnimationFrame(() => fitAll()))
+  .observe(document.getElementById(id), { childList: true, subtree: true }));
+document.addEventListener("toggle", () => fitAll(), true);
+window.addEventListener("resize", () => fitAll());
