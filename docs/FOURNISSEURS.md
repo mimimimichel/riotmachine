@@ -53,19 +53,20 @@ restants, toutes les offres classées par coût et le carnet de rodage.
    n'est pas obligatoire ; si on le fait, le crédit restant est conservé.
 2. Dans la console : créer un projet, noter son identifiant, puis activer l'API
    « Vertex AI ».
-3. Créer un compte de service avec le rôle **Vertex AI User**.
-4. Au choix :
-   - **clé API liée au compte de service** (le plus simple) : page Identifiants →
-     Créer une clé API → cocher « Authentifier les appels via un compte de service »
-     → restreindre la clé à l'API Vertex AI. Mettre `VERTEX_API_KEY` dans `.env` ;
-   - ou **clé JSON du compte de service** : la télécharger sur le PC et mettre son
-     chemin dans `GOOGLE_APPLICATION_CREDENTIALS`.
-5. Dans `.env` : `VERTEX_PROJECT=<identifiant du projet>`.
-6. Dans `config/models.yaml`, ouvrir l'enveloppe :
+3. La création de clés de compte de service est bloquée d'office sur les nouveaux
+   comptes (règle `iam.disableServiceAccountKeyCreation`), et une clé API simple
+   est refusée par Vertex. On se connecte donc avec le compte Google de Michael :
+   `gcloud auth application-default login --no-launch-browser`, il ouvre le lien
+   et renvoie le code. Le fichier produit
+   (`~/.config/gcloud/application_default_credentials.json`) va dans
+   `GOOGLE_APPLICATION_CREDENTIALS`. Le projet de facturation est ajouté par le
+   connecteur (`VERTEX_PROJECT`).
+4. Dans `.env` : `VERTEX_PROJECT=<identifiant du projet>`.
+5. Dans `config/models.yaml`, ouvrir l'enveloppe :
    `credits: {label: "crédits Google Cloud", usd: 300, start: "<date>", expires: "<date + 90 jours>"}`.
-7. Lancer un premier plan vidéo de test. Un refus 403 ou 429 au premier appel
-   signalerait une restriction des comptes d'essai sur Veo (cas évoqué sur des
-   forums, non documenté par Google).
+6. Fait le 29/10/2026 : projet `project-df64a5ff-d0b2-497a-bec`, crédits jusqu'au
+   27/01/2027, essai Veo réussi sur une image sans personne. La canon de JJ a été
+   refusée (« personnalité connue »).
 
 ### Kling AI, API officielle
 

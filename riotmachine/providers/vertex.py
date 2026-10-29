@@ -6,7 +6,8 @@ Gemini d'AI Studio, elle, n'est pas payable par ces crédits.
 Authentification, au choix (.env) :
   - VERTEX_API_KEY : clé API liée à un compte de service (la plus simple) ;
   - GOOGLE_APPLICATION_CREDENTIALS : chemin du JSON d'un compte de service
-    (rôle « Vertex AI User »), échangé contre un jeton OAuth d'une heure.
+    (rôle « Vertex AI User »), ou le fichier de connexion du compte Google de
+    Michael (gcloud auth application-default login), échangé contre un jeton OAuth.
 Plus VERTEX_PROJECT (identifiant du projet). Région : us-central1 (seule ouverte à Veo).
 
 Soumission : :predictLongRunning ; suivi : :fetchPredictOperation ; la vidéo revient
@@ -40,13 +41,16 @@ def _auth() -> tuple[dict, dict]:
     if not creds_path:
         raise _http.ProviderError("Vertex AI : ni VERTEX_API_KEY ni GOOGLE_APPLICATION_CREDENTIALS dans .env")
     if not _token or _token["exp"] < time.time() + 120:
+        # Compte de service (JSON) ou compte Google de Michael (gcloud auth application-default login).
+        import google.auth
         from google.auth.transport.requests import Request
-        from google.oauth2 import service_account
-        creds = service_account.Credentials.from_service_account_file(
-            creds_path, scopes=["https://www.googleapis.com/auth/cloud-platform"])
+        creds, _ = google.auth.load_credentials_from_file(
+            creds_path, scopes=["https://www.googleapis.com/auth/cloud-platform"], quota_project_id=_project())
         creds.refresh(Request())
-        _token.update(value=creds.token, exp=time.time() + 3300)
-    return {"Authorization": f"Bearer {_token['value']}", "Content-Type": "application/json"}, {}
+        headers: dict = {}
+        creds.apply(headers)
+        _token.update(headers=headers, exp=time.time() + 3300)
+    return {**_token["headers"], "Content-Type": "application/json"}, {}
 
 
 def _model_url(model_id: str, verb: str) -> str:

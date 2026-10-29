@@ -48,7 +48,7 @@ providers:
     env: [VERTEX_PROJECT]
     env_any: [VERTEX_API_KEY, GOOGLE_APPLICATION_CREDENTIALS]
     note: Veo 3.1. Seule voie payable par les 300 $ de l'essai Google Cloud. Pas de format 1:1.
-    credits: {label: "crédits Google Cloud", usd: 0, start: "", expires: ""}
+    credits: {label: "crédits Google Cloud", usd: 300, start: "2026-10-29", expires: "2027-01-27"}
   kling:
     label: Kling AI (API officielle)
     env: [KLING_API_KEY]
