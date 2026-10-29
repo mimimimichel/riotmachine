@@ -29,10 +29,12 @@ qc:                           # contrôle automatique par un agent avant de te m
     drafts: 1
 
 image:
-  storyboard: nano-banana-2   # image de travail de chaque plan (1K, rapide, à valider)
-  casting: nano-banana-pro    # pack de référence des personnages (plus haut de gamme)
-  upscale: topaz-image-hf     # passage en HD d'une image validée (plan ou canon), fidèle à l'original
-  upscale_fallback: seedvr-image   # deuxième essai si la HD s'écarte de l'original
+  # Listes par ordre de préférence : le premier dont le fournisseur est branché sert.
+  storyboard: [nano-banana-2-vertex, nano-banana-2]      # visuel draft de chaque plan (1K)
+  casting: [nano-banana-pro-vertex, nano-banana-pro]     # pack de référence des personnages
+  canon_hd: [nano-banana-pro-vertex, nano-banana-pro]    # brouillon de Michael -> canon photoréaliste 2K
+  upscale: [topaz-image-hf, nano-banana-pro-vertex-hd]   # HD d'un visuel de plan validé, fidèle
+  upscale_fallback: [seedvr-image, nano-banana-pro-vertex-hd]
 
 # Fournisseurs. Un fournisseur est utilisable s'il est branché dans le code ET si
 # ses clés sont dans .env (`env` : toutes requises ; `env_any` : au moins une).
@@ -136,6 +138,49 @@ models:
     input: {prompt: prompt, images: image_urls, aspect_ratio: aspect_ratio, seed: seed}
     defaults: {num_images: 1, output_format: png}
     draft_params: {resolution: "1K"}
+    final_params: {resolution: "2K"}
+
+  # Nano Banana chez Google (Vertex AI) : payé par les crédits Google Cloud.
+  # Prix Vertex à revérifier (29/10/2026) : 3 Pro Image ~0,134 $ en 1K/2K, 0,24 $ en 4K.
+  nano-banana-2-vertex:
+    label: Nano Banana 2 (Google)
+    provider: vertex
+    kind: image
+    endpoint: gemini-3.1-flash-image
+    output: images[0].url
+    max_refs: 10
+    price:
+      per_image: {"1K": 0.067, "2K": 0.101, "4K": 0.151}
+    input: {prompt: prompt, images: images, aspect_ratio: aspect_ratio}
+    draft_params: {resolution: "1K"}
+    final_params: {resolution: "1K"}
+
+  nano-banana-pro-vertex:
+    label: Nano Banana Pro (Google)
+    provider: vertex
+    kind: image
+    endpoint: gemini-3-pro-image
+    output: images[0].url
+    max_refs: 10
+    price:
+      per_image: {"1K": 0.134, "2K": 0.134, "4K": 0.24}
+    input: {prompt: prompt, images: images, aspect_ratio: aspect_ratio}
+    draft_params: {resolution: "1K"}
+    final_params: {resolution: "2K"}
+
+  nano-banana-pro-vertex-hd:
+    label: Nano Banana Pro HD (Google)
+    provider: vertex
+    kind: image
+    endpoint: gemini-3-pro-image
+    output: images[0].url
+    max_refs: 1
+    fixed_prompt: >-
+      Reproduce this exact image at higher resolution and sharper detail. Change nothing: same composition,
+      framing, people, faces, expressions, clothing, colors and lighting. Only add fine detail and remove blur.
+    price:
+      per_image: {"1K": 0.134, "2K": 0.134, "4K": 0.24}
+    input: {images: images, aspect_ratio: aspect_ratio}
     final_params: {resolution: "2K"}
 
   nano-banana-pro:

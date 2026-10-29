@@ -182,26 +182,55 @@ def shot_seconds(shot: dict[str, Any]) -> float:
 IMPLEMENTED_PROVIDERS = {"fal", "vertex", "kling", "runway", "gemini", "minimax", "atlas", "replicate", "evolink"}
 
 
-def providers() -> list[dict[str, Any]]:
-    """État de chaque fournisseur : branché dans le code, clés présentes, utilisable."""
+def _forced_simulation() -> bool:
     import os
-    from .settings import get_settings
-    simulated = get_settings().fal_mock
+    return os.environ.get("RIOT_FAL_MOCK", "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def provider_has_key(key: str) -> bool:
+    import os
+    cfg = (models_cfg().get("providers") or {}).get(key) or {}
+    env_all = cfg.get("env") or []
+    env_all = [env_all] if isinstance(env_all, str) else env_all
+    env_any = cfg.get("env_any") or []
+    return all(os.environ.get(e, "").strip() for e in env_all) and (
+        not env_any or any(os.environ.get(e, "").strip() for e in env_any))
+
+
+def providers() -> list[dict[str, Any]]:
+    """État de chaque fournisseur : branché dans le code, clés présentes, utilisable.
+
+    Un fournisseur sans clé est simulé (images et vidéos factices). Dès qu'au moins
+    un fournisseur a sa clé, les fournisseurs simulés ne sont plus choisis par le
+    routage : on ne mélange pas du faux et du vrai dans un clip.
+    """
+    forced = _forced_simulation()
+    keys = {k: provider_has_key(k) for k in (models_cfg().get("providers") or {})}
+    all_sim = forced or not any(keys[k] for k in keys if k in IMPLEMENTED_PROVIDERS)
     out = []
     for key, cfg in (models_cfg().get("providers") or {}).items():
         env_all = cfg.get("env") or []
         env_all = [env_all] if isinstance(env_all, str) else env_all
         env_any = cfg.get("env_any") or []
-        has_key = all(os.environ.get(e, "").strip() for e in env_all) and (
-            not env_any or any(os.environ.get(e, "").strip() for e in env_any))
+        has_key = keys[key] and not forced
         implemented = key in IMPLEMENTED_PROVIDERS
         out.append({
             "key": key, "label": cfg.get("label", key), "note": cfg.get("note", ""),
             "env": env_all + ([" ou ".join(env_any)] if env_any else []),
             "implemented": implemented, "has_key": has_key,
-            "usable": implemented and (has_key or simulated), "simulated": simulated and not has_key,
+            "usable": implemented and (has_key or all_sim), "simulated": not has_key,
         })
     return out
+
+
+def pick_model(role: str, section: str = "image") -> str:
+    """Premier modèle de la liste `image.<role>` dont le fournisseur est utilisable."""
+    choice = (models_cfg().get(section) or {}).get(role)
+    choices = choice if isinstance(choice, list) else [choice]
+    for key in choices:
+        if key and provider_usable(models_cfg()["models"][key].get("provider", "fal")):
+            return key
+    return choices[0]
 
 
 def provider_usable(key: str) -> bool:

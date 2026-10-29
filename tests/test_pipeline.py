@@ -231,7 +231,8 @@ def test_migration_from_v1(studio, tmp_path):
     assert snap["blocks"][0]["name"] == "Sans bloc"
 
 
-def test_budget_blocks(studio, tmp_path):
+def test_budget_blocks(studio, tmp_path, monkeypatch):
+    monkeypatch.setattr(production.credits, "funding_for", lambda *a: "cash")   # pas de crédits gratuits
     run("init")
     conn = db.connect()
     production.create_clip(conn, "Petit budget", song=studio["song"], characters=["jj"], budget_usd=0.01)
@@ -294,11 +295,12 @@ def test_canon_hd_flow(studio, tmp_path):
     production.upload_canon_draft(conn, "nova", 1, img)
     worker.tick(conn, wake=False)
     hd = conn.execute("SELECT * FROM character_assets WHERE kind='canon' AND parent_id IS NOT NULL").fetchone()
-    assert hd["status"] == "proposed" and hd["model_key"] == "topaz-image-hf"
+    assert hd["status"] == "proposed" and hd["model_key"] == "nano-banana-pro-vertex"
     production.review_canon_hd(conn, hd["id"], "redo", "les yeux ont changé")
     worker.tick(conn, wake=False)
     hd2 = conn.execute("SELECT * FROM character_assets WHERE kind='canon' AND status='proposed'").fetchone()
-    assert hd2["model_key"] == "seedvr-image"
+    assert hd2["model_key"] == "nano-banana-pro-vertex"
+    assert conn.execute("SELECT status FROM character_assets WHERE id=?", (hd["id"],)).fetchone()[0] == "rejected"
     production.review_canon_hd(conn, hd2["id"], "approve")
     v = production.character_version(conn, "nova", 1)
     assert production.absp(v["dir"]).joinpath("canon.png").is_file()

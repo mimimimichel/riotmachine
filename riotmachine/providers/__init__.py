@@ -32,15 +32,16 @@ def _adapters() -> dict[str, Any]:
             "minimax": minimax, "atlas": atlas, "replicate": replicate, "evolink": evolink}
 
 
-def simulated() -> bool:
-    """Mode simulation global : pas de clé fal.ai (ou RIOT_FAL_MOCK=1)."""
-    return get_settings().fal_mock
+def simulated(provider: str = "fal") -> bool:
+    """Fournisseur simulé : pas de clé dans .env (ou RIOT_FAL_MOCK=1 pour tout simuler)."""
+    from .. import routing
+    return routing._forced_simulation() or not routing.provider_has_key(provider)
 
 
 def submit(model_cfg: dict, payload: dict, *, kind: str, label: str = "", seconds: float | None = None,
            force_mock: bool = False) -> dict[str, str]:
     provider = model_cfg.get("provider", "fal")
-    if force_mock or simulated():
+    if force_mock or simulated(provider):
         sub = fal.submit(model_cfg.get("endpoint", ""), payload, kind=kind, label=label, seconds=seconds,
                          force_mock=True)
     else:

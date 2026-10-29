@@ -221,7 +221,7 @@ def launch_character_asset(conn: sqlite3.Connection, slug: str, version: int, ki
     if v["status"] != "draft":
         raise ProductionError(f"{slug} v{version} est {v['status']} : on ne modifie qu'une version brouillon")
     cfg = load_models()
-    key = model_key or cfg["image"]["casting"]
+    key = model_key or routing.pick_model("casting")
     mcfg = routing.model(key)
     if ref_paths:
         refs = [Path(p) if Path(p).is_absolute() else studio() / p for p in ref_paths]
@@ -272,10 +272,14 @@ def review_character_asset(conn: sqlite3.Connection, asset_id: int, decision: st
         with db.tx(conn):
             # l'ancienne canon et les autres candidates deviennent de simples images « détails »
             others = conn.execute(
-                "SELECT id, path, status FROM character_assets WHERE version_id=? AND kind='canon' AND id!=?",
+                "SELECT id, path, status, parent_id FROM character_assets WHERE version_id=? AND kind='canon' AND id!=?",
                 (v["id"], asset_id),
             ).fetchall()
             for o in others:
+                if o["status"] != "kept":
+                    # candidate non retenue (canon HD en attente, autre proposition) : écartée, pas versée au pack
+                    conn.execute("UPDATE character_assets SET status='rejected' WHERE id=?", (o["id"],))
+                    continue
                 op = absp(o["path"])
                 new_path = o["path"]
                 if op and op.is_file() and op.resolve() == dest.resolve():
@@ -399,13 +403,11 @@ def launch_canon_hd(conn: sqlite3.Connection, slug: str, version: int, model_key
         "ORDER BY id DESC LIMIT 1", (v["id"],)).fetchone())
     if draft is None:
         raise ProductionError("Dépose d'abord le brouillon de la canon")
-    if not model_key:
-        tries = conn.execute("SELECT COUNT(*) FROM character_assets WHERE parent_id=? AND status='rejected'",
-                             (draft["id"],)).fetchone()[0]
-        cfg = load_models()["image"]
-        model_key = cfg.get("upscale_fallback") if tries % 2 == 1 and cfg.get("upscale_fallback") else cfg["upscale"]
+    model_key = model_key or routing.pick_model("canon_hd")
     mcfg = routing.model(model_key)
-    payload = routing.build_payload(mcfg, image_urls=[fal.to_data_uri(absp(draft["path"]))], mode="final")
+    payload = routing.build_payload(mcfg, prompt=_canon_hd_prompt(absp(v["dir"])),
+                                    image_urls=[fal.to_data_uri(absp(draft["path"]))], mode="final",
+                                    aspect_ratio="3:4")
     sub = providers.submit(mcfg, payload, kind="image", label=f"{slug} canon HD")
     out = absp(v["dir"]) / "brouillons" / f"canon-hd-{sub['request_id'][-6:]}.png"
     with db.tx(conn):
@@ -419,6 +421,19 @@ def launch_canon_hd(conn: sqlite3.Connection, slug: str, version: int, model_key
         _insert_job(conn, "character_assets", cur.lastrowid, mcfg["endpoint"], sub, out)
         db.log_event(conn, None, "casting", f"{slug} v{version} : canon HD lancée ({mcfg.get('label', model_key)})")
     return {"asset_id": cur.lastrowid, "model_key": model_key}
+
+
+def _canon_hd_prompt(vdir: Path) -> str:
+    """Prompt de la canon HD : le brouillon de Michael devient une photo réaliste, même personnage."""
+    adn = (vdir / "adn.md").read_text(encoding="utf-8") if (vdir / "adn.md").is_file() else ""
+    instr = (vdir / "instructions.md").read_text(encoding="utf-8") if (vdir / "instructions.md").is_file() else ""
+    return ("Turn the reference image into a true photograph of the same person: keep exactly the same face shape, "
+            "eyes (shape and color), nose, lips, skin tone, freckles, hair (texture, length, volume, color), "
+            "outfit and pose. Do not beautify, do not change identity. Real skin texture with visible pores and fine "
+            "vellus hair, slight natural asymmetry, no retouching. Portrait photography, 85mm lens, f/2.8, soft "
+            "natural light, neutral background, true-to-life colors, high resolution."
+            + (f"\n\nCharacter sheet (French, authoritative):\n{adn.strip()}" if adn.strip() else "")
+            + (f"\n\nDirector's notes (French):\n{instr.strip()}" if instr.strip() else ""))
 
 
 def review_canon_hd(conn: sqlite3.Connection, asset_id: int, decision: str, comment: str = "") -> None:
@@ -888,7 +903,7 @@ def launch_image(conn: sqlite3.Connection, shot_id: int, force: bool = False) ->
         raise ProductionError("Le plan n'a pas encore de prompt image (riot shot set --image-prompt)")
     clip = db.get_clip(conn, shot["clip_slug"])
     cfg = load_models()
-    key = cfg["image"]["storyboard"]
+    key = routing.pick_model("storyboard")
     mcfg = routing.model(key)
     casting = {c["character_slug"]: c for c in db.casting_for_clip(conn, clip["slug"])}
     refs: list[Path] = []
@@ -924,8 +939,7 @@ def launch_image_hd(conn: sqlite3.Connection, shot_id: int, force: bool = False,
     if not model_key:
         tries = conn.execute("SELECT COUNT(*) FROM assets WHERE shot_id=? AND kind='image_hd' AND status='rejected'",
                              (shot_id,)).fetchone()[0]
-        cfg = load_models()["image"]
-        model_key = cfg.get("upscale_fallback") if tries and cfg.get("upscale_fallback") else cfg["upscale"]
+        model_key = routing.pick_model("upscale_fallback" if tries else "upscale")
     mcfg = routing.model(model_key)
     cost = routing.estimate_cost(mcfg, mode="final")
     _check_budget(conn, clip["slug"], cost, force, mcfg)
