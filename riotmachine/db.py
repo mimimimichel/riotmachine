@@ -231,7 +231,7 @@ CREATE TABLE IF NOT EXISTS assets (
 
 CREATE TABLE IF NOT EXISTS jobs (
     id INTEGER PRIMARY KEY,
-    target_table TEXT NOT NULL CHECK (target_table IN ('assets','character_assets')),
+    target_table TEXT NOT NULL CHECK (target_table IN ('assets','character_assets','element_images')),
     target_id INTEGER NOT NULL,
     endpoint TEXT NOT NULL,
     provider TEXT NOT NULL DEFAULT 'fal',
@@ -266,6 +266,46 @@ CREATE TABLE IF NOT EXISTS events (
     kind TEXT NOT NULL,
     message TEXT NOT NULL,
     created_at TEXT NOT NULL
+);
+
+-- Décors, objets clés et figurants d'un clip : des références visuelles validées
+-- par Michael, réutilisées à chaque visuel de plan pour garder la cohérence.
+CREATE TABLE IF NOT EXISTS elements (
+    id INTEGER PRIMARY KEY,
+    clip_slug TEXT NOT NULL REFERENCES clips(slug),
+    kind TEXT NOT NULL CHECK (kind IN ('decor','objet','figurant')),
+    slug TEXT NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT,                 -- la fiche : ce qui ne change jamais
+    states TEXT NOT NULL DEFAULT '[]',-- JSON : états du lieu (ex. « jardin vide au retour »)
+    dir TEXT NOT NULL,
+    created_by TEXT NOT NULL DEFAULT 'michael',
+    created_at TEXT NOT NULL,
+    UNIQUE (clip_slug, slug)
+);
+
+CREATE TABLE IF NOT EXISTS element_images (
+    id INTEGER PRIMARY KEY,
+    element_id INTEGER NOT NULL REFERENCES elements(id),
+    state TEXT,                       -- NULL = état de base
+    source TEXT NOT NULL DEFAULT 'gen' CHECK (source IN ('michael','gen')),
+    path TEXT,
+    remote_url TEXT,
+    label TEXT,
+    prompt TEXT,
+    model_key TEXT,
+    cost_usd REAL NOT NULL DEFAULT 0,
+    funding TEXT NOT NULL DEFAULT 'cash',
+    status TEXT NOT NULL DEFAULT 'proposed' CHECK (status IN ('generating','proposed','kept','rejected','failed')),
+    error TEXT,
+    created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS shot_elements (
+    shot_id INTEGER NOT NULL REFERENCES shots(id) ON DELETE CASCADE,
+    element_id INTEGER NOT NULL REFERENCES elements(id) ON DELETE CASCADE,
+    state TEXT,
+    PRIMARY KEY (shot_id, element_id)
 );
 
 -- Dépenses en attente de l'accord de Michael : rien de payant ne part sans lui.
@@ -342,6 +382,7 @@ def init_db(conn: sqlite3.Connection) -> None:
         _migrate_v2(conn)
     conn.executescript(SCHEMA)
     _ensure_columns(conn)
+    _widen_jobs_targets(conn)
     conn.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
 
 
@@ -350,7 +391,26 @@ LATER_COLUMNS = {
     "jobs": [("provider", "TEXT NOT NULL DEFAULT 'fal'")],
     "assets": [("funding", "TEXT NOT NULL DEFAULT 'cash'")],
     "character_assets": [("funding", "TEXT NOT NULL DEFAULT 'cash'")],
+    "clips": [("decors_status", "TEXT NOT NULL DEFAULT 'todo'")],   # todo | requested | done
 }
+
+
+def _widen_jobs_targets(conn: sqlite3.Connection) -> None:
+    """Bases créées avant les décors : la contrainte de jobs.target_table est élargie."""
+    sql = conn.execute("SELECT sql FROM sqlite_master WHERE name='jobs'").fetchone()
+    if not sql or "element_images" in sql[0]:
+        return
+    cols = ", ".join(sorted(_columns(conn, "jobs")))
+    conn.execute("PRAGMA foreign_keys=OFF")
+    conn.execute("BEGIN")
+    conn.execute("ALTER TABLE jobs RENAME TO jobs_old")
+    create = "CREATE TABLE IF NOT EXISTS jobs" + SCHEMA.split("CREATE TABLE IF NOT EXISTS jobs", 1)[1].split(");", 1)[0] + ")"
+    conn.execute(create)
+    conn.execute(f"INSERT INTO jobs ({cols}) SELECT {cols} FROM jobs_old")
+    conn.execute("DROP TABLE jobs_old")
+    conn.execute("COMMIT")
+    conn.execute("PRAGMA foreign_keys=ON")
+    conn.executescript(SCHEMA)   # index de jobs recréés
 
 
 def _ensure_columns(conn: sqlite3.Connection) -> None:

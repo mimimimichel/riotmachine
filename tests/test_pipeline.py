@@ -353,3 +353,32 @@ def test_spend_needs_approval(studio, monkeypatch):
     production.decide_spend(conn, [res["spend_request"]], "approve")
     assert production.run_approved_spend(conn) == 1 and calls
     assert db.get_shot(conn, sid)["status"] == "image_gen"
+
+
+def test_elements_flow(studio, tmp_path):
+    """Décors : fiche, image de Michael, lien aux plans ; le visuel attend une référence gardée."""
+    import subprocess
+    from riotmachine import elements
+    run("init")
+    conn = db.connect()
+    production.create_clip(conn, "Decors", song=studio["song"], characters=["jj"])
+    production.import_shots(conn, "decors", [{"t_start": 0, "t_end": 4, "description": "x", "characters": ["jj"]},
+                                             {"t_start": 4, "t_end": 8, "description": "y", "characters": []}])
+    ids = [r["id"] for r in conn.execute("SELECT id FROM shots ORDER BY num")]
+    e = elements.create(conn, "decors", "decor", "Jardin de JJ", "Terrasse en dalles", ["vide au retour"])
+    elements.link(conn, ids, e["id"], "vide au retour")
+    production.update_shot(conn, ids[0], image_prompt="x")
+    with pytest.raises(production.ProductionError):
+        production.launch_image(conn, ids[0])          # pas encore de référence gardée
+    img = tmp_path / "j.jpg"
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "color=c=green:s=320x240",
+                    "-frames:v", "1", str(img)], check=True)
+    elements.add_image(conn, e["id"], img)
+    refs, text = elements.shot_context(conn, ids[0])
+    assert refs and "Jardin de JJ" in text and "vide au retour" in text
+    production.launch_image(conn, ids[0])               # simulation : part directement
+    res = elements.launch_image(conn, e["id"], "vide au retour")
+    worker.tick(conn, wake=False)
+    gen = conn.execute("SELECT status FROM element_images WHERE id=?", (res["image_id"],)).fetchone()[0]
+    assert gen == "proposed"
+    assert len(elements.clip_elements(conn, "decors")[0]["shots"]) == 2

@@ -608,3 +608,10 @@ textarea { overflow-y: hidden; }
 .dec-shot .dur { font-family: var(--mono); font-size: 13px; color: var(--led); padding-top: 10px; white-space: nowrap; }
 .dec-shot .shot-acts { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: flex-end; }
 .dec-shot .shot-acts .sing { padding-top: 0; }
+
+/* décors */
+.elcard { margin-top: 10px; }
+.elcard > summary { list-style: none; cursor: pointer; gap: 12px; }
+.elcard > summary::-webkit-details-marker { display: none; }
+.elthumb { width: 64px; height: 48px; object-fit: cover; border-radius: 8px; flex: none; display: grid; place-items: center; background: #07060c; color: var(--dim); }
+.elcard[open] > summary { margin-bottom: 12px; }

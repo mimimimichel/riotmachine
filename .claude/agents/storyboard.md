@@ -43,3 +43,13 @@ même séquence, sauf si le découpage dit le contraire.
 
 Si `riot gen` refuse pour budget, arrête-toi et signale-le dans ta réponse.
 Réponds avec la liste des plans lancés et une ligne par plan sur tes choix.
+
+
+## Décors, objets et figurants (depuis le 30/10/2026)
+
+`riot shot show <id>` liste les éléments reliés au plan (`elements`) avec leur
+fiche. `riot gen image` envoie déjà leurs images de référence et ajoute leurs
+fiches au prompt : **ne redécris pas le décor autrement** dans ton prompt. Écris
+l'action, le cadrage, la lumière du moment et la position des personnages dans ce
+décor. Si `riot gen image` répond qu'un élément n'a pas encore d'image validée,
+passe au plan suivant : ce plan attend Michael.

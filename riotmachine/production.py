@@ -295,8 +295,9 @@ def decide_spend(conn: sqlite3.Connection, ids: list[int], decision: str, note: 
 
 def run_approved_spend(conn: sqlite3.Connection) -> int:
     """Worker : lance les dépenses accordées par Michael."""
+    from . import elements
     actions = {"image": launch_image, "image_hd": launch_image_hd, "canon_hd": launch_canon_hd,
-               "character_asset": launch_character_asset}
+               "character_asset": launch_character_asset, "element_image": elements.launch_image}
     done = 0
     for r in conn.execute("SELECT * FROM spend_requests WHERE status='approved' ORDER BY id").fetchall():
         try:
@@ -1089,10 +1090,20 @@ def launch_image(conn: sqlite3.Connection, shot_id: int, force: bool = False, ap
     for c in shot["characters"]:
         if c in casting:
             refs += character_refs(conn, c, casting[c]["version"], casting[c]["look_slug"], limit=per_char)
+    from . import elements
+    missing = elements.missing_refs(conn, shot_id)
+    if missing:
+        raise ProductionError(f"Plan {shot['num']} : pas encore d'image validée pour {', '.join(missing)}. "
+                              "Le visuel attend que Michael garde une référence de ces éléments.")
+    el_refs, el_text = elements.shot_context(conn, shot_id)
+    # ordre : une image par personnage, puis le décor et les objets, puis le reste du pack
+    max_refs = int(mcfg.get("max_refs", 6))
+    firsts = refs[:1] if refs else []
+    refs = (firsts + el_refs + refs[1:])[:max_refs]
     image_urls = [fal.to_data_uri(p) for p in refs]
     cost = routing.estimate_cost(mcfg, mode="draft")
     _check_budget(conn, clip["slug"], cost, force, mcfg)
-    payload = routing.build_payload(mcfg, prompt=shot["image_prompt"], image_urls=image_urls,
+    payload = routing.build_payload(mcfg, prompt=shot["image_prompt"] + el_text, image_urls=image_urls,
                                     aspect_ratio=clip["aspect_ratio"], mode="draft")
     if _needs_approval(mcfg.get("provider", "fal"), cost, is_demo(clip["slug"]), approved):
         return _ask_spend(conn, "image", {"shot_id": shot_id, "force": force},
@@ -1327,6 +1338,10 @@ KIND_LABEL = {"image": "image de travail", "image_hd": "image HD", "draft": "bro
 def on_job_done(conn: sqlite3.Connection, job: dict, result: dict) -> None:
     """Le worker a récupéré le résultat d'un job : on télécharge et on fait avancer le plan."""
     table = job["target_table"]
+    if table == "element_images":
+        from . import elements
+        elements.on_job_done(conn, job, result)
+        return
     if table == "character_assets":
         asset = db.row(conn.execute("SELECT * FROM character_assets WHERE id=?", (job["target_id"],)).fetchone())
         mcfg = routing.model(asset["model_key"])
@@ -1375,8 +1390,8 @@ def on_job_failed(conn: sqlite3.Connection, job: dict, error: str) -> None:
     with db.tx(conn):
         conn.execute("UPDATE jobs SET status='failed', last_error=?, updated_at=? WHERE id=?",
                      (error[:2000], db.now(), job["id"]))
-        if job["target_table"] == "character_assets":
-            conn.execute("UPDATE character_assets SET status='failed', error=? WHERE id=?",
+        if job["target_table"] in ("character_assets", "element_images"):
+            conn.execute(f"UPDATE {job['target_table']} SET status='failed', error=? WHERE id=?",
                          (error[:2000], job["target_id"]))
             return
         conn.execute("UPDATE assets SET status='failed', error=?, cost_usd=0 WHERE id=?",
@@ -1660,6 +1675,9 @@ def clip_snapshot(conn: sqlite3.Connection, slug: str, compact: bool = False) ->
     clip["casting"] = db.casting_for_clip(conn, slug)
     clip["cost_usd"] = round(db.clip_cost(conn, slug), 3)
     clip["credits_used_usd"] = round(db.clip_cost(conn, slug, "credits"), 3)
+    clip["decors_pending"] = conn.execute(
+        "SELECT COUNT(*) FROM elements e WHERE e.clip_slug=? AND NOT EXISTS (SELECT 1 FROM element_images i "
+        "WHERE i.element_id=e.id AND i.status='kept')", (slug,)).fetchone()[0]
     counts: dict[str, int] = {}
     for s in shots:
         counts[s["status"]] = counts.get(s["status"], 0) + 1
@@ -1694,11 +1712,19 @@ def needs_agent(conn: sqlite3.Connection, slug: str) -> dict:
     ).fetchone()[0]
     if pending_dec:
         reasons.append("script_doctor: retours sur le découpage")
+    if clip["stage"] in ("decoupage_review", "production") and n_shots:
+        n_el = conn.execute("SELECT COUNT(*) FROM elements WHERE clip_slug=?", (slug,)).fetchone()[0]
+        if clip.get("decors_status") == "requested" or (clip.get("decors_status", "todo") == "todo" and not n_el):
+            reasons.append("decorateur: décors, objets et figurants à repérer")
     if clip["stage"] == "production" and n_shots:
         for status in db.AGENT_STATUSES:
+            if status == "image_todo" and clip.get("decors_status", "done") != "done":
+                continue   # les visuels attendent que les décors soient repérés
             n = conn.execute("SELECT COUNT(*) FROM shots WHERE clip_slug=? AND status=? AND id NOT IN "
                              "(SELECT shot_id FROM spend_requests WHERE shot_id IS NOT NULL "
-                             "AND status IN ('pending','approved'))", (slug, status)).fetchone()[0]
+                             "AND status IN ('pending','approved')) AND id NOT IN "
+                             "(SELECT se.shot_id FROM shot_elements se WHERE NOT EXISTS (SELECT 1 FROM element_images ei "
+                             "WHERE ei.element_id=se.element_id AND ei.status='kept'))", (slug, status)).fetchone()[0]
             if n:
                 reasons.append(f"{status}: {n} plan(s)")
     brief_sig = None

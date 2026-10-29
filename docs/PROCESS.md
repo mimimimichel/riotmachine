@@ -191,6 +191,19 @@ Les fournisseurs, leurs clés et leurs modèles sont décrits dans
 Une version validée est figée : les clips qui l'utilisent en dépendent. Pour
 faire évoluer un personnage, on crée une nouvelle version.
 
+## 7 bis. Décors, objets clés et figurants
+
+Avant les visuels des plans, chaque lieu, objet qui compte et personnage secondaire
+du clip a une fiche et une image de référence gardée par Michael (onglet Décors).
+- Michael peut tout fournir : une fiche, ses images (gardées telles quelles comme
+  références), ou demander une proposition réaliste (environ 0,13 $, avec accord).
+- Sinon l'agent `decorateur` repère les éléments dans le découpage, écrit les
+  fiches, relie chaque plan à son décor (avec son état : « intact », « vide au
+  retour »…), à ses objets et à ses figurants, et demande les images de référence.
+- Le visuel d'un plan part avec la référence de son décor, de ses objets et de ses
+  figurants, et leurs fiches dans le prompt. Il attend que chacun ait une référence
+  gardée. Commandes : `riot element list|add|set|link|gen|done`.
+
 ## 8. Ce qu'on a appris
 
 Section à enrichir au fil des clips : une ligne par leçon, avec sa date.

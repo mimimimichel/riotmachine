@@ -441,6 +441,7 @@ async function showClip(slug, tab, keep = false) {
   if (keep && isBusy()) return;
   if (keep && state.tab === "decoupage" && state.editorDirty) { renderDrawer(); return; }
   if (keep && state.tab === "dossier") { renderDrawer(); return; }
+  if (keep && state.tab === "decors") { if (!isBusy()) loadDecors(state.clip, true); return; }
   const scroll = window.scrollY;
   renderClip();
   if (keep) window.scrollTo(0, scroll);
@@ -463,6 +464,7 @@ function renderClip() {
   const tabs = [
     ["plans", "Plans", c.review ? `<span class="count">${c.review}</span>` : ""],
     ["decoupage", "Découpage", clip.stage === "decoupage_review" ? `<span class="count">à valider</span>` : ""],
+    ["decors", "Décors", clip.decors_pending ? `<span class="count">${clip.decors_pending}</span>` : ""],
     ["dossier", "Dossier", ""],
     ["journal", "Journal", ""],
   ];
@@ -483,9 +485,11 @@ function renderClip() {
   if (state.tab === "plans") html += renderPlans(clip);
   else if (state.tab === "decoupage") html += renderDecoupageTab(clip);
   else if (state.tab === "dossier") html += renderDossier(clip);
+  else if (state.tab === "decors") html += `<div id="decors-tab"><p class="loading">Chargement…</p></div>`;
   else html += renderJournal(clip);
   $view.innerHTML = html;
   bindClip();
+  if (state.tab === "decors") loadDecors(clip);
 }
 
 /* ----- console : transport + timeline ----- */
@@ -1939,3 +1943,162 @@ document.addEventListener("input", (e) => { if (e.target.tagName === "TEXTAREA")
   .observe(document.getElementById(id), { childList: true, subtree: true }));
 document.addEventListener("toggle", () => fitAll(), true);
 window.addEventListener("resize", () => fitAll());
+
+
+/* ---------- Décors, objets et figurants ---------- */
+const EL_KIND = { decor: ["Décors", "Les lieux du clip."], objet: ["Objets clés", "Les objets qui reviennent ou comptent pour l'histoire."],
+  figurant: ["Figurants", "Les personnages secondaires et les animaux (le chien, les voleurs…)."] };
+
+async function loadDecors(clip, keep = false) {
+  const box = document.getElementById("decors-tab");
+  if (!box) return;
+  const d = await api(`/api/clips/${encodeURIComponent(clip.slug)}/elements`);
+  const json = JSON.stringify(d);
+  if (keep && json === state.decorsJson) return;
+  state.decorsJson = json;
+  const open = new Set(prefs("elopen:" + clip.slug) || []);
+  const byKind = { decor: [], objet: [], figurant: [] };
+  d.elements.forEach((e) => (byKind[e.kind] || []).push(e));
+  const spendFor = (e) => d.spend.filter((r) => r.label.includes(`« ${e.name} »`));
+  const card = (e) => {
+    const kept = e.images.filter((i) => i.status === "kept");
+    const proposed = e.images.filter((i) => i.status === "proposed" || i.status === "generating");
+    const sp = spendFor(e);
+    const states = e.states.length ? e.states : [];
+    const isOpen = open.has(String(e.id)) || !kept.length;
+    return `<details class="panel elcard" data-elid="${e.id}" ${isOpen ? "open" : ""}>
+      <summary class="row">
+        ${kept[0] ? `<img class="elthumb" src="${media(kept[0].path)}" alt="">` : `<span class="elthumb none">?</span>`}
+        <span class="stack" style="gap:2px;flex:1;min-width:0"><b>${esc(e.name)}</b>
+          <span class="hint">${e.shots.length ? `Plans ${compactNums(e.shots)}` : "Relié à aucun plan"}${states.length ? ` · ${states.length} état${states.length > 1 ? "s" : ""}` : ""}</span></span>
+        ${kept.length ? pill("référence gardée", "done") : pill("à faire", "review")}
+      </summary>
+      <div class="stack">
+        <label class="hint">Fiche : ce qui ne change jamais (plan des lieux, matières, couleurs, lumière, style)</label>
+        <textarea data-elf="${e.id}:description" rows="3">${esc(e.description || "")}</textarea>
+        <label class="hint">États (un par ligne) : ce qui change au fil du clip, ex. « intact le matin », « vide au retour »</label>
+        <textarea data-elf="${e.id}:states" rows="2">${esc(states.join("\n"))}</textarea>
+        <div class="row"><button class="btn small" data-elsave="${e.id}">Enregistrer la fiche</button>
+          <span class="spacer"></span><button class="btn small ghost" data-eldel="${e.id}">Supprimer</button></div>
+        ${kept.length ? `<h3>Références gardées</h3>${elGrid(kept, false)}` : ""}
+        ${proposed.length ? `<h3>Propositions</h3>${elGrid(proposed, true)}` : ""}
+        ${sp.length ? spendRows(sp) : ""}
+        <div class="two-col">
+          ${dropZone("el:" + e.id, "Déposer tes images", "Photos, croquis ou images faites ailleurs. Elles servent de référence telles quelles.", "image/*", true)}
+          <div class="stack">
+            <select data-elstate="${e.id}"><option value="">État de base</option>${states.map((x) => `<option>${esc(x)}</option>`).join("")}</select>
+            <input type="text" data-elnotes="${e.id}" placeholder="Précision pour cette image (facultatif)">
+            <button class="btn go" data-elgen="${e.id}">Proposer une image réaliste</button>
+            <span class="hint">Environ 0,13 $, lancé seulement avec ton accord. Part de la fiche et de tes images.</span>
+          </div>
+        </div>
+      </div>
+    </details>`;
+  };
+  const sections = Object.entries(EL_KIND).map(([k, [title, help]]) => `
+    <section class="stack" style="margin-top:14px"><h2>${title}</h2><p class="hint">${help}</p>
+      ${byKind[k].map(card).join("") || `<p class="hint">Aucun pour l'instant.</p>`}</section>`).join("");
+  const status = { todo: "L'agent décorateur va repérer les décors dès que le découpage est prêt.",
+    requested: "L'agent décorateur repère les décors : la page se met à jour toute seule.",
+    done: "Repérage fait. Complète ou corrige ce qui manque." }[d.decors_status] || "";
+  box.innerHTML = `
+    <section class="panel stack">
+      <p class="hint helptext">Les décors, les objets clés et les figurants gardent le clip cohérent : chaque visuel de plan
+        reçoit l'image de référence de son décor, de ses objets et de ses figurants, avec leur fiche.
+        Tu peux tout fournir toi-même (une fiche, tes images). Sinon l'agent décorateur les repère dans le découpage, écrit les fiches
+        et propose des images. Les visuels des plans attendent que chaque élément ait une référence gardée.</p>
+      <p class="hint">${status}</p>
+      <div class="row"><button class="btn" data-elrequest>${d.elements.length ? "Demander à l'agent de compléter" : "Demander à l'agent de repérer les décors"}</button></div>
+    </section>
+    ${d.spend.length ? `<section class="panel stack" style="margin-top:14px"><h2>Images en attente de ton accord</h2>${spendRows(d.spend)}</section>` : ""}
+    ${sections}
+    <section class="panel stack" style="margin-top:14px"><h2>Ajouter un élément</h2>
+      <select id="el-kind"><option value="decor">Décor</option><option value="objet">Objet clé</option><option value="figurant">Figurant</option></select>
+      <input type="text" id="el-name" placeholder="Nom (ex. Maison et jardin de JJ, le chien, le vélo électrique)">
+      <textarea id="el-desc" rows="3" placeholder="Fiche (facultatif) : à quoi il ressemble, ce qui ne change jamais"></textarea>
+      <div class="row"><button class="btn go" data-elnew>Ajouter</button><span class="hint">Tu pourras y déposer tes images ensuite.</span></div>
+    </section>`;
+  box.querySelectorAll("details.elcard").forEach((el) => el.addEventListener("toggle", () => {
+    const set = new Set(prefs("elopen:" + clip.slug) || []);
+    if (el.open) set.add(el.dataset.elid); else set.delete(el.dataset.elid);
+    prefs("elopen:" + clip.slug, [...set]);
+  }));
+  bindDrops(box, async (kind, files) => {
+    const id = kind.split(":")[1];
+    const fd = new FormData();
+    [...files].forEach((f) => fd.append("files", f));
+    const st = box.querySelector(`[data-elstate="${id}"]`);
+    fd.set("state", st ? st.value : "");
+    toast("Envoi des images…");
+    try { await upload(`/api/elements/${id}/images`, fd); toast("Images ajoutées comme références"); loadDecors(clip); }
+    catch (e) { toast(e.message, "err"); }
+  });
+  box.onclick = async (ev) => {
+    const t = ev.target.closest("button, [data-zoom]");
+    if (!t) return;
+    ev.stopPropagation();
+    const dd = t.dataset;
+    const reload = () => loadDecors(clip);
+    try {
+      if (dd.zoom) return lightbox(dd.zoom);
+      if (dd.spenddo) {
+        t.disabled = true;
+        await api("/api/spend/decide", { json: { ids: dd.ids.split(",").map(Number), decision: dd.spenddo } });
+        toast(dd.spenddo === "approve" ? "Lancé : les images arrivent dans une à deux minutes" : "Pas lancé");
+        refreshSys(); return reload();
+      }
+      if (dd.elrequest !== undefined) {
+        await api(`/api/clips/${encodeURIComponent(clip.slug)}/decors/request`, { method: "POST" });
+        toast("L'agent décorateur démarre dans la minute"); return reload();
+      }
+      if (dd.elnew !== undefined) {
+        const name = document.getElementById("el-name").value.trim();
+        if (!name) { toast("Donne un nom", "err"); return; }
+        const e = await api(`/api/clips/${encodeURIComponent(clip.slug)}/elements`, { json: {
+          kind: document.getElementById("el-kind").value, name, description: document.getElementById("el-desc").value } });
+        prefs("elopen:" + clip.slug, [...new Set([...(prefs("elopen:" + clip.slug) || []), String(e.id)])]);
+        toast("Ajouté : dépose tes images ou demande une proposition"); return reload();
+      }
+      if (dd.elsave) {
+        const desc = box.querySelector(`[data-elf="${dd.elsave}:description"]`).value;
+        const states = box.querySelector(`[data-elf="${dd.elsave}:states"]`).value.split("\n").map((x) => x.trim()).filter(Boolean);
+        await api(`/api/elements/${dd.elsave}`, { json: { description: desc, states } });
+        toast("Fiche enregistrée"); return reload();
+      }
+      if (dd.eldel) {
+        if (needsConfirm(t, "eldel" + dd.eldel)) return;
+        await api(`/api/elements/${dd.eldel}`, { method: "DELETE" });
+        toast("Supprimé"); return reload();
+      }
+      if (dd.elgen) {
+        const state = box.querySelector(`[data-elstate="${dd.elgen}"]`).value || null;
+        const notes = box.querySelector(`[data-elnotes="${dd.elgen}"]`).value || "";
+        const r = await api(`/api/elements/${dd.elgen}/generate`, { json: { state, notes } });
+        toast(r.spend_request ? `Demande prête : ${money(r.est_usd)}, à lancer ci-dessus` : "Image lancée");
+        refreshSys(); return reload();
+      }
+      if (dd.elpick) {
+        const [id, decision] = dd.elpick.split(":");
+        await api(`/api/element-images/${id}`, { json: { decision } });
+        toast(decision === "keep" ? "Gardée comme référence" : "Écartée et supprimée"); return reload();
+      }
+    } catch (err) { toast(err.message, "err"); }
+  };
+}
+
+function elGrid(list, choose) {
+  return `<div class="packgrid">${list.map((i) => `<div class="packitem">
+      ${i.status === "generating" ? `<div class="none" style="aspect-ratio:4/3;display:grid;place-items:center">${led("work")} en cours</div>`
+        : `<img src="${media(i.path)}" data-zoom="${media(i.path)}" alt="">`}
+      <div class="pi"><span class="hint">${esc(i.state || "état de base")}${i.source === "michael" ? " · ton image" : ""}</span>
+        ${choose && i.status === "proposed" ? `<div class="row" style="gap:6px"><button class="btn small ok" data-elpick="${i.id}:keep">Garder</button>
+          <button class="btn small" data-elpick="${i.id}:reject">Écarter</button></div>` : ""}
+        ${!choose ? `<button class="btn small ghost" data-elpick="${i.id}:reject">Retirer</button>` : ""}</div></div>`).join("")}</div>`;
+}
+
+function compactNums(nums) {
+  const out = []; let a = null, b = null;
+  nums.forEach((n) => { if (a === null) { a = b = n; } else if (n === b + 1) b = n; else { out.push(a === b ? `${a}` : `${a}-${b}`); a = b = n; } });
+  if (a !== null) out.push(a === b ? `${a}` : `${a}-${b}`);
+  return out.join(", ");
+}

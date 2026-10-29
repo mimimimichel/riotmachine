@@ -462,6 +462,124 @@ async def canon_draft(slug: str, version: int, file: UploadFile = File(...)) -> 
     return {"ok": True}
 
 
+# --- Décors, objets et figurants ---------------------------------------------------
+class ElementIn(BaseModel):
+    kind: str = "decor"
+    name: str = ""
+    description: str | None = None
+    states: list[str] | None = None
+
+
+class ElementGen(BaseModel):
+    state: str | None = None
+    notes: str = ""
+
+
+class ShotElementIn(BaseModel):
+    element_id: int
+    state: str | None = None
+    remove: bool = False
+
+
+@app.get("/api/clips/{slug}/elements")
+def clip_elements(slug: str) -> dict[str, Any]:
+    from .. import elements
+    conn = _conn()
+    clip = db.get_clip(conn, slug)
+    spend = [r for r in production.spend_requests(conn, "pending") if r["action"] == "element_image"
+             and r["clip_slug"] == slug]
+    shots = [{"id": r["id"], "num": r["num"], "description": r["description"]} for r in
+             conn.execute("SELECT id, num, description FROM shots WHERE clip_slug=? ORDER BY num", (slug,))]
+    return {"elements": elements.clip_elements(conn, slug), "decors_status": clip.get("decors_status"),
+            "spend": spend, "shots": shots}
+
+
+@app.post("/api/clips/{slug}/elements")
+def new_element(slug: str, body: ElementIn) -> dict[str, Any]:
+    from .. import elements
+    try:
+        return elements.create(_conn(), slug, body.kind, body.name, body.description or "", body.states)
+    except (production.ProductionError, LookupError) as exc:
+        raise _error(exc)
+
+
+@app.post("/api/elements/{element_id}")
+def edit_element(element_id: int, body: ElementIn) -> dict[str, Any]:
+    from .. import elements
+    try:
+        return elements.update(_conn(), element_id, name=body.name or None, description=body.description,
+                               states=body.states)
+    except production.ProductionError as exc:
+        raise _error(exc)
+
+
+@app.delete("/api/elements/{element_id}")
+def remove_element(element_id: int) -> dict[str, Any]:
+    from .. import elements
+    try:
+        elements.delete(_conn(), element_id)
+    except production.ProductionError as exc:
+        raise _error(exc)
+    return {"ok": True}
+
+
+@app.post("/api/elements/{element_id}/images")
+async def element_images(element_id: int, files: list[UploadFile] = File(...), state: str = Form("")) -> dict[str, Any]:
+    from .. import elements
+    tmp = Path(tempfile.mkdtemp(prefix="riot-upload-"))
+    try:
+        conn = _conn()
+        return {"ok": True, "images": [elements.add_image(conn, element_id, p, state or None)
+                                       for p in _save_uploads(tmp, files, "element")]}
+    except production.ProductionError as exc:
+        raise _error(exc)
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+@app.post("/api/elements/{element_id}/generate")
+def element_generate(element_id: int, body: ElementGen) -> dict[str, Any]:
+    from .. import elements
+    conn = _conn()
+    try:
+        e = elements._element(conn, element_id)
+        prompt = elements.generation_prompt(e, body.state, body.notes.strip()) if body.notes.strip() else None
+        return elements.launch_image(conn, element_id, body.state, prompt)
+    except production.ProductionError as exc:
+        raise _error(exc)
+
+
+@app.post("/api/element-images/{image_id}")
+def element_pick(image_id: int, body: Decision) -> dict[str, Any]:
+    from .. import elements
+    try:
+        elements.pick(_conn(), image_id, body.decision)
+    except production.ProductionError as exc:
+        raise _error(exc)
+    return {"ok": True}
+
+
+@app.post("/api/clips/{slug}/decors/request")
+def decors_request(slug: str) -> dict[str, Any]:
+    from .. import elements
+    elements.request(_conn(), slug)
+    return {"ok": True}
+
+
+@app.post("/api/shots/{shot_id}/elements")
+def shot_element(shot_id: int, body: ShotElementIn) -> dict[str, Any]:
+    from .. import elements
+    conn = _conn()
+    try:
+        if body.remove:
+            elements.unlink(conn, shot_id, body.element_id)
+        else:
+            elements.link(conn, [shot_id], body.element_id, body.state)
+    except production.ProductionError as exc:
+        raise _error(exc)
+    return {"ok": True, "elements": elements.for_shot(conn, shot_id)}
+
+
 @app.post("/api/characters/{slug}/versions/{version}/adn")
 def save_adn(slug: str, version: int, body: ScriptText) -> dict[str, Any]:
     try:

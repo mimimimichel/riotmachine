@@ -123,6 +123,9 @@ def cmd_shot_show(a) -> None:
                 "adn": production.adn_text(conn, c, cv["version"]),
             })
     view["aspect_ratio"] = clip["aspect_ratio"]
+    from . import elements
+    view["elements"] = [{"kind": e["kind"], "slug": e["slug"], "name": e["name"], "state": e["shot_state"],
+                         "description": e["description"], "refs": e["refs"]} for e in elements.for_shot(conn, shot["id"])]
     out(view)
 
 
@@ -170,6 +173,47 @@ def cmd_route(a) -> None:
 
 def cmd_rodage(a) -> None:
     out(production.rodage(_conn(), a.model))
+
+
+def _shot_ids(conn, clip: str, spec: str) -> list[int]:
+    """« 1,2,5-9 » (numéros de plans) -> ids."""
+    nums: list[int] = []
+    for part in (spec or "").split(","):
+        part = part.strip()
+        if "-" in part:
+            x, y = part.split("-", 1)
+            nums += list(range(int(x), int(y) + 1))
+        elif part:
+            nums.append(int(part))
+    ids = []
+    for n in nums:
+        r = conn.execute("SELECT id FROM shots WHERE clip_slug=? AND num=?", (clip, n)).fetchone()
+        if r is None:
+            raise SystemExit(f"Plan {n} introuvable dans {clip}")
+        ids.append(r["id"])
+    return ids
+
+
+def cmd_element(a) -> None:
+    from . import elements
+    conn = _conn()
+    states = [x for x in (a.states or "").split("|")] if a.states is not None else None
+    if a.action == "list":
+        out(elements.clip_elements(conn, a.clip))
+    elif a.action == "add":
+        out(elements.create(conn, a.clip, a.kind, a.name, a.description or "", states, created_by="agent"))
+    elif a.action == "set":
+        e = elements.find(conn, a.clip, a.ref)
+        out(elements.update(conn, e["id"], name=a.name, description=a.description, states=states))
+    elif a.action == "link":
+        e = elements.find(conn, a.clip, a.ref)
+        out({"element": e["slug"], "plans_relies": elements.link(conn, _shot_ids(conn, a.clip, a.shots), e["id"], a.state)})
+    elif a.action == "gen":
+        e = elements.find(conn, a.clip, a.ref)
+        out(elements.launch_image(conn, e["id"], a.state, a.prompt))
+    elif a.action == "done":
+        elements.done(conn, a.clip)
+        out({"clip": a.clip, "decors": "done"})
 
 
 def cmd_analyse(a) -> None:
@@ -480,6 +524,19 @@ def build_parser() -> argparse.ArgumentParser:
     sp = sub.add_parser("rodage", help="Carnet de rodage : ce que l'historique dit de chaque modèle vidéo")
     sp.add_argument("--model")
     sp.set_defaults(func=cmd_rodage)
+
+    sp = sub.add_parser("element", help="Décors, objets et figurants d'un clip (références de cohérence)")
+    sp.add_argument("action", choices=["list", "add", "set", "link", "gen", "done"])
+    sp.add_argument("clip")
+    sp.add_argument("ref", nargs="?", help="slug ou id de l'élément (set, link, gen)")
+    sp.add_argument("--kind", choices=["decor", "objet", "figurant"])
+    sp.add_argument("--name")
+    sp.add_argument("--description")
+    sp.add_argument("--states", help="états séparés par | (ex. « intact le matin|vide au retour »)")
+    sp.add_argument("--shots", help="numéros de plans : 1,2,5-9")
+    sp.add_argument("--state", help="état de l'élément dans ces plans, ou de l'image à générer")
+    sp.add_argument("--prompt", help="prompt de l'image de référence (sinon construit depuis la fiche)")
+    sp.set_defaults(func=cmd_element)
 
     sp = sub.add_parser("analyse", help="Analyse le morceau (tempo, temps, position des paroles) pour caler le découpage")
     sp.add_argument("clip")
