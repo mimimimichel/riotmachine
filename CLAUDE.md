@@ -26,6 +26,16 @@ Langue de travail : **français** (les prompts envoyés aux modèles sont en ang
 5. **Tout passe par la CLI `riot`** (base SQLite + fichiers dans `studio/`).
    Ne modifie pas la base à la main, ne déplace pas les fichiers de `studio/`.
 
+## Dépenses et mémoire des personnages
+
+- Toute génération d'image payante (crédits gratuits compris) attend l'accord de
+  Michael : `riot gen image` et `riot character gen` renvoient une demande
+  `pending` avec son coût. C'est normal, ne relance pas. Les vidéos sont accordées
+  à la validation du plan vidéo.
+- Tout ce qui est produit pour un personnage (tests, vidéos d'essai, images
+  écartées) se range dans `studio/characters/<slug>/v<N>/essais/`, légendé dans
+  `essais/legendes.json`. Rien ne se jette.
+
 ## La chaîne de production
 
 Le process complet, ses règles et ce qu'on a appris sont dans

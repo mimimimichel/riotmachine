@@ -439,12 +439,77 @@ def character_snapshot(conn: sqlite3.Connection, slug: str) -> dict:
         adn = absp(v["dir"]) / "adn.md"
         v["adn"] = adn.read_text(encoding="utf-8") if adn.is_file() else ""
         v["generating"] = sum(1 for a in v["assets"] if a["status"] == "generating")
+        v["essais"] = version_essais(absp(v["dir"]))
     ch["versions"] = versions
-    ch["looks"] = db.rows(conn.execute("SELECT * FROM looks WHERE character_slug=?", (slug,)).fetchall())
     ch["clips"] = db.rows(conn.execute(
         "SELECT clip_slug, version, look_slug FROM castings WHERE character_slug=?", (slug,)
     ).fetchall())
+    looks = db.rows(conn.execute("SELECT * FROM looks WHERE character_slug=? ORDER BY slug", (slug,)).fetchall())
+    for lk in looks:
+        ldir = absp(lk["dir"])
+        lk["images"] = [rel(p) for p in sorted(ldir.glob("*")) if p.suffix.lower() in IMAGE_EXT] if ldir.is_dir() else []
+        lk["clips"] = [c["clip_slug"] for c in ch["clips"] if c["look_slug"] == lk["slug"]]
+    ch["looks"] = looks
+    ch["spend"] = spend_requests(conn, "pending")
+    ch["spend"] = [r for r in ch["spend"] if r["character_slug"] == slug]
     return ch
+
+
+VIDEO_EXT = {".mp4", ".mov", ".webm"}
+
+
+def version_essais(vdir: Path) -> list[dict]:
+    """Tout ce qui a été produit pour une version hors du pack : tests, essais, vidéos.
+    Rangé dans <version>/essais/, avec une légende par fichier dans legendes.json."""
+    edir = vdir / "essais"
+    if not edir.is_dir():
+        return []
+    caps = {}
+    if (edir / "legendes.json").is_file():
+        caps = json.loads((edir / "legendes.json").read_text(encoding="utf-8"))
+    out = []
+    for p in sorted(edir.iterdir()):
+        ext = p.suffix.lower()
+        if ext in IMAGE_EXT or ext in VIDEO_EXT:
+            out.append({"path": rel(p), "type": "video" if ext in VIDEO_EXT else "image", "caption": caps.get(p.name, "")})
+    return out
+
+
+def save_adn(conn: sqlite3.Connection, slug: str, version: int, text: str) -> None:
+    """Michael corrige la fiche du personnage (texte ajouté à chaque demande d'image)."""
+    v = character_version(conn, slug, version)
+    if v["status"] != "draft":
+        raise ProductionError("Une version validée ne se modifie plus : crée une nouvelle version")
+    (absp(v["dir"]) / "adn.md").write_text(text.strip() + "\n", encoding="utf-8")
+    db.log_event(conn, None, "casting", f"{slug} v{version} : fiche mise à jour")
+
+
+def create_look(conn: sqlite3.Connection, slug: str, name: str, description: str = "") -> dict:
+    """Une tenue du personnage : un nom, une description, des photos de référence."""
+    if not conn.execute("SELECT 1 FROM characters WHERE slug=?", (slug,)).fetchone():
+        raise ProductionError(f"Personnage inconnu : {slug}")
+    lslug = slugify(name)
+    if not lslug:
+        raise ProductionError("Donne un nom à la tenue")
+    ldir = studio() / "characters" / slug / "looks" / lslug
+    ldir.mkdir(parents=True, exist_ok=True)
+    (ldir / "look.md").write_text(f"# {name}\n\n{description.strip()}\n", encoding="utf-8")
+    conn.execute("INSERT INTO looks (character_slug, slug, description, dir) VALUES (?,?,?,?) "
+                 "ON CONFLICT(character_slug, slug) DO UPDATE SET description=excluded.description",
+                 (slug, lslug, description.strip() or name, rel(ldir)))
+    return {"slug": lslug, "dir": rel(ldir)}
+
+
+def add_look_image(conn: sqlite3.Connection, slug: str, look: str, src: str | Path) -> str:
+    lk = conn.execute("SELECT dir FROM looks WHERE character_slug=? AND slug=?", (slug, look)).fetchone()
+    if lk is None:
+        raise ProductionError(f"Tenue inconnue : {look}")
+    src = Path(src)
+    if src.suffix.lower() not in IMAGE_EXT:
+        raise ProductionError("Une photo de tenue doit être une image (png, jpg, webp)")
+    dest = _free_name(absp(lk["dir"]) / f"{slugify(src.stem) or 'photo'}{src.suffix.lower()}")
+    shutil.copy(src, dest)
+    return rel(dest)
 
 
 # --- Personnages : parcours dans la régie -----------------------------------------

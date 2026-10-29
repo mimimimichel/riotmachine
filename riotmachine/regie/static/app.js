@@ -1553,14 +1553,6 @@ async function showCharacters() {
   every(30000, () => { if (!isBusy()) showCharacters(); });
 }
 
-function versionSteps(v) {
-  const draft = v.assets.filter((a) => a.kind === "canon_draft" && a.status === "kept").pop();
-  const canon = v.assets.filter((a) => a.kind === "canon" && a.status === "kept").pop();
-  const hdPending = v.assets.filter((a) => a.kind === "canon" && a.parent_id && ["generating", "proposed"].includes(a.status)).pop();
-  const pack = v.assets.filter((a) => !["canon", "canon_draft"].includes(a.kind) && a.status !== "failed");
-  return { draft, canon, hdPending, pack };
-}
-
 async function showCharacter(slug, keep = false) {
   const ch = await api(`/api/characters/${encodeURIComponent(slug)}`);
   const json = JSON.stringify(ch);
@@ -1577,19 +1569,26 @@ async function showCharacter(slug, keep = false) {
   $view.innerHTML = `<div class="cliphead"><div class="crumbs"><a href="#/personnages">Personnages</a> / ${esc(ch.name)}</div>
       <div class="row"><h1>${esc(ch.name)}</h1></div>
       <div class="meta"><span>${ch.clips.length ? "Joue dans : " + ch.clips.map((c) => `${esc(c.clip_slug)} (v${c.version})`).join(", ") : "Dans aucun clip"}</span>
-        ${ch.looks.length ? `<span>Looks : ${ch.looks.map((l) => esc(l.slug)).join(", ")}</span>` : ""}</div></div>
+        ${ch.looks.length ? `<span>Tenues : ${ch.looks.map((l) => esc(l.slug)).join(", ")}</span>` : ""}</div></div>
     <div class="toolbar">${vtabs}<span class="spacer"></span>
       ${drafts.length ? "" : `<button class="btn small" data-newversion>Faire évoluer : nouvelle version</button>`}</div>
-    ${v ? (v.status === "draft" ? renderDraftVersion(ch, v) : renderValidatedVersion(ch, v)) : `<p class="empty">Aucune version.</p>`}`;
+    ${v ? renderVersion(ch, v) : `<p class="empty">Aucune version.</p>`}`;
   if (keep) window.scrollTo(0, scroll);
   bindCompare($view);
   bindDrops($view, async (kind, files) => {
     const fd = new FormData();
-    fd.set("file", files[0]);
-    toast("Envoi du brouillon…");
     try {
-      await upload(`/api/characters/${encodeURIComponent(slug)}/versions/${v.version}/canon-draft`, fd);
-      toast("Brouillon déposé : la canon HD est lancée");
+      if (kind.startsWith("look:")) {
+        [...files].forEach((f) => fd.append("files", f));
+        toast("Envoi des photos…");
+        await upload(`/api/characters/${encodeURIComponent(slug)}/looks/${encodeURIComponent(kind.slice(5))}/images`, fd);
+        toast("Photos ajoutées à la tenue");
+      } else {
+        fd.set("file", files[0]);
+        toast("Envoi du brouillon…");
+        await upload(`/api/characters/${encodeURIComponent(slug)}/versions/${v.version}/canon-draft`, fd);
+        toast("Brouillon déposé : valide la dépense pour lancer la photo réaliste");
+      }
       showCharacter(slug);
     } catch (e) { toast(e.message, "err"); }
   });
@@ -1597,98 +1596,123 @@ async function showCharacter(slug, keep = false) {
   every(10000, () => showCharacter(slug, true));
 }
 
-function renderDraftVersion(ch, v) {
-  const { draft, canon, hdPending, pack } = versionSteps(v);
-  const step = !draft && !canon ? 1 : !canon ? 2 : v.pack_status !== "done" && !pack.length ? 3 : 4;
-  const stepDefs = [
-    ["Brouillon de la canon", draft || canon ? "Déposé" : "À déposer"],
-    ["Canon HD", canon ? "Validée" : hdPending ? (hdPending.status === "generating" ? "En génération" : "À vérifier") : "En attente"],
-    ["Instructions et pack", v.pack_status === "requested" ? "Demandé" : pack.length ? `${pack.length} images` : "À écrire"],
-    ["Tri et validation", "Garde, rejette, valide"],
-  ];
-  const vsteps = `<div class="vsteps">${stepDefs.map(([l, s], i) => `<div class="vstep ${i + 1 === step ? "on" : ""} ${i + 1 < step ? "done" : ""}">
-      <span class="lbl">${i + 1}. ${l}</span><span class="st">${led(i + 1 < step ? "done" : i + 1 === step ? (hdPending && hdPending.status === "generating" && i === 1 ? "work" : "review") : "wait")}${esc(s)}</span></div>`).join("")}</div>`;
-
-  let hdPanel;
-  if (canon) {
-    hdPanel = `<img class="canonbig" src="${media(canon.path)}" data-zoom="${media(canon.path)}" alt="Canon">
-      <p class="hint">${led("done")} Canon validée. C'est la référence n°1 de toutes les générations.</p>`;
-  } else if (hdPending && hdPending.status === "generating") {
-    hdPanel = `<p>${led("work")} Agrandissement en cours… (une à deux minutes)</p>`;
-  } else if (hdPending && draft) {
-    hdPanel = `<div class="actionbox"><h3>Compare le brouillon et la HD</h3>
-      <p class="hint">Fais glisser le curseur : vérifie le visage, les yeux, la texture de peau et des cheveux. Rien ne doit avoir changé.</p>
-      ${compareWidget(media(draft.path), media(hdPending.path), "Brouillon", "HD")}
-      <div class="row"><button class="btn ok" data-canonhd="${hdPending.id}:approve">Valider la canon HD</button>
-        <button class="btn" data-canonhd="${hdPending.id}:redo">Refaire la HD</button>
-        <button class="btn ghost" data-canonhd="${hdPending.id}:use_draft">Garder le brouillon tel quel</button></div>
-      <input type="text" id="hd-comment" placeholder="Ce qui a changé (facultatif, gardé pour mémoire)">
-    </div>`;
-  } else {
-    hdPanel = `<p class="hint">La canon HD se lance dès que tu déposes le brouillon.</p>`;
-  }
-  const rejectedHd = v.assets.filter((a) => a.kind !== "canon_draft" && a.parent_id && a.status === "rejected");
-
-  const byKind = {};
-  pack.filter((a) => a.path && !(a.kind === "canon" && (a.status === "kept" || a.parent_id))).forEach((a) => { (byKind[a.kind] = byKind[a.kind] || []).push(a); });
-  const packHtml = Object.entries(byKind).map(([k, list]) => `<h3 style="margin:14px 0 8px">${esc(CHAR_KIND_LABEL[k] || k)}</h3>
-    <div class="packgrid">${list.map((a) => `<div class="packitem ${a.status}">
-      ${a.status === "generating" ? `<div class="none" style="aspect-ratio:3/4;display:grid;place-items:center">${led("work")}</div>` : `<img src="${media(a.path)}" data-zoom="${media(a.path)}" alt="">`}
-      <div class="pi"><span>${esc(a.label || "")}${a.status === "kept" ? " · gardée" : a.status === "rejected" ? " · rejetée" : ""}</span>
-        ${a.comment ? `<span class="hint">« ${esc(a.comment)} »</span>` : ""}
-        ${a.status === "proposed" ? `<input type="text" data-cm="${a.id}" placeholder="Pourquoi, si tu rejettes" style="padding:6px 8px;font-size:12px">
-          <div class="row" style="gap:6px">
-          <button class="btn small ok" data-pickasset="${a.id}:keep">Garder</button>
-          <button class="btn small" data-pickasset="${a.id}:reject">Rejeter</button>
-          ${a.kind === "canon" ? `<button class="btn small ghost" data-pickasset="${a.id}:canon">Canon</button>` : ""}</div>` : ""}
-      </div></div>`).join("")}</div>`).join("");
-  const proposed = pack.filter((a) => a.status === "proposed").length;
-
-  return `${vsteps}
-    <div class="two-col">
-      <div class="panel stack"><div class="panel-head"><span class="step-num">1</span><h2>Brouillon de la canon</h2></div>
-        <p class="hint">L'image de vérité du personnage, telle que tu l'as faite. La HD sera générée à partir d'elle.</p>
-        ${draft ? `<img class="canonbig" src="${media(draft.path)}" data-zoom="${media(draft.path)}" alt="Brouillon">` : ""}
-        ${dropZone("canon", draft ? "Déposer un autre brouillon" : "Déposer le brouillon de la canon", "png, jpg ou webp", "image/*", false)}
-      </div>
-      <div class="panel stack"><div class="panel-head"><span class="step-num">2</span><h2>Canon HD</h2></div>
-        ${hdPanel}
-        ${rejectedHd.length ? `<details class="fold"><summary>HD écartées (${rejectedHd.length})</summary><div class="packgrid">${rejectedHd.map((a) =>
-          `<div class="packitem rejected"><img src="${media(a.path)}" data-zoom="${media(a.path)}" alt=""><div class="pi">${esc(a.model_key || "")}${a.comment ? ` · « ${esc(a.comment)} »` : ""}</div></div>`).join("")}</div></details>` : ""}
-      </div>
-    </div>
-    <div class="panel stack" style="margin-top:16px"><div class="panel-head"><span class="step-num">3</span><h2>Instructions pour le pack</h2>
-        ${v.pack_status === "requested" ? pill("Pack demandé : le directeur de casting s'en occupe", "work") : v.pack_status === "done" ? pill("Pack lancé", "done") : ""}</div>
-      <p class="hint">Dis ce que tu veux comme images de référence : angles, plans en pied, expressions, lumières, tenues, détails.
-        Le directeur de casting les génère toutes à partir de la canon validée.</p>
-      <textarea id="instructions" rows="8" placeholder="Ex. :&#10;- turnaround 5 angles, fond gris neutre, même lumière douce&#10;- 2 plans en pied, tenue streetwear du clip&#10;- 4 expressions : rire, colère, larmes, concentration&#10;- 3 lumières : néon violet, soleil couchant, contre-jour&#10;- détails : mains, boucles, tache de naissance">${esc(v.instructions || "")}</textarea>
-      <div class="row"><button class="btn" data-saveinstr>Enregistrer</button>
-        <button class="btn go" data-pack ${canon ? "" : "disabled title=\"Valide d'abord la canon HD\""}>${pack.length ? "Relancer le pack avec ces instructions" : "Lancer le pack"}</button>
-        ${canon ? "" : `<span class="hint">Disponible une fois la canon HD validée.</span>`}</div>
-    </div>
-    <div class="panel" style="margin-top:16px"><div class="panel-head"><span class="step-num">4</span><h2>Pack de référence</h2>
-        ${proposed ? pill(`${proposed} à trier`, "review") : ""}<span class="spacer"></span>
-        <button class="btn ok" data-validate="${v.version}" ${canon ? "" : "disabled"}>Valider la version ${v.version}</button></div>
-      ${packHtml || `<p class="hint">Les images arrivent ici au fil de la génération.</p>`}
-      ${v.adn ? `<details class="fold" style="margin-top:14px"><summary>ADN du personnage (texte injecté dans les prompts)</summary><div><pre class="text">${esc(v.adn)}</pre></div></details>` : ""}
-    </div>`;
+function charPanel(title, help, body, extra = "") {
+  return `<section class="panel stack charsec"><div class="panel-head"><h2>${title}</h2><span class="spacer"></span>${extra}</div>
+    <p class="hint helptext">${help}</p>${body}</section>`;
 }
 
-function renderValidatedVersion(ch, v) {
-  const canon = v.assets.filter((a) => a.kind === "canon" && a.status === "kept").pop();
+function spendRows(list) {
+  if (!list.length) return "";
+  const total = list.reduce((a, r) => a + r.est_usd, 0);
+  return `<div class="spendbox">
+    <p><b>En attente de ton accord</b> : ${list.length} image${list.length > 1 ? "s" : ""}, environ ${money(total)}
+      (${list.every((r) => r.funding === "credits") ? "payé sur les crédits gratuits" : "payé en argent"}).</p>
+    <ul class="hint">${list.slice(0, 8).map((r) => `<li>${esc(r.label)} · ${money(r.est_usd)}</li>`).join("")}${list.length > 8 ? `<li>…</li>` : ""}</ul>
+    <div class="row"><button class="btn go" data-spenddo="approve" data-ids="${list.map((r) => r.id).join(",")}">Lancer · ${money(total)}</button>
+      <button class="btn" data-spenddo="refuse" data-ids="${list.map((r) => r.id).join(",")}">Ne pas lancer</button></div></div>`;
+}
+
+function mediaGrid(items) {
+  return `<div class="packgrid">${items.map((m) => `<div class="packitem">
+      ${m.type === "video" ? `<video src="${media(m.path)}" controls muted loop playsinline preload="metadata"></video>`
+        : `<img src="${media(m.path)}" data-zoom="${media(m.path)}" alt="">`}
+      <div class="pi"><span class="hint">${esc(m.caption || m.path.split("/").pop())}</span></div></div>`).join("")}</div>`;
+}
+
+function packSection(v, editable) {
+  const pack = v.assets.filter((a) => !["canon", "canon_draft"].includes(a.kind) && a.status !== "failed"
+    && (editable || a.status === "kept") && a.path);
   const byKind = {};
-  v.assets.filter((a) => a.status === "kept" && !["canon", "canon_draft"].includes(a.kind) && a.path)
-    .forEach((a) => { (byKind[a.kind] = byKind[a.kind] || []).push(a); });
-  return `<div class="two-col">
-      <div class="panel stack"><div class="panel-head"><h2>Canon</h2>${pill("validée", "done")}</div>
-        ${canon ? `<img class="canonbig" src="${media(canon.path)}" data-zoom="${media(canon.path)}" alt="Canon">` : `<p class="hint">Pas de canon.</p>`}</div>
-      <div class="panel">${v.adn ? `<h3 style="margin-bottom:8px">ADN</h3><pre class="text">${esc(v.adn)}</pre>` : `<p class="hint">Pas d'ADN écrit pour cette version.</p>`}</div>
-    </div>
-    <div class="panel" style="margin-top:16px"><div class="panel-head"><h2>Pack de référence</h2></div>
-      ${Object.entries(byKind).map(([k, list]) => `<h3 style="margin:14px 0 8px">${esc(CHAR_KIND_LABEL[k] || k)}</h3>
-        <div class="packgrid">${list.map((a) => `<div class="packitem"><img src="${media(a.path)}" data-zoom="${media(a.path)}" alt="">
-          <div class="pi">${esc(a.label || "")}</div></div>`).join("")}</div>`).join("") || `<p class="hint">Aucune autre image.</p>`}
-    </div>`;
+  pack.forEach((a) => { (byKind[a.kind] = byKind[a.kind] || []).push(a); });
+  return Object.entries(byKind).map(([k, list]) => `<h3 style="margin:14px 0 8px">${esc(CHAR_KIND_LABEL[k] || k)}</h3>
+    <div class="packgrid">${list.map((a) => `<div class="packitem ${a.status}">
+      ${a.status === "generating" ? `<div class="none" style="aspect-ratio:3/4;display:grid;place-items:center">${led("work")}</div>` : `<img src="${media(a.path)}" data-zoom="${media(a.path)}" alt="">`}
+      <div class="pi"><span>${esc(a.label || "")}${a.status === "kept" && editable ? " · gardée" : a.status === "rejected" ? " · écartée" : ""}</span>
+        ${a.comment ? `<span class="hint">« ${esc(a.comment)} »</span>` : ""}
+        ${editable && a.status === "proposed" ? `<input type="text" data-cm="${a.id}" placeholder="Pourquoi, si tu l'écartes" style="padding:6px 8px;font-size:12px">
+          <div class="row" style="gap:6px"><button class="btn small ok" data-pickasset="${a.id}:keep">Garder</button>
+          <button class="btn small" data-pickasset="${a.id}:reject">Écarter</button></div>` : ""}
+      </div></div>`).join("")}</div>`).join("");
+}
+
+function looksSection(ch) {
+  const looks = ch.looks.map((lk) => `<div class="lookcard">
+      <div class="row"><b>${esc(lk.slug)}</b><span class="spacer"></span>
+        <span class="hint">${lk.clips.length ? "Dans : " + lk.clips.map(esc).join(", ") : "Dans aucun clip pour l'instant"}</span></div>
+      ${lk.description ? `<p class="hint">${esc(lk.description)}</p>` : ""}
+      ${lk.images.length ? mediaGrid(lk.images.map((p) => ({ path: p, type: "image" }))) : ""}
+      ${dropZone("look:" + lk.slug, "Ajouter des photos de cette tenue", "png, jpg ou webp, plusieurs à la fois", "image/*", true)}
+    </div>`).join("");
+  return charPanel("Tenues",
+    `Les tenues que ${esc(ch.name)} porte dans les clips. Chaque tenue a un nom, une description et quelques photos.
+     Une tenue sert de référence pour les plans où elle la porte. Elle se réutilise d'un clip à l'autre.`,
+    `${looks || `<p class="hint">Aucune tenue pour l'instant.</p>`}
+     <div class="lookcard"><b>Nouvelle tenue</b>
+       <input type="text" id="look-name" placeholder="Nom (ex. bureau Doc Martens)">
+       <textarea id="look-desc" rows="3" placeholder="Description (ex. chemise blanche ajustée, pantalon noir, Doc Martens noires)"></textarea>
+       <div class="row"><button class="btn go" data-newlook>Créer la tenue</button></div></div>`);
+}
+
+function renderVersion(ch, v) {
+  const editable = v.status === "draft";
+  const canon = v.assets.filter((a) => a.kind === "canon" && a.status === "kept").pop();
+  const candidates = v.assets.filter((a) => a.kind === "canon" && ["proposed", "generating"].includes(a.status));
+  const draft = v.assets.filter((a) => a.kind === "canon_draft" && a.status === "kept").pop();
+  const spendHd = ch.spend.filter((r) => r.action === "canon_hd");
+  const spendPack = ch.spend.filter((r) => r.action === "character_asset");
+  const intro = editable
+    ? `<p class="hint">Version ${v.version} en préparation. Tant qu'elle n'est pas validée, les clips utilisent la version ${ch.canon_version || "validée"}.</p>`
+    : `<p class="hint">Version ${v.version}, validée${v.version === ch.canon_version ? " : c'est la référence actuelle de " + esc(ch.name) : ""}. Elle ne se modifie plus ; pour faire évoluer le personnage, crée une nouvelle version.</p>`;
+
+  const canonBody = `<div class="two-col">
+      <div>${canon ? `<img class="canonbig" src="${media(canon.path)}" data-zoom="${media(canon.path)}" alt="Canon">` : `<p class="empty">Pas encore de canon.</p>`}</div>
+      <div class="stack">${editable ? `<h3>Candidates</h3>
+        ${candidates.length ? `<div class="packgrid">${candidates.map((a) => `<div class="packitem">
+          ${a.status === "generating" ? `<div class="none" style="aspect-ratio:3/4;display:grid;place-items:center">${led("work")} en cours</div>` : `<img src="${media(a.path)}" data-zoom="${media(a.path)}" alt="">`}
+          <div class="pi"><span>${esc(a.label || "")}</span>
+            ${a.status === "proposed" ? `<div class="row" style="gap:6px"><button class="btn small ok" data-pickasset="${a.id}:canon">Choisir comme canon</button>
+              <button class="btn small" data-pickasset="${a.id}:reject">Écarter</button></div>` : ""}</div></div>`).join("")}</div>`
+          : `<p class="hint">Aucune candidate en attente.</p>`}` : ""}</div></div>`;
+
+  const draftBody = `${spendRows(spendHd)}
+    <div class="two-col">
+      <div>${draft ? `<p class="hint">Dernier brouillon déposé :</p><img class="canonthumb" src="${media(draft.path)}" data-zoom="${media(draft.path)}" alt="">` : ""}</div>
+      <div>${dropZone("canon", "Déposer un brouillon", "png, jpg ou webp", "image/*", false)}</div></div>`;
+
+  const adnBody = editable
+    ? `<textarea id="adn" rows="14">${esc(v.adn || "")}</textarea><div class="row"><button class="btn" data-saveadn>Enregistrer la fiche</button></div>`
+    : (v.adn ? `<pre class="text">${esc(v.adn)}</pre>` : `<p class="hint">Pas de fiche écrite pour cette version.</p>`);
+
+  const packHtml = packSection(v, editable);
+  const packBody = editable ? `
+      <textarea id="instructions" rows="7" placeholder="Ex. :&#10;- vues de face, trois quarts et profil, fond neutre, même lumière douce&#10;- 2 plans en pied&#10;- expressions : rire, colère, concentration, chant (bouche ouverte)&#10;- lumières : néon violet, plein soleil, contre-jour">${esc(v.instructions || "")}</textarea>
+      <div class="row"><button class="btn" data-saveinstr>Enregistrer</button>
+        <button class="btn go" data-pack ${canon ? "" : "disabled"}>Préparer le pack</button>
+        ${canon ? `<span class="hint">L'agent écrit une demande par image. Rien n'est généré avant ton accord.</span>` : `<span class="hint">Choisis d'abord une canon.</span>`}</div>
+      ${v.pack_status === "requested" ? `<p>${led("work")} L'agent de casting prépare les demandes d'images.</p>` : ""}
+      ${spendRows(spendPack)}
+      ${packHtml}` : (packHtml || `<p class="hint">Aucune image dans le pack.</p>`);
+
+  return `${intro}
+    ${charPanel("La canon",
+      `La photo de référence de ${esc(ch.name)}. Toutes les images et vidéos des clips partent d'elle : c'est elle qui garde le même visage d'un plan à l'autre.`
+      + (editable ? " Les candidates sont des propositions : choisis celle qui devient la canon." : ""), canonBody)}
+    ${editable ? charPanel("Partir d'un brouillon",
+      `Tu as dessiné ou généré ${esc(ch.name)} ailleurs, même avec un rendu peu réaliste ? Dépose l'image ici.
+       La machine en tire une photo réaliste en haute définition, avec le même visage, en suivant la fiche ci-dessous.
+       Le résultat arrive dans les candidates. Coût : environ 0,13 $, lancé seulement avec ton accord.`, draftBody) : ""}
+    ${charPanel("Fiche du personnage",
+      `La description écrite de ${esc(ch.name)} : traits à respecter toujours, et à ne jamais faire. Elle est ajoutée à chaque demande d'image du personnage.`, adnBody)}
+    ${charPanel("Pack de référence",
+      `Une série de photos de ${esc(ch.name)} sous plusieurs angles, expressions et lumières, faites à partir de la canon.
+       Les modèles s'en servent pour reproduire le même visage dans tous les plans. Écris ce que tu veux, l'agent prépare les demandes, tu les valides, puis tu gardes ou écartes chaque image.`, packBody)}
+    ${charPanel("Essais et tests",
+      `Tout ce qui a été produit pour cette version en dehors du pack : tests de modèles, vidéos d'essai, propositions écartées. Rien n'est jeté, pour garder la mémoire du personnage.`,
+      v.essais.length ? mediaGrid(v.essais) : `<p class="hint">Aucun essai pour l'instant.</p>`)}
+    ${looksSection(ch)}
+    ${editable ? `<section class="panel row" style="margin-top:16px"><p class="hint" style="flex:1">Quand la canon, la fiche et le pack te conviennent, valide la version ${v.version}.
+        Elle devient la référence de ${esc(ch.name)} pour les prochains clips.</p>
+        <button class="btn ok" data-validate="${v.version}" ${canon ? "" : "disabled"}>Valider la version ${v.version}</button></section>` : ""}`;
 }
 
 async function characterClick(e, ch, v) {
@@ -1696,28 +1720,41 @@ async function characterClick(e, ch, v) {
   if (!t) return;
   const d = t.dataset;
   const slug = ch.slug;
+  const base = `/api/characters/${encodeURIComponent(slug)}`;
   const reload = () => showCharacter(slug);
   try {
     if (d.zoom) return lightbox(d.zoom);
     if (d.version) { state.charVersion = +d.version; return reload(); }
     if (d.newversion !== undefined) {
-      const r = await api(`/api/characters/${encodeURIComponent(slug)}/versions`, { method: "POST" });
+      const r = await api(`${base}/versions`, { method: "POST" });
       state.charVersion = r.version;
       toast(`Version ${r.version} créée`);
       return reload();
     }
-    if (d.canonhd) {
-      const [id, decision] = d.canonhd.split(":");
-      const comment = document.getElementById("hd-comment")?.value || "";
-      await api(`/api/character-assets/${id}/canon-hd`, { json: { decision, comment } });
-      toast({ approve: "Canon HD validée", redo: "Nouvelle HD lancée avec l'autre outil", use_draft: "Le brouillon devient la canon" }[decision]);
+    if (d.spenddo) {
+      t.disabled = true;
+      await api("/api/spend/decide", { json: { ids: d.ids.split(",").map(Number), decision: d.spenddo } });
+      toast(d.spenddo === "approve" ? "Lancé : les images arrivent dans une à deux minutes" : "Pas lancé");
+      refreshSys();
+      return reload();
+    }
+    if (d.saveadn !== undefined) {
+      await api(`${base}/versions/${v.version}/adn`, { json: { text: document.getElementById("adn").value } });
+      toast("Fiche enregistrée");
+      return reload();
+    }
+    if (d.newlook !== undefined) {
+      const name = document.getElementById("look-name").value.trim();
+      if (!name) { toast("Donne un nom à la tenue", "err"); return; }
+      await api(`${base}/looks`, { json: { name, description: document.getElementById("look-desc").value } });
+      toast("Tenue créée : ajoute-lui des photos");
       return reload();
     }
     if (d.saveinstr !== undefined || d.pack !== undefined) {
-      await api(`/api/characters/${encodeURIComponent(slug)}/versions/${v.version}/instructions`, { json: { text: document.getElementById("instructions").value } });
+      await api(`${base}/versions/${v.version}/instructions`, { json: { text: document.getElementById("instructions").value } });
       if (d.pack !== undefined) {
-        await api(`/api/characters/${encodeURIComponent(slug)}/versions/${v.version}/pack`, { method: "POST" });
-        toast("Pack demandé : le directeur de casting démarre dans la minute");
+        await api(`${base}/versions/${v.version}/pack`, { method: "POST" });
+        toast("L'agent prépare les demandes : elles apparaîtront ici pour ton accord");
       } else toast("Instructions enregistrées");
       return reload();
     }
@@ -1725,13 +1762,13 @@ async function characterClick(e, ch, v) {
       const [id, decision] = d.pickasset.split(":");
       const comment = decision === "reject" ? ($view.querySelector(`[data-cm="${id}"]`)?.value || "").trim() : "";
       await api(`/api/character-assets/${id}`, { json: { decision, comment } });
-      toast({ keep: "Image gardée", reject: "Image rejetée", canon: "Nouvelle canon" }[decision]);
+      toast({ keep: "Image gardée", reject: "Image écartée", canon: "C'est la nouvelle canon" }[decision]);
       return reload();
     }
     if (d.validate) {
       if (needsConfirm(t, "validate" + d.validate)) return;
-      await api(`/api/characters/${encodeURIComponent(slug)}/versions/${d.validate}/validate`, { method: "POST" });
-      toast("Version validée : elle devient la canon des prochains clips");
+      await api(`${base}/versions/${d.validate}/validate`, { method: "POST" });
+      toast("Version validée : elle devient la référence des prochains clips");
       return reload();
     }
   } catch (err) { toast(err.message, "err"); }

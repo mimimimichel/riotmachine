@@ -29,3 +29,15 @@ Le parcours se fait dans la régie (onglet Personnages) :
 
 À la main (`/casting <slug>` dans Claude Code), sans pack demandé : fais le point
 avec Michael sur l'étape où en est le personnage et dis-lui quoi faire dans la régie.
+
+## Accord de Michael avant toute image (depuis le 29/10/2026)
+
+`riot character gen` ne génère plus directement : la commande enregistre une
+demande de dépense (réponse `"status": "pending"`, avec le coût estimé). Michael
+l'accorde dans la régie, puis le worker lance l'image. C'est normal : écris toutes
+les demandes du pack, puis termine par `riot character pack-done`. Ne relance pas
+une demande en attente ; une demande refusée ne se repropose qu'avec un prompt changé.
+
+Tout ce qui est produit pour un personnage hors du pack (tests, vidéos d'essai,
+propositions écartées) se range dans `studio/characters/<slug>/v<N>/essais/`, avec
+sa légende dans `essais/legendes.json`. Rien ne se jette.

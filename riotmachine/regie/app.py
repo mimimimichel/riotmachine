@@ -462,6 +462,40 @@ async def canon_draft(slug: str, version: int, file: UploadFile = File(...)) -> 
     return {"ok": True}
 
 
+@app.post("/api/characters/{slug}/versions/{version}/adn")
+def save_adn(slug: str, version: int, body: ScriptText) -> dict[str, Any]:
+    try:
+        production.save_adn(_conn(), slug, version, body.text)
+    except (production.ProductionError, LookupError) as exc:
+        raise _error(exc)
+    return {"ok": True}
+
+
+class LookIn(BaseModel):
+    name: str
+    description: str = ""
+
+
+@app.post("/api/characters/{slug}/looks")
+def new_look(slug: str, body: LookIn) -> dict[str, Any]:
+    try:
+        return production.create_look(_conn(), slug, body.name, body.description)
+    except production.ProductionError as exc:
+        raise _error(exc)
+
+
+@app.post("/api/characters/{slug}/looks/{look}/images")
+async def look_images(slug: str, look: str, files: list[UploadFile] = File(...)) -> dict[str, Any]:
+    tmp = Path(tempfile.mkdtemp(prefix="riot-upload-"))
+    try:
+        paths = _save_uploads(tmp, files, "tenue")
+        return {"ok": True, "paths": [production.add_look_image(_conn(), slug, look, p) for p in paths]}
+    except production.ProductionError as exc:
+        raise _error(exc)
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 @app.post("/api/characters/{slug}/versions/{version}/instructions")
 def instructions(slug: str, version: int, body: ScriptText) -> dict[str, Any]:
     try:
