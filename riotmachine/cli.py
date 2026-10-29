@@ -172,6 +172,11 @@ def cmd_rodage(a) -> None:
     out(production.rodage(_conn(), a.model))
 
 
+def cmd_analyse(a) -> None:
+    from . import analyse
+    out(analyse.analyse_song(_conn(), a.clip, a.model))
+
+
 def cmd_providers(a) -> None:
     out({"fournisseurs": routing.providers(), "modeles_video": routing.video_models()})
 
@@ -475,6 +480,11 @@ def build_parser() -> argparse.ArgumentParser:
     sp = sub.add_parser("rodage", help="Carnet de rodage : ce que l'historique dit de chaque modèle vidéo")
     sp.add_argument("--model")
     sp.set_defaults(func=cmd_rodage)
+
+    sp = sub.add_parser("analyse", help="Analyse le morceau (tempo, temps, position des paroles) pour caler le découpage")
+    sp.add_argument("clip")
+    sp.add_argument("--model", default="small", help="Modèle Whisper (base, small)")
+    sp.set_defaults(func=cmd_analyse)
 
     sp = sub.add_parser("providers", help="Fournisseurs vidéo branchés et modèles disponibles")
     sp.set_defaults(func=cmd_providers)

@@ -216,6 +216,11 @@ Section à enrichir au fil des clips : une ligne par leçon, avec sa date.
 - 29/10/2026 : un test de fournisseur se fait au plus court et en plus basse
   résolution (2 s, ~420p), ou au plancher du modèle (Veo : 4 s, 720p).
 
+- 30/10/2026 : le découpage initial se cale gratuitement sur le PC : `riot analyse`
+  (librosa pour les temps, Whisper small pour les paroles, 4 min pour 2:38). Whisper
+  rate parfois le premier couplet quand l'intro est longue : le relancer sur les
+  30 premières secondes avec les paroles en amorce.
+
 ## 9. Où vivent les choses
 
 | Quoi | Où |
