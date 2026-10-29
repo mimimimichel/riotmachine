@@ -38,6 +38,6 @@ l'accorde dans la régie, puis le worker lance l'image. C'est normal : écris to
 les demandes du pack, puis termine par `riot character pack-done`. Ne relance pas
 une demande en attente ; une demande refusée ne se repropose qu'avec un prompt changé.
 
-Tout ce qui est produit pour un personnage hors du pack (tests, vidéos d'essai,
-propositions écartées) se range dans `studio/characters/<slug>/v<N>/essais/`, avec
-sa légende dans `essais/legendes.json`. Rien ne se jette.
+Tout ce qui est réussi pour un personnage hors du pack (tests concluants, vidéos
+d'essai, bonnes images) se range dans `studio/characters/<slug>/v<N>/essais/`, avec
+sa légende dans `essais/legendes.json`. Les ratés que Michael écarte ne se gardent pas.

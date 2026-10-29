@@ -32,9 +32,9 @@ Langue de travail : **français** (les prompts envoyés aux modèles sont en ang
   Michael : `riot gen image` et `riot character gen` renvoient une demande
   `pending` avec son coût. C'est normal, ne relance pas. Les vidéos sont accordées
   à la validation du plan vidéo.
-- Tout ce qui est produit pour un personnage (tests, vidéos d'essai, images
-  écartées) se range dans `studio/characters/<slug>/v<N>/essais/`, légendé dans
-  `essais/legendes.json`. Rien ne se jette.
+- Tout ce qui est réussi pour un personnage (tests concluants, vidéos d'essai,
+  bonnes images) se range dans `studio/characters/<slug>/v<N>/essais/`, légendé dans
+  `essais/legendes.json`. Les ratés que Michael écarte ne se gardent pas.
 
 ## La chaîne de production
 

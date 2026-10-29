@@ -1707,7 +1707,7 @@ function renderVersion(ch, v) {
       `Une série de photos de ${esc(ch.name)} sous plusieurs angles, expressions et lumières, faites à partir de la canon.
        Les modèles s'en servent pour reproduire le même visage dans tous les plans. Écris ce que tu veux, l'agent prépare les demandes, tu les valides, puis tu gardes ou écartes chaque image.`, packBody)}
     ${charPanel("Essais et tests",
-      `Tout ce qui a été produit pour cette version en dehors du pack : tests de modèles, vidéos d'essai, propositions écartées. Rien n'est jeté, pour garder la mémoire du personnage.`,
+      `Ce qui a été réussi pour cette version en dehors du pack : tests de modèles concluants, vidéos d'essai, bonnes images. On le garde pour capitaliser sur l'identité du personnage.`,
       v.essais.length ? mediaGrid(v.essais) : `<p class="hint">Aucun essai pour l'instant.</p>`)}
     ${looksSection(ch)}
     ${editable ? `<section class="panel row" style="margin-top:16px"><p class="hint" style="flex:1">Quand la canon, la fiche et le pack te conviennent, valide la version ${v.version}.
