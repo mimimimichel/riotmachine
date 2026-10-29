@@ -213,9 +213,105 @@ def adn_text(conn: sqlite3.Connection, slug: str, version: int) -> str:
     return f.read_text(encoding="utf-8") if f.is_file() else ""
 
 
+# --- Accord de Michael avant toute dépense -------------------------------------
+# Chaque génération payante (crédits gratuits compris) attend son accord dans la
+# régie, avec son coût estimé. Les vidéos passent déjà par la validation du plan
+# vidéo (prompt, modèle, coût) : elles ne repassent pas par ici.
+
+def _needs_approval(provider: str, cost: float, demo: bool, approved: bool) -> bool:
+    if approved or demo or providers.simulated(provider):
+        return False
+    cfg = load_models().get("approval") or {}
+    if not cfg.get("required", True):
+        return False
+    return cost > float(cfg.get("auto_under_usd", 0) or 0)
+
+
+def _ask_spend(conn: sqlite3.Connection, action: str, args: dict, dedupe: str, label: str, cost: float,
+               mcfg: dict, model_key: str, *, detail: str = "", clip_slug: str | None = None,
+               character_slug: str | None = None, shot_id: int | None = None) -> dict:
+    """Enregistre la demande (une seule fois) et renvoie son état, sans rien lancer."""
+    key = f"{action}:{dedupe}"
+    row = db.row(conn.execute(
+        "SELECT * FROM spend_requests WHERE dedupe=? AND status IN ('pending','approved','refused') "
+        "ORDER BY id DESC LIMIT 1", (key,)).fetchone())
+    if row is None:
+        provider = mcfg.get("provider", "fal")
+        with db.tx(conn):
+            cur = conn.execute(
+                "INSERT INTO spend_requests (action, args, dedupe, label, detail, clip_slug, character_slug, shot_id, "
+                "model_key, provider, est_usd, funding, status, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                (action, json.dumps(args), key, label, detail[:2000] or None, clip_slug, character_slug, shot_id,
+                 model_key, provider, round(cost, 4), credits.funding_for(conn, provider, cost), "pending", db.now()))
+            db.log_event(conn, clip_slug, "depense", f"À valider : {label} ({cost:.2f} $)")
+        row = db.row(conn.execute("SELECT * FROM spend_requests WHERE id=?", (cur.lastrowid,)).fetchone())
+    msg = {"pending": "en attente de l'accord de Michael",
+           "approved": "accordée, lancement au prochain tour du worker",
+           "refused": "refusée par Michael : change la demande (prompt, image) avant de la reproposer"}[row["status"]]
+    return {"spend_request": row["id"], "status": row["status"], "est_usd": row["est_usd"],
+            "funding": row["funding"], "message": f"Dépense {msg} ({row['est_usd']:.2f} $)"}
+
+
+def _hash(*parts: Any) -> str:
+    return hashlib.sha1(json.dumps(parts, sort_keys=True, default=str).encode()).hexdigest()[:12]
+
+
+def spend_requests(conn: sqlite3.Connection, status: str = "pending") -> list[dict]:
+    rows = conn.execute("SELECT * FROM spend_requests WHERE status=? ORDER BY id", (status,)).fetchall()
+    out = []
+    for r in rows:
+        d = dict(r)
+        d["model_label"] = (routing.models_cfg()["models"].get(d["model_key"]) or {}).get("label", d["model_key"])
+        if d["shot_id"]:
+            sh = conn.execute("SELECT num FROM shots WHERE id=?", (d["shot_id"],)).fetchone()
+            d["shot_num"] = sh["num"] if sh else None
+        out.append(d)
+    return out
+
+
+def decide_spend(conn: sqlite3.Connection, ids: list[int], decision: str, note: str = "") -> int:
+    """Michael accorde (le worker lance) ou refuse une ou plusieurs dépenses."""
+    if decision not in ("approve", "refuse"):
+        raise ProductionError(f"Décision inconnue : {decision}")
+    n = 0
+    with db.tx(conn):
+        for i in ids:
+            r = conn.execute("SELECT * FROM spend_requests WHERE id=? AND status='pending'", (i,)).fetchone()
+            if r is None:
+                continue
+            conn.execute("UPDATE spend_requests SET status=?, note=?, decided_at=? WHERE id=?",
+                         ("approved" if decision == "approve" else "refused", note or None, db.now(), i))
+            if decision == "refuse" and r["action"] == "image_hd" and r["shot_id"]:
+                # pas de HD : le visuel validé sert tel quel pour la vidéo
+                conn.execute("UPDATE shots SET status='prompt_todo', updated_at=? WHERE id=? AND status='hd_todo'",
+                             (db.now(), r["shot_id"]))
+            if decision == "refuse" and r["action"] == "image" and r["shot_id"] and note:
+                old = conn.execute("SELECT notes FROM shots WHERE id=?", (r["shot_id"],)).fetchone()["notes"] or ""
+                conn.execute("UPDATE shots SET notes=? WHERE id=?",
+                             ((old + f"\nVisuel refusé avant génération : {note}").strip(), r["shot_id"]))
+            n += 1
+    return n
+
+
+def run_approved_spend(conn: sqlite3.Connection) -> int:
+    """Worker : lance les dépenses accordées par Michael."""
+    actions = {"image": launch_image, "image_hd": launch_image_hd, "canon_hd": launch_canon_hd,
+               "character_asset": launch_character_asset}
+    done = 0
+    for r in conn.execute("SELECT * FROM spend_requests WHERE status='approved' ORDER BY id").fetchall():
+        try:
+            actions[r["action"]](conn, **json.loads(r["args"]), approved=True)
+            conn.execute("UPDATE spend_requests SET status='done' WHERE id=?", (r["id"],))
+            done += 1
+        except Exception as exc:  # noqa: BLE001 - l'échec est montré à Michael
+            conn.execute("UPDATE spend_requests SET status='failed', note=? WHERE id=?", (str(exc)[:500], r["id"]))
+            db.log_event(conn, r["clip_slug"], "error", f"{r['label']} : {exc}")
+    return done
+
+
 def launch_character_asset(conn: sqlite3.Connection, slug: str, version: int, kind: str,
                            label: str, prompt: str, ref_paths: list[str] | None = None,
-                           model_key: str | None = None) -> dict:
+                           model_key: str | None = None, approved: bool = False) -> dict:
     """Génère une image du pack de référence (agent casting)."""
     v = character_version(conn, slug, version)
     if v["status"] != "draft":
@@ -236,6 +332,13 @@ def launch_character_asset(conn: sqlite3.Connection, slug: str, version: int, ki
     payload = routing.build_payload(mcfg, prompt=prompt, image_urls=image_urls, mode="final",
                                     aspect_ratio=_casting_aspect(kind))
     cost = routing.estimate_cost(mcfg, mode="final")
+    if _needs_approval(mcfg.get("provider", "fal"), cost, False, approved):
+        return _ask_spend(conn, "character_asset",
+                          {"slug": slug, "version": version, "kind": kind, "label": label, "prompt": prompt,
+                           "ref_paths": ref_paths, "model_key": key},
+                          _hash(slug, version, kind, label, prompt, ref_paths, key),
+                          f"{slug} v{version} : {kind} « {label} »", cost, mcfg, key,
+                          detail=prompt, character_slug=slug)
     sub = providers.submit(mcfg, payload, kind="image", label=f"{slug} {kind} {label}")
     out = absp(v["dir"]) / kind / f"{slugify(label)}-{sub['request_id'][-6:]}.png"
     with db.tx(conn):
@@ -396,7 +499,8 @@ def upload_canon_draft(conn: sqlite3.Connection, slug: str, version: int, src: s
     return db.row(conn.execute("SELECT * FROM character_assets WHERE id=?", (draft_id,)).fetchone())
 
 
-def launch_canon_hd(conn: sqlite3.Connection, slug: str, version: int, model_key: str | None = None) -> dict:
+def launch_canon_hd(conn: sqlite3.Connection, slug: str, version: int, model_key: str | None = None,
+                    approved: bool = False) -> dict:
     v = _draft_version(conn, slug, version)
     draft = db.row(conn.execute(
         "SELECT * FROM character_assets WHERE version_id=? AND kind='canon_draft' AND status='kept' "
@@ -408,6 +512,12 @@ def launch_canon_hd(conn: sqlite3.Connection, slug: str, version: int, model_key
     payload = routing.build_payload(mcfg, prompt=_canon_hd_prompt(absp(v["dir"])),
                                     image_urls=[fal.to_data_uri(absp(draft["path"]))], mode="final",
                                     aspect_ratio="3:4")
+    if _needs_approval(mcfg.get("provider", "fal"), routing.estimate_cost(mcfg, mode="final"), False, approved):
+        tries = conn.execute("SELECT COUNT(*) FROM character_assets WHERE parent_id=?", (draft["id"],)).fetchone()[0]
+        return _ask_spend(conn, "canon_hd", {"slug": slug, "version": version, "model_key": model_key},
+                          _hash(slug, version, draft["id"], tries), f"{slug} v{version} : canon HD photoréaliste",
+                          routing.estimate_cost(mcfg, mode="final"), mcfg, model_key,
+                          detail=f"À partir du brouillon {draft['path']}", character_slug=slug)
     sub = providers.submit(mcfg, payload, kind="image", label=f"{slug} canon HD")
     out = absp(v["dir"]) / "brouillons" / f"canon-hd-{sub['request_id'][-6:]}.png"
     with db.tx(conn):
@@ -897,7 +1007,7 @@ def _create_asset(conn: sqlite3.Connection, shot: dict, kind: str, out_dir: str,
             "request_id": sub["request_id"]}
 
 
-def launch_image(conn: sqlite3.Connection, shot_id: int, force: bool = False) -> dict:
+def launch_image(conn: sqlite3.Connection, shot_id: int, force: bool = False, approved: bool = False) -> dict:
     shot = db.get_shot(conn, shot_id)
     if not shot.get("image_prompt"):
         raise ProductionError("Le plan n'a pas encore de prompt image (riot shot set --image-prompt)")
@@ -916,6 +1026,10 @@ def launch_image(conn: sqlite3.Connection, shot_id: int, force: bool = False) ->
     _check_budget(conn, clip["slug"], cost, force, mcfg)
     payload = routing.build_payload(mcfg, prompt=shot["image_prompt"], image_urls=image_urls,
                                     aspect_ratio=clip["aspect_ratio"], mode="draft")
+    if _needs_approval(mcfg.get("provider", "fal"), cost, is_demo(clip["slug"]), approved):
+        return _ask_spend(conn, "image", {"shot_id": shot_id, "force": force},
+                          _hash(shot_id, shot["image_prompt"], key), f"Plan {shot['num']} : visuel draft",
+                          cost, mcfg, key, detail=shot["image_prompt"], clip_slug=clip["slug"], shot_id=shot_id)
     sub = providers.submit(mcfg, payload, kind="image", label=f"plan {shot['num']} image",
                      force_mock=is_demo(clip["slug"]))
     res = _create_asset(conn, shot, "image", "storyboard", ".png", shot["image_prompt"], key, None,
@@ -926,7 +1040,7 @@ def launch_image(conn: sqlite3.Connection, shot_id: int, force: bool = False) ->
 
 
 def launch_image_hd(conn: sqlite3.Connection, shot_id: int, force: bool = False,
-                    model_key: str | None = None) -> dict:
+                    model_key: str | None = None, approved: bool = False) -> dict:
     """Agrandit l'image de travail validée par Michael (automatique, fidèle à l'original)."""
     shot = db.get_shot(conn, shot_id)
     image = db.row(conn.execute(
@@ -946,6 +1060,11 @@ def launch_image_hd(conn: sqlite3.Connection, shot_id: int, force: bool = False,
     ref = image["remote_url"] if image["remote_url"] and not str(image["remote_url"]).startswith("mock://") \
         else fal.to_data_uri(absp(image["path"]))
     payload = routing.build_payload(mcfg, image_urls=[ref], mode="final")
+    if _needs_approval(mcfg.get("provider", "fal"), cost, is_demo(clip["slug"]), approved):
+        return _ask_spend(conn, "image_hd", {"shot_id": shot_id, "force": force, "model_key": model_key},
+                          _hash(shot_id, image["id"], model_key), f"Plan {shot['num']} : visuel HD",
+                          cost, mcfg, model_key, detail="Agrandissement du visuel validé",
+                          clip_slug=clip["slug"], shot_id=shot_id)
     sub = providers.submit(mcfg, payload, kind="image", label=f"plan {shot['num']} HD",
                      force_mock=is_demo(clip["slug"]))
     params = {**payload, "from_image": image["id"]}
@@ -1509,7 +1628,9 @@ def needs_agent(conn: sqlite3.Connection, slug: str) -> dict:
         reasons.append("script_doctor: retours sur le découpage")
     if clip["stage"] == "production" and n_shots:
         for status in db.AGENT_STATUSES:
-            n = conn.execute("SELECT COUNT(*) FROM shots WHERE clip_slug=? AND status=?", (slug, status)).fetchone()[0]
+            n = conn.execute("SELECT COUNT(*) FROM shots WHERE clip_slug=? AND status=? AND id NOT IN "
+                             "(SELECT shot_id FROM spend_requests WHERE shot_id IS NOT NULL "
+                             "AND status IN ('pending','approved'))", (slug, status)).fetchone()[0]
             if n:
                 reasons.append(f"{status}: {n} plan(s)")
     brief_sig = None

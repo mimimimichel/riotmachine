@@ -71,8 +71,9 @@ def run_automatic_steps(conn: sqlite3.Connection) -> int:
                              ("lipsync_todo", production.launch_lipsync)):
         for r in conn.execute("SELECT id, clip_slug, num FROM shots WHERE status=? ORDER BY id", (status,)).fetchall():
             try:
-                launcher(conn, r["id"])
-                launched += 1
+                res = launcher(conn, r["id"])
+                if not (isinstance(res, dict) and res.get("spend_request")):
+                    launched += 1
             except production.BudgetError as exc:
                 notify.send_once(conn, f"budget:{r['clip_slug']}:{status}",
                                  f"💸 {r['clip_slug']} : {exc}")
@@ -225,7 +226,8 @@ def wake_casting(conn: sqlite3.Connection) -> list[str]:
 
 
 def tick(conn: sqlite3.Connection, wake: bool = True) -> dict:
-    out = {"jobs_done": poll_jobs(conn), "auto_launched": run_automatic_steps(conn)}
+    out = {"jobs_done": poll_jobs(conn), "spend_launched": production.run_approved_spend(conn),
+           "auto_launched": run_automatic_steps(conn)}
     notify_reviews(conn)
     _reap_agents(conn)
     out["agents"] = (wake_agents(conn) + wake_casting(conn)) if wake else []
@@ -241,7 +243,7 @@ def run_forever() -> None:
         while True:
             try:
                 out = tick(conn)
-                if out["jobs_done"] or out["auto_launched"] or out["agents"]:
+                if out["jobs_done"] or out["auto_launched"] or out["spend_launched"] or out["agents"]:
                     print(f"[{db.now()}] {out}", flush=True)
             except Exception:
                 traceback.print_exc()

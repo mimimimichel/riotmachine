@@ -93,7 +93,38 @@ def overview() -> dict[str, Any]:
     s = get_settings()
     return {"clips": clips, "characters": characters, "jobs_running": jobs,
             "agents_running": [r["clip_slug"] for r in agents],
-            "fal_mode": "simulation" if s.fal_mock else "réel", "providers": routing.providers()}
+            "fal_mode": "simulation" if s.fal_mock else "réel", "providers": routing.providers(),
+            "spend": _spend_summary(conn)}
+
+
+def _spend_summary(conn) -> dict[str, Any]:
+    r = conn.execute("SELECT COUNT(*), COALESCE(SUM(est_usd),0) FROM spend_requests WHERE status='pending'").fetchone()
+    return {"pending": r[0], "usd": round(r[1], 2)}
+
+
+@app.get("/api/spend")
+def spend_list() -> dict[str, Any]:
+    """Dépenses en attente de l'accord de Michael, et les dernières décidées."""
+    from .. import credits
+    conn = _conn()
+    recent = conn.execute("SELECT * FROM spend_requests WHERE status!='pending' ORDER BY id DESC LIMIT 30").fetchall()
+    return {"pending": production.spend_requests(conn, "pending"), "recent": [dict(r) for r in recent],
+            "credits": credits.status(conn), "summary": _spend_summary(conn)}
+
+
+class SpendDecision(BaseModel):
+    ids: list[int]
+    decision: str
+    note: str = ""
+
+
+@app.post("/api/spend/decide")
+def spend_decide(body: SpendDecision) -> dict[str, Any]:
+    try:
+        n = production.decide_spend(_conn(), body.ids, body.decision, body.note)
+    except production.ProductionError as exc:
+        raise _error(exc)
+    return {"ok": True, "decided": n}
 
 
 @app.get("/api/providers")

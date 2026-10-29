@@ -28,6 +28,11 @@ qc:                           # contrôle automatique par un agent avant de te m
     images_hd: 1              # un deuxième essai avec l'autre outil, puis Michael tranche
     drafts: 1
 
+approval:
+  required: true              # toute génération d'image payante attend l'accord de Michael dans la régie
+  auto_under_usd: 0           # en dessous de ce montant, pas de demande (0 = on demande toujours)
+                              # les vidéos : accord donné à la validation du plan vidéo (coût affiché)
+
 image:
   # Listes par ordre de préférence : le premier dont le fournisseur est branché sert.
   storyboard: [nano-banana-2-vertex, nano-banana-2]      # visuel draft de chaque plan (1K)

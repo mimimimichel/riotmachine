@@ -268,6 +268,28 @@ CREATE TABLE IF NOT EXISTS events (
     created_at TEXT NOT NULL
 );
 
+-- Dépenses en attente de l'accord de Michael : rien de payant ne part sans lui.
+CREATE TABLE IF NOT EXISTS spend_requests (
+    id INTEGER PRIMARY KEY,
+    action TEXT NOT NULL,             -- image | image_hd | canon_hd | character_asset
+    args TEXT NOT NULL,               -- JSON : arguments pour relancer l'action
+    dedupe TEXT NOT NULL,             -- même demande = même clé (pas de doublon)
+    label TEXT NOT NULL,
+    detail TEXT,
+    clip_slug TEXT,
+    character_slug TEXT,
+    shot_id INTEGER,
+    model_key TEXT,
+    provider TEXT,
+    est_usd REAL NOT NULL DEFAULT 0,
+    funding TEXT NOT NULL DEFAULT 'cash',
+    status TEXT NOT NULL DEFAULT 'pending',   -- pending | approved | refused | done | failed
+    note TEXT,
+    created_at TEXT NOT NULL,
+    decided_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_spend_status ON spend_requests(status);
+
 CREATE TABLE IF NOT EXISTS notifications (
     key TEXT PRIMARY KEY,
     sent_at TEXT NOT NULL

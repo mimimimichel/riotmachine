@@ -330,3 +330,26 @@ def test_use_draft_as_canon(studio, tmp_path):
     production.review_canon_hd(conn, hd["id"], "use_draft")
     canon = conn.execute("SELECT * FROM character_assets WHERE kind='canon' AND status='kept'").fetchone()
     assert canon["path"].endswith("canon.jpg")
+
+
+def test_spend_needs_approval(studio, monkeypatch):
+    """Hors simulation, une génération d'image attend l'accord de Michael, puis le worker la lance."""
+    from riotmachine import providers as prov
+    run("init")
+    conn = db.connect()
+    production.create_clip(conn, "Accord", song=studio["song"], characters=["jj"])
+    production.import_shots(conn, "accord", [{"t_start": 0, "t_end": 4, "description": "x", "characters": ["jj"]}])
+    sid = conn.execute("SELECT id FROM shots").fetchone()["id"]
+    production.update_shot(conn, sid, image_prompt="x")
+    monkeypatch.setattr(prov, "simulated", lambda provider="fal": False)
+    real_submit = prov.submit
+    calls = []
+    monkeypatch.setattr(prov, "submit", lambda *a, **k: calls.append(1) or real_submit(*a, **{**k, "force_mock": True}))
+    res = production.launch_image(conn, sid)
+    assert res["status"] == "pending" and res["est_usd"] > 0 and not calls
+    assert production.launch_image(conn, sid)["spend_request"] == res["spend_request"]   # pas de doublon
+    assert production.needs_agent(conn, "accord")["reasons"] == [] or "image_todo" not in str(
+        production.needs_agent(conn, "accord")["reasons"])
+    production.decide_spend(conn, [res["spend_request"]], "approve")
+    assert production.run_approved_spend(conn) == 1 and calls
+    assert db.get_shot(conn, sid)["status"] == "image_gen"

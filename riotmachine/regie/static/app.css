@@ -563,3 +563,10 @@ pre.text { white-space: pre-wrap; font-family: var(--mono); font-size: 12px; col
 
 table th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--dim); padding: 6px 10px; border-bottom: 1px solid var(--line); }
 table td { padding: 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+
+/* dépenses à valider */
+.spend-badge { padding: 4px 10px; border-radius: 999px; background: #ffb02033; color: var(--amber, #ffb020);
+  border: 1px solid #ffb02088; text-decoration: none; font-weight: 600; white-space: nowrap; }
+.spend-item { border-top: 1px solid #ffffff14; padding-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+.spend-cost { font-family: "JetBrains Mono", monospace; font-weight: 600; }
+.spend-detail { white-space: pre-wrap; font-size: 12px; max-height: 180px; overflow: auto; }

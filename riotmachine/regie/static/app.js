@@ -281,6 +281,7 @@ async function router() {
     else if (page === "personnages") { setNav("personnages"); await showCharacters(); }
     else if (page === "nouveau") { setNav("studio"); await showNewClip(); }
     else if (page === "fournisseurs") { setNav("fournisseurs"); await showProviders(); }
+    else if (page === "depenses") { setNav("depenses"); await showSpend(); }
     else { setNav("studio"); await showStudio(); }
   } catch (e) {
     $view.innerHTML = `<p class="empty">${esc(e.message)}</p>`;
@@ -296,7 +297,8 @@ async function refreshSys() {
     document.getElementById("sysstat").innerHTML = `
       <span title="Générations en cours chez les fournisseurs">${led(d.jobs_running ? "work" : "wait")}${d.jobs_running} génération${d.jobs_running > 1 ? "s" : ""}</span>
       <span title="Agents Claude au travail">${led(d.agents_running.length ? "work" : "wait")}<span class="long">Agents :</span> ${d.agents_running.length ? "au travail" : "en veille"}</span>
-      <span title="fal.ai">${led(fal && fal.simulated ? "review" : "done")}fal.ai ${fal && fal.simulated ? "simulation" : "réel"}</span>`;
+      <span title="fal.ai">${led(fal && fal.simulated ? "review" : "done")}fal.ai ${fal && fal.simulated ? "simulation" : "réel"}</span>
+      ${d.spend && d.spend.pending ? `<a class="spend-badge" href="#/depenses" title="Générations qui attendent ton accord">💳 ${d.spend.pending} à valider · ${money(d.spend.usd)}</a>` : ""}`;
     return d;
   } catch (e) { return null; }
 }
@@ -1797,3 +1799,55 @@ document.addEventListener("keydown", (e) => {
 
 refreshSys();
 router();
+
+
+/* ---------- dépenses à valider ---------- */
+const FUNDING_LABEL = { credits: "crédits gratuits", cash: "payé en argent" };
+const ACTION_LABEL = { image: "Visuel draft", image_hd: "Visuel HD", canon_hd: "Canon HD", character_asset: "Pack de référence" };
+
+async function showSpend() {
+  const d = await api("/api/spend");
+  const groups = {};
+  for (const r of d.pending) {
+    const g = r.clip_slug ? `Clip ${r.clip_slug}` : `Personnage ${r.character_slug || ""}`;
+    (groups[g] = groups[g] || []).push(r);
+  }
+  const credits = Object.values(d.credits).map((c) => `${esc(c.label)} : ${money(c.remaining)} restants`).join(" · ");
+  const card = (r) => `
+    <div class="spend-item">
+      <div class="row"><b>${esc(r.label)}</b><span class="spacer"></span><span class="spend-cost">${money(r.est_usd)}</span></div>
+      <p class="hint">${esc(ACTION_LABEL[r.action] || r.action)} · ${esc(r.model_label || "")} · ${esc(FUNDING_LABEL[r.funding] || r.funding)}</p>
+      ${r.detail ? `<details><summary class="hint">Ce qui sera demandé</summary><p class="mono spend-detail">${esc(r.detail)}</p></details>` : ""}
+      <div class="row">
+        <button class="btn small go" data-spend="approve" data-ids="${r.id}">Lancer · ${money(r.est_usd)}</button>
+        <button class="btn small" data-spend="refuse" data-ids="${r.id}">Ne pas lancer</button>
+      </div>
+    </div>`;
+  const blocks = Object.entries(groups).map(([g, items]) => {
+    const total = items.reduce((a, r) => a + r.est_usd, 0);
+    return `<section class="panel stack">
+      <div class="row"><h2>${esc(g)}</h2><span class="spacer"></span>
+        ${items.length > 1 ? `<button class="btn go" data-spend="approve" data-ids="${items.map((r) => r.id).join(",")}">Tout lancer (${items.length}) · ${money(total)}</button>` : ""}</div>
+      ${items.map(card).join("")}
+    </section>`;
+  }).join("");
+  const recent = d.recent.slice(0, 10).map((r) => `<li>${esc(r.label)} · ${money(r.est_usd)} · <i>${esc({approved: "accordée, lancement en cours", refused: "non lancée", done: "lancée", failed: "échec : " + (r.note || "")}[r.status] || r.status)}</i></li>`).join("");
+  $view.innerHTML = `
+    <div class="pagehead"><h1>Dépenses à valider</h1></div>
+    <div class="stack">
+      <p class="hint">Rien de payant ne part sans ton accord, même sur les crédits gratuits. Chaque ligne indique ce qui sera généré, avec quel modèle et pour combien.
+        Les vidéos ont leur propre validation, dans le plan vidéo de chaque plan, coût compris.</p>
+      ${credits ? `<p class="mono">${credits}</p>` : ""}
+      ${blocks || `<p class="empty">Aucune dépense en attente.</p>`}
+      ${recent ? `<section class="panel"><h2>Dernières décisions</h2><ul class="hint">${recent}</ul></section>` : ""}
+    </div>`;
+  $view.querySelectorAll("[data-spend]").forEach((b) => b.addEventListener("click", async () => {
+    b.disabled = true;
+    try {
+      const ids = b.dataset.ids.split(",").map(Number);
+      await api("/api/spend/decide", { json: { ids, decision: b.dataset.spend } });
+      toast(b.dataset.spend === "approve" ? "Lancé : la génération part dans moins d'une minute" : "Pas lancé");
+      await refreshSys(); await showSpend();
+    } catch (e) { toast(e.message, "err"); b.disabled = false; }
+  }));
+}
