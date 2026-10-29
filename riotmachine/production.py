@@ -747,7 +747,10 @@ def add_clip_file(conn: sqlite3.Connection, slug: str, kind: str, src: str | Pat
     if kind in ("song", "vocals"):
         dest = cdir / "song" / f"{'master' if kind == 'song' else 'vocals'}{src.suffix.lower()}"
         for old in (cdir / "song").glob(("master" if kind == "song" else "vocals") + ".*"):
-            old.unlink()
+            # jamais effacé : l'ancien fichier part dans song/retires/
+            bin_dir = old.parent / "retires"
+            bin_dir.mkdir(exist_ok=True)
+            old.rename(_free_name(bin_dir / f"{old.stem}-{db.now()[:10]}{old.suffix}"))
     else:
         folder = cdir / ("script" if kind == "lyrics" else "dossier")
         folder.mkdir(parents=True, exist_ok=True)
