@@ -2511,6 +2511,7 @@ async function loadDecors(clip, keep = false) {
         <div class="row elrename" style="gap:8px">
           <input type="text" data-elname="${e.id}" value="${esc(e.name)}" aria-label="Nom" style="flex:1;min-width:180px">
           <button class="btn small" data-elrename="${e.id}">Renommer</button>
+          <button class="btn small ghost danger" data-eldel="${e.id}">Supprimer</button>
         </div>
         <div class="elstep ${s1 ? "ok" : ""}">
           <div class="elstep-h"><span class="num">1</span><b>Ton image de départ</b>
@@ -2540,8 +2541,7 @@ async function loadDecors(clip, keep = false) {
           <details class="fold"><summary>Fiche${e.description ? "" : " · vide"}</summary><div class="stack" style="gap:6px">
             <label class="hint">Ce qu'on voit : plan des lieux, matières, couleurs, lumière, style. Si le lieu change d'aspect (avant / après), crée un second élément.</label>
             <textarea data-elf="${e.id}:description" rows="4">${esc(e.description || "")}</textarea>
-            <div class="row"><button class="btn small" data-elsave="${e.id}">Enregistrer la fiche</button>
-              <span class="spacer"></span><button class="btn small ghost" data-eldel="${e.id}">Supprimer l'élément</button></div></div></details>
+            <div class="row"><button class="btn small" data-elsave="${e.id}">Enregistrer la fiche</button></div></div></details>
         </div>
 
         <div class="elstep ${s3 ? "ok" : ""}">
