@@ -1,12 +1,9 @@
 # JJ v2 : ADN
 
-Base visuelle : la canon v1 (portrait studio). La planche turnaround v1 ne fait
-plus foi (yeux, reflets et longueur des cheveux différents).
-Choix de Michael du 29/10/2026.
+JJ, a 25-year-old mixed French-Caribbean woman, soft oval face with gentle contours, slightly defined cheekbones, rounded cheeks, delicate narrow chin, light brown skin with warm undertones, thin softly arched eyebrows, almond-shaped light eyes in an ambiguous green-grey-blue hue, medium-sized nose with a straight bridge and rounded tip, thinner upper lip and fuller lower lip with a subtle cupid's bow, very dense long hair made of small tight well-defined curls, chestnut brown with abundant golden, blonde and copper highlights, huge volume framing her face, a few curls falling over her forehead and along her cheeks
 
 ## Toujours
-
-- Femme d'environ 25 ans, métisse, peau caramel dorée.
+- Femme d'environ 25 ans, métisse, peau claire dorée.
 - Yeux gris-bleu clair, en amande, regard direct.
 - Taches de rousseur discrètes et diffuses sur le nez et les pommettes : un
   léger semis fondu dans la peau, ton à peine plus foncé que la peau. Pas de
@@ -18,15 +15,8 @@ Choix de Michael du 29/10/2026.
 - Peau réelle : pores visibles, duvet, légère asymétrie.
 
 ## Jamais
-
 - Yeux verts ou noisette.
 - Reflets blonds ou dorés dans les cheveux.
 - Cheveux courts, lissés ou attachés serrés (sauf demande du plan).
-- Peau lissée, rendu poupée ou « filtre beauté ».
 - Taches de rousseur en points nets ou trop nombreuses.
 - Air fatigué, cernes marqués, teint terne.
-
-## À trancher
-
-- Boucles d'oreilles signature (les rondes noires de la canon v1 ?) : oui ou
-  selon le look.

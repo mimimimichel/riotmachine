@@ -4,19 +4,22 @@ Un visuel de plan n'est cohérent avec les autres que si le lieu, les objets et 
 personnages secondaires sont toujours les mêmes. Chaque élément a donc :
 - une fiche (description fixe : plan des lieux, matières, couleurs, lumière) ;
 - des états quand il change (ex. jardin « intact le matin », « vide au retour ») ;
-- des images : celles que Michael dépose (source) et celles générées à partir de
-  la fiche et de ses images ; Michael garde les bonnes (status 'kept') ;
+- des images en deux temps : l'image de départ de Michael (role 'draft', pas encore
+  HD) puis l'image HD générée à partir d'elle avec un prompt qu'il peut réécrire
+  (role 'hd'). Il peut aussi déposer directement une image HD. Seules les images HD
+  gardées servent de référence aux visuels des plans ;
 - les plans où il apparaît (shot_elements).
 
 Quand un visuel de plan est généré, les images gardées de ses éléments partent en
 référence et leurs fiches sont ajoutées au prompt (voir production.launch_image).
-Si Michael ne fournit rien, l'agent décorateur repère les éléments du découpage,
-écrit leurs fiches et relie les plans ; les images attendent ensuite son accord.
+L'agent décorateur repère les éléments du découpage, écrit leurs fiches et relie
+les plans ; il ne lance pas d'image. Un plan cite un élément avec @slug.
 """
 
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import sqlite3
 from pathlib import Path
@@ -95,70 +98,147 @@ def delete(conn: sqlite3.Connection, element_id: int) -> None:
     shutil.rmtree(absp(e["dir"]), ignore_errors=True)
 
 
+def cancel_pending(conn: sqlite3.Connection, element_id: int, why: str) -> int:
+    """Les demandes d'image en attente de cet élément deviennent caduques (nouvelle source, nouveau prompt)."""
+    n = 0
+    for r in conn.execute("SELECT id, args FROM spend_requests WHERE action='element_image' AND status='pending'").fetchall():
+        if json.loads(r["args"]).get("element_id") == element_id:
+            conn.execute("UPDATE spend_requests SET status='refused', note=?, decided_at=? WHERE id=?",
+                         (why, db.now(), r["id"]))
+            n += 1
+    return n
+
+
 def add_image(conn: sqlite3.Connection, element_id: int, src: str | Path, state: str | None = None,
-              label: str | None = None) -> dict:
-    """Image déposée par Michael : elle sert de source aux générations, et de référence telle quelle."""
+              label: str | None = None, role: str = "draft") -> dict:
+    """Image déposée par Michael.
+
+    - draft : son image de départ (pas encore HD ni photoréaliste). L'image HD en part.
+    - hd : une image déjà finie, gardée telle quelle comme référence des visuels de plan.
+    """
+    if role not in ("draft", "hd"):
+        raise ProductionError("Rôle d'image : draft ou hd")
     e = _element(conn, element_id)
     src = Path(src)
     if src.suffix.lower() not in IMAGE_EXT:
         raise ProductionError("Une image est attendue (png, jpg, webp)")
-    dest = _free_name(absp(e["dir"]) / "sources" / f"{slugify(src.stem) or 'image'}{src.suffix.lower()}")
+    folder = "depart" if role == "draft" else "sources"
+    dest = _free_name(absp(e["dir"]) / folder / f"{slugify(src.stem) or 'image'}{src.suffix.lower()}")
     dest.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy(src, dest)
     cur = conn.execute(
-        "INSERT INTO element_images (element_id, state, source, path, label, status, created_at) VALUES (?,?,?,?,?,?,?)",
-        (element_id, state or None, "michael", rel(dest), label or src.stem, "kept", db.now()))
+        "INSERT INTO element_images (element_id, state, source, path, label, status, role, created_at) "
+        "VALUES (?,?,?,?,?,?,?,?)",
+        (element_id, state or None, "michael", rel(dest), label or src.stem, "kept", role, db.now()))
+    if role == "draft":
+        cancel_pending(conn, element_id, "remplacée : Michael a déposé son image de départ")
     return db.row(conn.execute("SELECT * FROM element_images WHERE id=?", (cur.lastrowid,)).fetchone())
 
 
-def _refs(conn: sqlite3.Connection, element_id: int, state: str | None, limit: int = 4) -> list[Path]:
-    """Images gardées de l'élément : celles de l'état demandé d'abord, puis l'état de base."""
+def _refs(conn: sqlite3.Connection, element_id: int, state: str | None, limit: int = 4,
+          role: str = "hd") -> list[Path]:
+    """Images gardées de l'élément (HD par défaut) : celles de l'état demandé d'abord, puis l'état de base."""
     rows = conn.execute(
-        "SELECT path, state, source FROM element_images WHERE element_id=? AND status='kept' AND path IS NOT NULL "
+        "SELECT path, state, source FROM element_images WHERE element_id=? AND status='kept' AND role=? "
+        "AND path IS NOT NULL "
         "ORDER BY (COALESCE(state,'')=COALESCE(?,'')) DESC, (state IS NULL) DESC, (source='gen') DESC, id",
-        (element_id, state)).fetchall()
+        (element_id, role, state)).fetchall()
     out = [absp(r["path"]) for r in rows]
     return [p for p in out if p and p.is_file()][:limit]
 
 
-def generation_prompt(e: dict, state: str | None, extra: str = "") -> str:
-    kind = e["kind"]
-    what = {"decor": "a photographic reference plate of this location, wide establishing view, no people",
-            "objet": "a product-style photographic reference of this object, plain neutral background, whole object visible",
-            "figurant": "a photographic character reference of this person or animal, full body, neutral background"}[kind]
-    return (f"Create {what}. Photorealistic, natural light, true-to-life colors, consistent with any reference images. "
-            f"\n\nDescription (French, authoritative):\n{e['description'] or e['name']}"
-            + (f"\n\nState of the place in this image: {state}" if state else "")
+def _draft_for_state(conn: sqlite3.Connection, element_id: int, state: str | None) -> list[Path]:
+    """Les images de départ de cet état exact (ou de l'état de base pour l'état de base)."""
+    rows = conn.execute(
+        "SELECT path FROM element_images WHERE element_id=? AND status='kept' AND role='draft' AND path IS NOT NULL "
+        "AND COALESCE(state,'')=COALESCE(?,'') ORDER BY id", (element_id, state)).fetchall()
+    return [p for p in (absp(r["path"]) for r in rows) if p and p.is_file()]
+
+
+WHAT = {"decor": "a photographic reference plate of this location, wide establishing view, no people",
+        "objet": "a product-style photographic reference of this object, plain neutral background, whole object visible",
+        "figurant": "a photographic character reference of this person or animal, full body, neutral background"}
+
+
+def default_prompt(e: dict, from_draft: bool) -> str:
+    """Le prompt proposé à Michael pour l'image HD (il peut le réécrire)."""
+    if from_draft:
+        head = (f"Turn the first reference image (the director's draft) into {WHAT[e['kind']]}. "
+                "Keep its exact composition, layout, camera angle, objects, proportions and colour palette. "
+                "Only raise the realism: photographic materials and textures, natural light, fine detail, high definition. "
+                "Do not add, remove or move anything.")
+    else:
+        head = (f"Create {WHAT[e['kind']]}. Photorealistic, natural light, true-to-life colors, "
+                "consistent with any reference images.")
+    return f"{head}\n\nDescription (French, authoritative):\n{e['description'] or e['name']}"
+
+
+def generation_prompt(e: dict, state: str | None, extra: str = "", from_draft: bool = False) -> str:
+    base = (e.get("prompt") or "").strip() or default_prompt(e, from_draft)
+    return (base + (f"\n\nState of the place in this image: {state}" if state else "")
             + (f"\n\nDirector's notes: {extra}" if extra else ""))
+
+
+def set_prompt(conn: sqlite3.Connection, element_id: int, text: str) -> dict:
+    """Michael réécrit le prompt de l'image HD ; un texte vide rend le prompt par défaut."""
+    e = _element(conn, element_id)
+    clean = text.strip()
+    if clean and clean in (default_prompt(e, True), default_prompt(e, False)):
+        clean = ""
+    conn.execute("UPDATE elements SET prompt=? WHERE id=?", (clean or None, element_id))
+    return _element(conn, element_id)
+
+
+def hd_model() -> tuple[str, dict, float]:
+    key = routing.pick_model("casting")
+    mcfg = routing.model(key)
+    return key, mcfg, routing.estimate_cost(mcfg, mode="final")
 
 
 def launch_image(conn: sqlite3.Connection, element_id: int, state: str | None = None, prompt: str | None = None,
                  approved: bool = False) -> dict:
-    """Génère une image de référence de l'élément (accord de Michael d'abord)."""
+    """Génère l'image HD de l'élément, à partir de l'image de départ de Michael quand il y en a une.
+
+    Références envoyées : l'image de départ de cet état, puis les images HD déjà gardées
+    (l'état de base garde le lieu identique d'un état à l'autre)."""
     e = _element(conn, element_id)
     clip = db.get_clip(conn, e["clip_slug"])
-    key = routing.pick_model("casting")
-    mcfg = routing.model(key)
-    refs = _refs(conn, element_id, state)
-    text = prompt or generation_prompt(e, state)
-    cost = routing.estimate_cost(mcfg, mode="final")
+    key, mcfg, cost = hd_model()
+    drafts = _draft_for_state(conn, element_id, state)
+    if not drafts and state:
+        drafts = _draft_for_state(conn, element_id, None)
+    refs = (drafts[:2] + _refs(conn, element_id, state, limit=2))[:4]
+    text = prompt or generation_prompt(e, state, from_draft=bool(drafts))
     if _needs_approval(mcfg.get("provider", "fal"), cost, False, approved):
         return _ask_spend(conn, "element_image", {"element_id": element_id, "state": state, "prompt": prompt},
                           _hash(element_id, state, text, [str(p) for p in refs]),
-                          f"{KIND_LABEL[e['kind']]} « {e['name']} »{' (' + state + ')' if state else ''} : image de référence",
+                          f"{KIND_LABEL[e['kind']]} « {e['name']} »{' (' + state + ')' if state else ''} : image HD",
                           cost, mcfg, key, detail=text, clip_slug=e["clip_slug"])
     payload = routing.build_payload(mcfg, prompt=text, image_urls=[fal.to_data_uri(p) for p in refs], mode="final",
                                     aspect_ratio=ASPECT[e["kind"]] or clip["aspect_ratio"])
     sub = providers.submit(mcfg, payload, kind="image", label=f"{e['slug']} {state or ''}")
     out = absp(e["dir"]) / f"{slugify(state or 'base')}-{sub['request_id'][-6:]}.png"
     with db.tx(conn):
+        cancel_pending(conn, element_id, "remplacée par une génération lancée par Michael")
         cur = conn.execute(
             "INSERT INTO element_images (element_id, state, source, path, label, prompt, model_key, cost_usd, funding, "
-            "status, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+            "status, role, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
             (element_id, state, "gen", rel(out), state or "référence", text, key, cost,
-             credits.funding_for(conn, mcfg.get("provider", "fal"), cost), "generating", db.now()))
+             credits.funding_for(conn, mcfg.get("provider", "fal"), cost), "generating", "hd", db.now()))
         _insert_job(conn, "element_images", cur.lastrowid, mcfg["endpoint"], sub, out)
+        db.log_event(conn, e["clip_slug"], "decors", f"Image HD lancée : {e['name']}{' (' + state + ')' if state else ''}")
     return {"image_id": cur.lastrowid, "cost_usd": cost}
+
+
+def launch_ready(conn: sqlite3.Connection, clip_slug: str) -> dict:
+    """Michael lance d'un coup l'image HD de chaque élément qui a une image de départ et pas encore d'HD."""
+    n, total = 0, 0.0
+    for e in clip_elements(conn, clip_slug):
+        if e["step"] == "hd_todo":
+            r = launch_image(conn, e["id"], None, approved=True)
+            n += 1
+            total += r["cost_usd"]
+    return {"launched": n, "cost_usd": round(total, 3)}
 
 
 def pick(conn: sqlite3.Connection, image_id: int, decision: str) -> None:
@@ -214,7 +294,7 @@ def shot_context(conn: sqlite3.Connection, shot_id: int) -> tuple[list[Path], st
     lines = []
     for e in for_shot(conn, shot_id):
         refs += [absp(p) for p in e["refs"][: (2 if e["kind"] == "decor" else 1)]]
-        lines.append(f"- {KIND_LABEL[e['kind']]} « {e['name']} »"
+        lines.append(f"- {KIND_LABEL[e['kind']]} « {e['name']} » (@{e['slug']})"
                      + (f" ({e['shot_state']})" if e["shot_state"] else "")
                      + f" : {(e['description'] or '').strip()}")
     text = ("\n\nSetting, props and secondary characters (keep them exactly as in their reference images):\n"
@@ -223,24 +303,71 @@ def shot_context(conn: sqlite3.Connection, shot_id: int) -> tuple[list[Path], st
 
 
 def missing_refs(conn: sqlite3.Connection, shot_id: int) -> list[str]:
-    """Éléments du plan qui n'ont encore aucune image gardée : le visuel du plan doit les attendre."""
+    """Éléments du plan qui n'ont encore aucune image HD gardée : le visuel du plan doit les attendre."""
     return [e["name"] for e in for_shot(conn, shot_id) if not e["refs"]]
+
+
+def _step(images: list[dict]) -> str:
+    """Où en est l'élément : start (rien), hd_todo (départ fourni, HD à faire), hd_wait (HD en cours ou à choisir), done."""
+    hd_kept = [i for i in images if i["role"] == "hd" and i["status"] == "kept"]
+    if hd_kept:
+        return "done"
+    if any(i["role"] == "hd" and i["status"] in ("generating", "proposed") for i in images):
+        return "hd_wait"
+    if any(i["role"] == "draft" for i in images):
+        return "hd_todo"
+    return "start"
 
 
 def clip_elements(conn: sqlite3.Connection, clip_slug: str) -> list[dict]:
     out = []
     for r in conn.execute("SELECT * FROM elements WHERE clip_slug=? ORDER BY CASE kind WHEN 'decor' THEN 0 "
-                          "WHEN 'figurant' THEN 1 ELSE 2 END, name", (clip_slug,)).fetchall():
+                          "WHEN 'figurant' THEN 1 ELSE 2 END, id", (clip_slug,)).fetchall():
         e = dict(r)
         e["states"] = json.loads(e["states"] or "[]")
         e["images"] = db.rows(conn.execute(
-            "SELECT id, state, source, path, label, status, cost_usd, model_key FROM element_images "
+            "SELECT id, state, source, role, path, label, status, cost_usd, model_key FROM element_images "
             "WHERE element_id=? AND status IN ('generating','proposed','kept') ORDER BY id", (e["id"],)).fetchall())
         e["shots"] = [x["num"] for x in conn.execute(
             "SELECT s.num FROM shot_elements se JOIN shots s ON s.id=se.shot_id WHERE se.element_id=? ORDER BY s.num",
             (e["id"],)).fetchall()]
+        has_draft = any(i["role"] == "draft" for i in e["images"])
+        e["step"] = _step(e["images"])
+        e["prompt_default"] = default_prompt(e, has_draft)
+        e["prompt_text"] = (e.get("prompt") or "").strip() or e["prompt_default"]
+        e["prompt_edited"] = bool((e.get("prompt") or "").strip())
         out.append(e)
     return out
+
+
+def index(conn: sqlite3.Connection, clip_slug: str) -> list[dict]:
+    """Liste courte pour les références @ dans les plans."""
+    out = []
+    for r in conn.execute("SELECT id, kind, slug, name, states FROM elements WHERE clip_slug=? "
+                          "ORDER BY CASE kind WHEN 'decor' THEN 0 WHEN 'figurant' THEN 1 ELSE 2 END, id",
+                          (clip_slug,)).fetchall():
+        thumb = _refs(conn, r["id"], None, limit=1) or _refs(conn, r["id"], None, limit=1, role="draft")
+        out.append({"id": r["id"], "kind": r["kind"], "slug": r["slug"], "name": r["name"],
+                    "states": json.loads(r["states"] or "[]"), "thumb": rel(thumb[0]) if thumb else None})
+    return out
+
+
+MENTION = re.compile(r"@([a-z0-9][a-z0-9-]*[a-z0-9]|[a-z0-9])")
+
+
+def link_mentions(conn: sqlite3.Connection, shot_id: int) -> list[str]:
+    """Chaque @slug écrit dans la ligne ou le prompt détaillé d'un plan relie ce plan à l'élément.
+    Un lien existant garde son état ; retirer la mention ne retire pas le lien (le panneau du plan le fait)."""
+    shot = db.get_shot(conn, shot_id)
+    text = f"{shot.get('description') or ''}\n{shot.get('detail') or ''}".lower()
+    linked = []
+    for slug in dict.fromkeys(MENTION.findall(text)):
+        r = conn.execute("SELECT id FROM elements WHERE clip_slug=? AND slug=?", (shot["clip_slug"], slug)).fetchone()
+        if r:
+            conn.execute("INSERT OR IGNORE INTO shot_elements (shot_id, element_id, state) VALUES (?,?,NULL)",
+                         (shot_id, r["id"]))
+            linked.append(slug)
+    return linked
 
 
 def request(conn: sqlite3.Connection, clip_slug: str) -> None:

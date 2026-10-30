@@ -28,7 +28,7 @@ Note dans `notes.md` que les timecodes sont proposés par l'analyse, à ajuster 
 Il les donne dans la régie (onglet Découpage) ou dans son dossier, sous une forme du type :
 
 ```
-Plan 1 — 0:00.0 → 0:04.2 — JJ chante face caméra, gros plan, lumière de fenêtre
+Plan 1 — 0:00.0 → 0:04.2 — Elle chante face caméra, gros plan, lumière de fenêtre
 Plan 2 — 0:04.2 → 0:08.0 — Profil, elle ferme les yeux
 ```
 
@@ -70,9 +70,9 @@ Accepte toute variante lisible (« 0:04-0:08 », « de 4,2 s à 8 s », un table
    "look": "cold blue window light, soft contrast, desaturated teal grade, 35mm film grain",
    "shots": [
      {"id": 412, "t_start": 0.0, "t_end": 4.2,
-      "description": "JJ chante à la fenêtre, gros plan",
-      "detail": "Close-up of JJ singing softly by a rain-streaked window, ...",
-      "framing": "CU", "motion": "low", "camera": "slow push-in", "characters": ["jj"],
+      "description": "<personnage> chante à la fenêtre, gros plan",
+      "detail": "Close-up of <personnage> singing softly by a rain-streaked window, ...",
+      "framing": "CU", "motion": "low", "camera": "slow push-in", "characters": ["<slug du personnage>"],
       "singing": true, "notes": "optionnel"}
    ]}
 ]}

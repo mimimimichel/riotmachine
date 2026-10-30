@@ -409,6 +409,10 @@ LATER_COLUMNS = {
     "shots": [("detail", "TEXT"), ("detail_edited", "INTEGER NOT NULL DEFAULT 0"), ("failed_step", "TEXT"),
               ("lipsync_key", "TEXT")],   # lip-sync choisi par Michael pour ce plan
     "blocks": [("look", "TEXT")],   # lumière et étalonnage communs aux plans du bloc
+    # prompt : le prompt de l'image HD, réécrit par Michael (NULL = prompt par défaut)
+    "elements": [("prompt", "TEXT")],
+    # role : draft = image de départ de Michael (source de l'HD), hd = référence des visuels de plan
+    "element_images": [("role", "TEXT NOT NULL DEFAULT 'hd'")],
 }
 
 

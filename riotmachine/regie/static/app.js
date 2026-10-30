@@ -773,7 +773,7 @@ function renderTile(s, clip) {
         <span class="kind">${esc(stepLabel)}</span>
       </div>
       <div class="info">
-        <p class="desc">${esc(s.description)}</p>
+        <p class="desc">${mentionHtml(s.description)}</p>
         <div class="foot">${clip.stage === "production" ? `${led(st)}<span>${esc(statusLabel(s))}</span>`
           : `${led("wait")}<span>${clip.stage === "decoupage_review" ? "Attend la validation du découpage" : "Découpage en préparation"}</span>`}</div>
         <div class="foot"><span class="mono" style="font-size:11px">${tc(s.t_start)} → ${tc(s.t_end)}</span>
@@ -910,10 +910,19 @@ function renderDrawer() {
       ${shot.lipsync && shot.lipsync.native ? `<p class="hint">Lip-sync fait par le modèle vidéo.</p>` : ""}
     </div>`;
   const detailBox = `<details class="fold" ${shot.detail ? "" : "open"}><summary>Prompt détaillé${shot.detail_edited ? " · écrit par toi" : ""}</summary><div class="stack" style="gap:6px">
-      <textarea id="dt-${shot.id}" rows="4" placeholder="Le plan en détail : sujet, action, décor, lumière, cadrage">${esc(shot.detail || "")}</textarea>
+      <textarea id="dt-${shot.id}" rows="4" data-mention placeholder="Le plan en détail : sujet, action, décor, lumière, cadrage. Tape @ pour citer un décor.">${esc(shot.detail || "")}</textarea>
       <div class="row"><button class="btn small" data-savedetail="${shot.id}">Enregistrer</button>
         <span class="hint">${(shot.assets || []).some((a) => a.kind === "image") ? "Le visuel déjà fait ne change pas tout seul : demande une modif pour le refaire." : "Le storyboard part de ce texte."}</span></div></div></details>`;
 
+  const linked = new Set((shot.elements || []).map((e) => e.id));
+  const elBox = `<div class="shot-els">
+      <span class="hint">Décors, objets et figurants du plan</span>
+      <div class="row" style="gap:6px">${(shot.elements || []).map((e) => `<span class="elchip k-${e.kind}">
+        ${e.ref ? `<img src="${media(e.ref)}" data-zoom="${media(e.ref)}" alt="">` : ""}<b>${esc(e.name)}</b>
+        ${e.states.length ? `<select data-shotelstate="${e.id}" aria-label="État"><option value="">état de base</option>${e.states.map((x) => `<option ${x === e.state ? "selected" : ""}>${esc(x)}</option>`).join("")}</select>` : ""}
+        <button class="x" data-elunlink="${e.id}" title="Retirer du plan">✕</button></span>`).join("")}
+        ${(clip.elements || []).some((e) => !linked.has(e.id)) ? `<select data-shoteladd aria-label="Ajouter un élément"><option value="">＋ Ajouter…</option>${(clip.elements || []).filter((e) => !linked.has(e.id)).map((e) => `<option value="${e.id}">${esc(e.name)}</option>`).join("")}</select>` : ""}
+      </div></div>`;
   if (!document.querySelector(".drawer-backdrop")) {
     const bd = document.createElement("div");
     bd.className = "drawer-backdrop";
@@ -935,10 +944,11 @@ function renderDrawer() {
       <div class="stack" style="gap:8px">
         <div class="row">${pill(statusLabel(shot), st)}
           <span class="spacer"></span><button class="btn small ghost" data-playshot="${shot.id}">▶ Lire dans le morceau</button></div>
-        <p>${esc(shot.description)}</p>
+        <p>${mentionHtml(shot.description)}</p>
         <div class="row" style="gap:6px">${tags.map((t) => `<span class="tag">${esc(t)}</span>`).join("")}</div>
       </div>
       ${detailBox}
+      ${elBox}
       ${settings}
       <div class="pipeline">${pipeline}</div>
       ${notes.join("")}
@@ -959,6 +969,14 @@ function renderDrawer() {
         if (!t.value) { toast("Choisis un modèle dans la liste", "err"); return; }
         await api(`/api/shots/${t.dataset.shotmodel}/model`, { json: { model_key: t.value } });
         toast("Modèle changé"); return reload();
+      }
+      if (t.dataset.shoteladd !== undefined && t.value) {
+        await api(`/api/shots/${shot.id}/elements`, { json: { element_id: +t.value } });
+        toast("Ajouté au plan"); return reload();
+      }
+      if (t.dataset.shotelstate) {
+        await api(`/api/shots/${shot.id}/elements`, { json: { element_id: +t.dataset.shotelstate, state: t.value || null } });
+        toast("État changé"); return reload();
       }
       if (t.dataset.shotlipsync) {
         await api(`/api/shots/${t.dataset.shotlipsync}/lipsync`, { json: { model_key: t.value || null } });
@@ -1137,6 +1155,10 @@ async function drawerClick(ev) {
       toast("Modèle changé");
       return reload();
     }
+    if (d.elunlink) {
+      await api(`/api/shots/${state.shotId}/elements`, { json: { element_id: +d.elunlink, remove: true } });
+      toast("Retiré du plan"); return reload();
+    }
     if (d.savedetail) {
       const text = document.getElementById("dt-" + d.savedetail).value;
       await api(`/api/shots/${d.savedetail}/detail`, { json: { text } });
@@ -1272,7 +1294,7 @@ function renderDecoupageTab(clip) {
           <input class="tc" type="text" inputmode="decimal" value="${esc(s.t_start)}" data-sf="${bi}:${si}:t_start" placeholder="0:00.0">
           <input class="tc" type="text" inputmode="decimal" value="${esc(s.t_end)}" data-sf="${bi}:${si}:t_end" placeholder="0:04.0">
           <span class="dur" data-dur="${bi}:${si}">${durText(s)}</span>
-          <textarea rows="1" data-sf="${bi}:${si}:description" placeholder="Ce qu'on voit, en une ligne">${esc(s.description)}</textarea>
+          <textarea rows="1" data-mention data-sf="${bi}:${si}:description" placeholder="Ce qu'on voit, en une ligne (tape @ pour citer un décor)">${esc(s.description)}</textarea>
           <span class="shot-acts">
             <label class="sing" title="Plan chanté face caméra : lip-sync"><input type="checkbox" ${s.singing ? "checked" : ""} data-sf="${bi}:${si}:singing"> ♪ chanté</label>
             ${si < b.shots.length - 1 ? `<button class="btn small ghost" data-mergeshot="${bi}:${si}" title="Fusionner avec le plan suivant">Fusionner avec le suivant</button>` : ""}
@@ -1284,7 +1306,7 @@ function renderDecoupageTab(clip) {
             <div class="row" style="gap:8px">${modelSelect(clip, s.model_key, `data-sf="${bi}:${si}:model_key" aria-label="Modèle vidéo"`)}
               <span data-fit="${bi}:${si}">${fitBadge(fitFor(clip, s.model_key, parseTc(s.t_end) - parseTc(s.t_start)))}</span></div>
             <details class="fold detail" ${s.detail ? "" : "open"}><summary>Prompt détaillé${s.detail_edited ? " · écrit par toi" : s.detail ? "" : " · à écrire"}</summary>
-              <textarea rows="3" data-sf="${bi}:${si}:detail" placeholder="Le plan en détail : sujet, action, décor, lumière, cadrage. Le script doctor le remplit, tu peux le réécrire.">${esc(s.detail || "")}</textarea></details>
+              <textarea rows="3" data-mention data-sf="${bi}:${si}:detail" placeholder="Le plan en détail : sujet, action, décor, lumière, cadrage. Le script doctor le remplit, tu peux le réécrire.">${esc(s.detail || "")}</textarea></details>
           </div>
         </div>`;
       }).join("")}
@@ -1307,7 +1329,7 @@ function renderDecoupageRead(clip) {
       ${b.look ? `<p class="hint" style="margin-bottom:8px">Lumière du bloc : ${esc(b.look)}</p>` : ""}
       ${shots.map((s) => `<div class="dec-shot" style="grid-template-columns:34px 170px 1fr auto">
         <span class="n">${s.num}</span><span class="mono" style="padding-top:2px">${tc(s.t_start)} → ${tc(s.t_end)} · ${durText({ t_start: s.t_start, t_end: s.t_end })}</span>
-        <span><a href="${shotHref(s.id)}">${esc(s.description)}</a><br><span class="hint">${esc([s.framing, s.motion, s.camera].filter(Boolean).join(" · "))}</span>
+        <span><a href="${shotHref(s.id)}">${mentionHtml(s.description)}</a><br><span class="hint">${esc([s.framing, s.motion, s.camera].filter(Boolean).join(" · "))}</span>
           <br>${fitBadge(s.fit)}</span>
         <span>${s.singing ? "♪" : ""}</span></div>`).join("")}</div>`;
   }).join("") + `<p class="hint">Le découpage est validé : pour changer un plan, ouvre-le et demande une modif.</p>`;
@@ -1946,7 +1968,7 @@ function renderVersion(ch, v) {
        La machine en tire une photo réaliste en haute définition, avec le même visage, en suivant la fiche ci-dessous.
        Le résultat arrive dans les candidates. Coût : environ 0,13 $, lancé seulement avec ton accord.`, draftBody) : ""}
     ${charPanel("Fiche du personnage",
-      `La description écrite de ${esc(ch.name)} : traits à respecter toujours, et à ne jamais faire. Elle est ajoutée à chaque demande d'image du personnage.`, adnBody)}
+      `La description écrite de ${esc(ch.name)}, avec ce qu'il faut toujours respecter et ne jamais faire. Elle est ajoutée telle quelle au prompt de la canon HD. L'agent de casting en part pour écrire les prompts du pack. Le storyboard en reprend les traits les plus marquants dans le prompt de chaque visuel de plan.`, adnBody)}
     ${charPanel("Pack de référence",
       `Une série de photos de ${esc(ch.name)} sous plusieurs angles, expressions et lumières, faites à partir de la canon.
        Les modèles s'en servent pour reproduire le même visage dans tous les plans. Écris ce que tu veux, l'agent prépare les demandes, tu les valides, puis tu gardes ou écartes chaque image.`, packBody)}
@@ -2149,8 +2171,15 @@ window.addEventListener("resize", () => fitAll());
 
 
 /* ---------- Décors, objets et figurants ---------- */
-const EL_KIND = { decor: ["Décors", "Les lieux du clip."], objet: ["Objets clés", "Les objets qui reviennent ou comptent pour l'histoire."],
-  figurant: ["Figurants", "Les personnages secondaires et les animaux (le chien, les voleurs…)."] };
+const EL_KIND = {
+  decor: ["Décors", "Les lieux du clip.", "D"],
+  figurant: ["Figurants", "Les personnages secondaires et les animaux.", "F"],
+  objet: ["Objets clés", "Les objets qui reviennent ou comptent pour l'histoire.", "O"] };
+const EL_STEP = {
+  start: ["Image de départ à déposer", "review"],
+  hd_todo: ["Image HD à lancer", "review"],
+  hd_wait: ["Image HD en cours ou à choisir", "work"],
+  done: ["Prêt", "done"] };
 
 async function loadDecors(clip, keep = false) {
   const box = document.getElementById("decors-tab");
@@ -2160,90 +2189,148 @@ async function loadDecors(clip, keep = false) {
   if (keep && json === state.decorsJson) return;
   state.decorsJson = json;
   const open = new Set(prefs("elopen:" + clip.slug) || []);
-  const byKind = { decor: [], objet: [], figurant: [] };
+  const byKind = { decor: [], figurant: [], objet: [] };
   d.elements.forEach((e) => (byKind[e.kind] || []).push(e));
+  const code = {};
+  Object.entries(byKind).forEach(([k, list]) => list.forEach((e, i) => { code[e.id] = `${EL_KIND[k][2]}${i + 1}`; }));
   const spendFor = (e) => d.spend.filter((r) => r.label.includes(`« ${e.name} »`));
+  const thumbOfEl = (e) => (e.images.find((i) => i.role === "hd" && i.status === "kept")
+    || e.images.find((i) => i.role === "draft") || {}).path;
+  const stateSelect = (e, attr) => `<select ${attr}><option value="">État de base</option>${e.states.map((x) => `<option>${esc(x)}</option>`).join("")}</select>`;
+  const ready = d.elements.filter((e) => e.step === "hd_todo");
+  const cost = (n) => money(n * d.hd_cost);
+
   const card = (e) => {
-    const kept = e.images.filter((i) => i.status === "kept");
-    const proposed = e.images.filter((i) => i.status === "proposed" || i.status === "generating");
+    const drafts = e.images.filter((i) => i.role === "draft");
+    const hdKept = e.images.filter((i) => i.role === "hd" && i.status === "kept");
+    const hdProp = e.images.filter((i) => i.role === "hd" && i.status !== "kept");
     const sp = spendFor(e);
-    const states = e.states.length ? e.states : [];
-    const isOpen = open.has(String(e.id)) || !kept.length;
-    return `<details class="panel elcard" data-elid="${e.id}" ${isOpen ? "open" : ""}>
-      <summary class="row">
-        ${kept[0] ? `<img class="elthumb" src="${media(kept[0].path)}" alt="">` : `<span class="elthumb none">?</span>`}
-        <span class="stack" style="gap:2px;flex:1;min-width:0"><b>${esc(e.name)}</b>
-          <span class="hint">${e.shots.length ? `Plans ${compactNums(e.shots)}` : "Relié à aucun plan"}${states.length ? ` · ${states.length} état${states.length > 1 ? "s" : ""}` : ""}</span></span>
-        ${kept.length ? pill("référence gardée", "done") : pill("à faire", "review")}
+    const isOpen = open.has(String(e.id));
+    const th = thumbOfEl(e);
+    const [stepTxt, stepCls] = EL_STEP[e.step];
+    const s1 = drafts.length > 0 || hdKept.some((i) => i.source === "michael");
+    const s3 = hdKept.length > 0;
+    return `<details class="elcard k-${e.kind}" id="el-${e.id}" data-elid="${e.id}" ${isOpen ? "open" : ""}>
+      <summary>
+        <span class="elcode">${code[e.id]}</span>
+        ${th ? `<img class="elthumb" src="${media(th)}" alt="">` : `<span class="elthumb none">?</span>`}
+        <span class="elname"><b>${esc(e.name)}</b>
+          <span class="hint">@${esc(e.slug)} · ${e.shots.length ? `plans ${compactNums(e.shots)}` : "relié à aucun plan"}</span></span>
+        ${pill(stepTxt, stepCls)}
       </summary>
-      <div class="stack">
-        <label class="hint">Fiche : ce qui ne change jamais (plan des lieux, matières, couleurs, lumière, style)</label>
-        <textarea data-elf="${e.id}:description" rows="3">${esc(e.description || "")}</textarea>
-        <label class="hint">États (un par ligne) : ce qui change au fil du clip, ex. « intact le matin », « vide au retour »</label>
-        <textarea data-elf="${e.id}:states" rows="2">${esc(states.join("\n"))}</textarea>
-        <div class="row"><button class="btn small" data-elsave="${e.id}">Enregistrer la fiche</button>
-          <span class="spacer"></span><button class="btn small ghost" data-eldel="${e.id}">Supprimer</button></div>
-        ${kept.length ? `<h3>Références gardées</h3>${elGrid(kept, false)}` : ""}
-        ${proposed.length ? `<h3>Propositions</h3>${elGrid(proposed, true)}` : ""}
-        ${sp.length ? spendRows(sp) : ""}
-        <div class="two-col">
-          ${dropZone("el:" + e.id, "Déposer tes images", "Photos, croquis ou images faites ailleurs. Elles servent de référence telles quelles.", "image/*", true)}
-          <div class="stack">
-            <select data-elstate="${e.id}"><option value="">État de base</option>${states.map((x) => `<option>${esc(x)}</option>`).join("")}</select>
-            <input type="text" data-elnotes="${e.id}" placeholder="Précision pour cette image (facultatif)">
-            <button class="btn go" data-elgen="${e.id}">Proposer une image réaliste</button>
-            <span class="hint">Environ 0,13 $, lancé seulement avec ton accord. Part de la fiche et de tes images.</span>
+      <div class="elbody">
+        <div class="elstep ${s1 ? "ok" : ""}">
+          <div class="elstep-h"><span class="num">1</span><b>Ton image de départ</b>
+            <span class="hint">L'image que tu as faite, même brute. L'image HD en repart.</span></div>
+          ${drafts.length ? elGrid(drafts, "draft") : ""}
+          <div class="row" style="gap:8px;align-items:flex-start">
+            ${e.states.length ? `<label class="field" style="min-width:180px"><span>Pour l'état</span>${stateSelect(e, `data-eldropstate="${e.id}"`)}</label>` : ""}
+            <div style="flex:1;min-width:220px">${dropZone(`el:${e.id}:draft`, drafts.length ? "Ajouter une image de départ" : "Déposer ton image de départ", "png, jpg ou webp", "image/*", true)}</div>
+          </div>
+          <details class="fold"><summary>J'ai déjà une image HD finie</summary><div class="stack" style="gap:6px">
+            <p class="hint">Elle sert directement de référence aux plans, sans génération.</p>
+            ${dropZone(`el:${e.id}:hd`, "Déposer une image HD finie", "png, jpg ou webp", "image/*", true)}</div></details>
+        </div>
+
+        <div class="elstep ${e.prompt_edited ? "ok" : ""}">
+          <div class="elstep-h"><span class="num">2</span><b>Prompt de l'image HD</b>
+            <span class="hint">${e.prompt_edited ? "Écrit par toi." : drafts.length ? "Proposé : il demande de garder ton image et d'en faire une version photoréaliste." : "Proposé à partir de la fiche. Dépose d'abord ton image de départ si tu en as une."}</span></div>
+          <textarea rows="6" data-elprompt="${e.id}">${esc(e.prompt_text)}</textarea>
+          <div class="row" style="gap:8px"><button class="btn small" data-elsaveprompt="${e.id}">Enregistrer le prompt</button>
+            ${e.prompt_edited ? `<button class="btn small ghost" data-elresetprompt="${e.id}">Revenir au prompt proposé</button>` : ""}</div>
+          <details class="fold"><summary>Fiche${e.description ? "" : " · vide"} et états</summary><div class="stack" style="gap:6px">
+            <label class="hint">Ce qui ne change jamais : plan des lieux, matières, couleurs, lumière, style</label>
+            <textarea data-elf="${e.id}:description" rows="4">${esc(e.description || "")}</textarea>
+            <label class="hint">États, un par ligne : ce qui change au fil du clip</label>
+            <textarea data-elf="${e.id}:states" rows="3">${esc(e.states.join("\n"))}</textarea>
+            <div class="row"><button class="btn small" data-elsave="${e.id}">Enregistrer la fiche</button>
+              <span class="spacer"></span><button class="btn small ghost" data-eldel="${e.id}">Supprimer l'élément</button></div></div></details>
+        </div>
+
+        <div class="elstep ${s3 ? "ok" : ""}">
+          <div class="elstep-h"><span class="num">3</span><b>Image HD</b>
+            <span class="hint">${s3 ? "Gardée : elle part en référence des visuels des plans." : "Les visuels des plans de cet élément l'attendent."}</span></div>
+          ${hdKept.length ? elGrid(hdKept, "kept") : ""}
+          ${hdProp.length ? `<p class="hint">Propositions : garde la bonne.</p>${elGrid(hdProp, "choose")}` : ""}
+          ${sp.length ? spendRows(sp) : ""}
+          <div class="row" style="gap:8px;align-items:flex-end">
+            ${e.states.length ? `<label class="field" style="min-width:180px"><span>État</span>${stateSelect(e, `data-elstate="${e.id}"`)}</label>` : ""}
+            <input type="text" data-elnotes="${e.id}" placeholder="Précision pour cette fois (facultatif)" style="flex:1;min-width:180px">
+            <button class="btn ${e.step === "hd_todo" ? "go" : ""}" data-elgen="${e.id}" ${d.hd_usable ? "" : "disabled"}>${hdKept.length || hdProp.length ? "Refaire" : "Générer"} l'image HD · ${money(d.hd_cost)}</button>
           </div>
         </div>
       </div>
     </details>`;
   };
-  const sections = Object.entries(EL_KIND).map(([k, [title, help]]) => `
-    <section class="stack" style="margin-top:14px"><h2>${title}</h2><p class="hint">${help}</p>
-      ${byKind[k].map(card).join("") || `<p class="hint">Aucun pour l'instant.</p>`}</section>`).join("");
-  const status = { todo: "L'agent décorateur va repérer les décors dès que le découpage est prêt.",
+
+  const tiles = Object.entries(byKind).filter(([, l]) => l.length).map(([k, list]) => `
+    <div class="eltiles-g"><h3>${EL_KIND[k][0]}</h3><div class="eltiles">${list.map((e) => {
+      const th = thumbOfEl(e);
+      return `<button class="eltile k-${e.kind} st-${e.step}" data-eljump="${e.id}">
+        ${th ? `<img src="${media(th)}" alt="">` : `<span class="none">${code[e.id]}</span>`}
+        <span class="t"><b>${code[e.id]}</b> ${esc(e.name)}</span><span class="s">${led(EL_STEP[e.step][1])}${EL_STEP[e.step][0]}</span></button>`;
+    }).join("")}</div></div>`).join("");
+
+  const sections = Object.entries(byKind).map(([k, list]) => `
+    <section class="elsection k-${k}">
+      <div class="elsection-h"><h2>${EL_KIND[k][0]}</h2><span class="hint">${list.length} · ${EL_KIND[k][1]}</span></div>
+      ${list.map(card).join("") || `<p class="hint">Aucun pour l'instant.</p>`}</section>`).join("");
+  const status = { todo: "L'agent décorateur repérera les décors dès que le découpage sera prêt.",
     requested: "L'agent décorateur repère les décors : la page se met à jour toute seule.",
-    done: "Repérage fait. Complète ou corrige ce qui manque." }[d.decors_status] || "";
+    done: "" }[d.decors_status] || "";
+  const nDone = d.elements.filter((e) => e.step === "done").length;
   box.innerHTML = `
     <section class="panel stack">
-      <p class="hint helptext">Les décors, les objets clés et les figurants gardent le clip cohérent : chaque visuel de plan
-        reçoit l'image de référence de son décor, de ses objets et de ses figurants, avec leur fiche.
-        Tu peux tout fournir toi-même (une fiche, tes images). Sinon l'agent décorateur les repère dans le découpage, écrit les fiches
-        et propose des images. Les visuels des plans attendent que chaque élément ait une référence gardée.</p>
-      <p class="hint">${status}</p>
-      <div class="row"><button class="btn" data-elrequest>${d.elements.length ? "Demander à l'agent de compléter" : "Demander à l'agent de repérer les décors"}</button></div>
+      <p class="hint helptext">Pour chaque décor, objet ou figurant : <b>1.</b> dépose ton image de départ,
+        <b>2.</b> ajuste le prompt si besoin, <b>3.</b> lance l'image HD et garde la bonne. L'image HD gardée part en référence
+        de tous les plans où l'élément apparaît. Dans un plan, tape <b>@</b> pour citer un élément.</p>
+      <div class="row" style="gap:10px">
+        <span class="hint"><b>${nDone} / ${d.elements.length}</b> prêts${status ? " · " + status : ""}</span><span class="spacer"></span>
+        ${ready.length ? `<button class="btn go" data-elgenready>Générer les ${ready.length} image${ready.length > 1 ? "s" : ""} HD prêtes · ${cost(ready.length)}</button>` : ""}
+        <button class="btn small ghost" data-elrequest>${d.elements.length ? "Demander à l'agent de compléter" : "Demander à l'agent de repérer les éléments"}</button>
+      </div>
+      ${d.hd_usable ? "" : `<p class="hint" style="color:#ffb547">Le modèle d'image HD (${esc(d.hd_model)}) n'est pas branché.</p>`}
+      ${d.elements.length ? `<div class="eltiles-wrap">${tiles}</div>` : ""}
     </section>
-    ${d.spend.length ? `<section class="panel stack" style="margin-top:14px"><h2>Images en attente de ton accord</h2>${spendRows(d.spend)}</section>` : ""}
     ${sections}
-    <section class="panel stack" style="margin-top:14px"><h2>Ajouter un élément</h2>
-      <select id="el-kind"><option value="decor">Décor</option><option value="objet">Objet clé</option><option value="figurant">Figurant</option></select>
-      <input type="text" id="el-name" placeholder="Nom (ex. Maison et jardin de JJ, le chien, le vélo électrique)">
+    <section class="panel stack" style="margin-top:18px"><h2>Ajouter un élément</h2>
+      <div class="row" style="gap:8px"><select id="el-kind"><option value="decor">Décor</option><option value="objet">Objet clé</option><option value="figurant">Figurant</option></select>
+      <input type="text" id="el-name" placeholder="Nom (ex. Maison et jardin, le chien, le vélo)" style="flex:1;min-width:200px"></div>
       <textarea id="el-desc" rows="3" placeholder="Fiche (facultatif) : à quoi il ressemble, ce qui ne change jamais"></textarea>
-      <div class="row"><button class="btn go" data-elnew>Ajouter</button><span class="hint">Tu pourras y déposer tes images ensuite.</span></div>
+      <div class="row"><button class="btn go" data-elnew>Ajouter</button><span class="hint">Tu y déposeras ton image de départ ensuite.</span></div>
     </section>`;
   box.querySelectorAll("details.elcard").forEach((el) => el.addEventListener("toggle", () => {
     const set = new Set(prefs("elopen:" + clip.slug) || []);
     if (el.open) set.add(el.dataset.elid); else set.delete(el.dataset.elid);
     prefs("elopen:" + clip.slug, [...set]);
   }));
+  const remember = (id) => prefs("elopen:" + clip.slug, [...new Set([...(prefs("elopen:" + clip.slug) || []), String(id)])]);
   bindDrops(box, async (kind, files) => {
-    const id = kind.split(":")[1];
+    const [, id, role] = kind.split(":");
     const fd = new FormData();
     [...files].forEach((f) => fd.append("files", f));
-    const st = box.querySelector(`[data-elstate="${id}"]`);
-    fd.set("state", st ? st.value : "");
-    toast("Envoi des images…");
-    try { await upload(`/api/elements/${id}/images`, fd); toast("Images ajoutées comme références"); loadDecors(clip); }
-    catch (e) { toast(e.message, "err"); }
+    const st = box.querySelector(`[data-eldropstate="${id}"]`);
+    fd.set("state", role === "draft" && st ? st.value : "");
+    fd.set("role", role);
+    toast("Envoi…");
+    try {
+      await upload(`/api/elements/${id}/images`, fd); remember(id);
+      toast(role === "draft" ? "Image de départ ajoutée : vérifie le prompt puis lance l'HD" : "Image HD gardée comme référence");
+      loadDecors(clip);
+    } catch (e) { toast(e.message, "err"); }
   });
   box.onclick = async (ev) => {
     const t = ev.target.closest("button, [data-zoom]");
     if (!t) return;
-    ev.stopPropagation();
     const dd = t.dataset;
     const reload = () => loadDecors(clip);
     try {
-      if (dd.zoom) return lightbox(dd.zoom);
+      if (dd.zoom) { ev.preventDefault(); return lightbox(dd.zoom); }
+      if (dd.eljump) {
+        remember(dd.eljump);
+        const c = document.getElementById("el-" + dd.eljump);
+        c.open = true; c.scrollIntoView({ behavior: "smooth", block: "start" }); return;
+      }
       if (dd.spenddo) {
         t.disabled = true;
         await api("/api/spend/decide", { json: { ids: dd.ids.split(",").map(Number), decision: dd.spenddo } });
@@ -2254,13 +2341,20 @@ async function loadDecors(clip, keep = false) {
         await api(`/api/clips/${encodeURIComponent(clip.slug)}/decors/request`, { method: "POST" });
         toast("L'agent décorateur démarre dans la minute"); return reload();
       }
+      if (dd.elgenready !== undefined) {
+        if (needsConfirm(t, "elgenready")) return;
+        t.disabled = true;
+        const r = await api(`/api/clips/${encodeURIComponent(clip.slug)}/elements/generate-ready`, { method: "POST" });
+        toast(`${r.launched} image${r.launched > 1 ? "s" : ""} HD lancée${r.launched > 1 ? "s" : ""} · ${money(r.cost_usd)}`);
+        refreshSys(); return reload();
+      }
       if (dd.elnew !== undefined) {
         const name = document.getElementById("el-name").value.trim();
         if (!name) { toast("Donne un nom", "err"); return; }
         const e = await api(`/api/clips/${encodeURIComponent(clip.slug)}/elements`, { json: {
           kind: document.getElementById("el-kind").value, name, description: document.getElementById("el-desc").value } });
-        prefs("elopen:" + clip.slug, [...new Set([...(prefs("elopen:" + clip.slug) || []), String(e.id)])]);
-        toast("Ajouté : dépose tes images ou demande une proposition"); return reload();
+        remember(e.id);
+        toast("Ajouté : dépose ton image de départ"); return reload();
       }
       if (dd.elsave) {
         const desc = box.querySelector(`[data-elf="${dd.elsave}:description"]`).value;
@@ -2268,36 +2362,111 @@ async function loadDecors(clip, keep = false) {
         await api(`/api/elements/${dd.elsave}`, { json: { description: desc, states } });
         toast("Fiche enregistrée"); return reload();
       }
+      if (dd.elsaveprompt || dd.elresetprompt) {
+        const id = dd.elsaveprompt || dd.elresetprompt;
+        const text = dd.elresetprompt ? "" : box.querySelector(`[data-elprompt="${id}"]`).value;
+        await api(`/api/elements/${id}/prompt`, { json: { text } });
+        toast(dd.elresetprompt ? "Prompt proposé remis" : "Prompt enregistré"); return reload();
+      }
       if (dd.eldel) {
         if (needsConfirm(t, "eldel" + dd.eldel)) return;
         await api(`/api/elements/${dd.eldel}`, { method: "DELETE" });
         toast("Supprimé"); return reload();
       }
       if (dd.elgen) {
-        const state = box.querySelector(`[data-elstate="${dd.elgen}"]`).value || null;
-        const notes = box.querySelector(`[data-elnotes="${dd.elgen}"]`).value || "";
-        const r = await api(`/api/elements/${dd.elgen}/generate`, { json: { state, notes } });
-        toast(r.spend_request ? `Demande prête : ${money(r.est_usd)}, à lancer ci-dessus` : "Image lancée");
+        if (needsConfirm(t, "elgen" + dd.elgen)) return;
+        t.disabled = true;
+        const st = box.querySelector(`[data-elstate="${dd.elgen}"]`);
+        const r = await api(`/api/elements/${dd.elgen}/generate`, { json: {
+          state: st ? st.value || null : null,
+          notes: box.querySelector(`[data-elnotes="${dd.elgen}"]`).value || "",
+          prompt: box.querySelector(`[data-elprompt="${dd.elgen}"]`).value } });
+        toast(`Image HD lancée · ${money(r.cost_usd)} : elle arrive dans une à deux minutes`);
         refreshSys(); return reload();
       }
       if (dd.elpick) {
         const [id, decision] = dd.elpick.split(":");
         await api(`/api/element-images/${id}`, { json: { decision } });
-        toast(decision === "keep" ? "Gardée comme référence" : "Écartée et supprimée"); return reload();
+        toast(decision === "keep" ? "Gardée comme référence" : "Retirée"); return reload();
       }
-    } catch (err) { toast(err.message, "err"); }
+    } catch (err) { toast(err.message, "err"); reload(); }
   };
 }
 
-function elGrid(list, choose) {
-  return `<div class="packgrid">${list.map((i) => `<div class="packitem">
+function elGrid(list, mode) {
+  return `<div class="packgrid elgrid">${list.map((i) => `<div class="packitem ${mode === "kept" ? "kept" : ""}">
       ${i.status === "generating" ? `<div class="none" style="aspect-ratio:4/3;display:grid;place-items:center">${led("work")} en cours</div>`
         : `<img src="${media(i.path)}" data-zoom="${media(i.path)}" alt="">`}
-      <div class="pi"><span class="hint">${esc(i.state || "état de base")}${i.source === "michael" ? " · ton image" : ""}</span>
-        ${choose && i.status === "proposed" ? `<div class="row" style="gap:6px"><button class="btn small ok" data-elpick="${i.id}:keep">Garder</button>
+      <div class="pi"><span class="hint">${esc(i.state || "état de base")}${i.source === "michael" && mode === "kept" ? " · ton image" : ""}</span>
+        ${mode === "choose" && i.status === "proposed" ? `<div class="row" style="gap:6px"><button class="btn small ok" data-elpick="${i.id}:keep">Garder</button>
           <button class="btn small" data-elpick="${i.id}:reject">Écarter</button></div>` : ""}
-        ${!choose ? `<button class="btn small ghost" data-elpick="${i.id}:reject">Retirer</button>` : ""}</div></div>`).join("")}</div>`;
+        ${mode !== "choose" ? `<button class="btn small ghost" data-elpick="${i.id}:reject">Retirer</button>` : ""}</div></div>`).join("")}</div>`;
 }
+
+/* ---------- Références @ dans les plans ---------- */
+const normTxt = (s) => (s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+
+function mentionHtml(text) {
+  const idx = Object.fromEntries(((state.clip && state.clip.elements) || []).map((e) => [e.slug, e]));
+  return esc(text || "").replace(/@([a-z0-9][a-z0-9-]*[a-z0-9]|[a-z0-9])/g, (m, slug) =>
+    idx[slug] ? `<span class="mention k-${idx[slug].kind}" title="@${slug}">${esc(idx[slug].name)}</span>` : m);
+}
+
+const mention = { box: null, ta: null, start: 0, items: [], sel: 0 };
+function mentionClose() { if (mention.box) mention.box.hidden = true; mention.ta = null; }
+function mentionInsert(i) {
+  const e = mention.items[i]; const ta = mention.ta;
+  if (!e || !ta) return;
+  const pos = ta.selectionStart;
+  ta.value = ta.value.slice(0, mention.start) + "@" + e.slug + " " + ta.value.slice(pos);
+  const caret = mention.start + e.slug.length + 2;
+  ta.setSelectionRange(caret, caret);
+  ta.dispatchEvent(new Event("input", { bubbles: true }));
+  mentionClose(); ta.focus();
+}
+function mentionDraw() {
+  if (!mention.box) {
+    mention.box = document.createElement("div");
+    mention.box.className = "mention-menu";
+    mention.box.addEventListener("pointerdown", (ev) => {
+      const b = ev.target.closest("[data-mi]"); if (!b) return;
+      ev.preventDefault(); mentionInsert(+b.dataset.mi);
+    });
+    document.body.appendChild(mention.box);
+  }
+  const r = mention.ta.getBoundingClientRect();
+  mention.box.style.left = `${Math.max(8, Math.min(r.left, innerWidth - 300))}px`;
+  mention.box.style.top = `${r.bottom + 4}px`;
+  mention.box.innerHTML = mention.items.map((e, i) => `<div class="mi ${i === mention.sel ? "on" : ""}" data-mi="${i}">
+      ${e.thumb ? `<img src="${media(e.thumb)}" alt="">` : `<span class="none"></span>`}
+      <span><b>${esc(e.name)}</b><span class="hint">${({ decor: "Décor", objet: "Objet", figurant: "Figurant" })[e.kind]} · @${esc(e.slug)}</span></span></div>`).join("")
+    || `<div class="mi"><span class="hint">Aucun élément de ce nom. Crée-le dans l'onglet Décors.</span></div>`;
+  mention.box.hidden = false;
+}
+document.addEventListener("input", (ev) => {
+  const ta = ev.target;
+  if (!ta.matches || !ta.matches("textarea[data-mention], input[data-mention]")) return;
+  if (ev.isTrusted === false && mention.ta === null) return;
+  const before = ta.value.slice(0, ta.selectionStart);
+  const m = before.match(/(^|[\s(])@([\p{L}0-9-]*)$/u);
+  if (!m) { mentionClose(); return; }
+  const q = normTxt(m[2]);
+  const all = (state.clip && state.clip.elements) || [];
+  mention.ta = ta; mention.start = before.length - m[2].length - 1; mention.sel = 0;
+  mention.items = all.filter((e) => !q || e.slug.includes(q) || normTxt(e.name).includes(q)).slice(0, 8);
+  mentionDraw();
+});
+document.addEventListener("keydown", (ev) => {
+  if (!mention.ta || ev.target !== mention.ta || mention.box.hidden) return;
+  if (ev.key === "ArrowDown" || ev.key === "ArrowUp") {
+    ev.preventDefault();
+    mention.sel = (mention.sel + (ev.key === "ArrowDown" ? 1 : -1) + mention.items.length) % Math.max(1, mention.items.length);
+    mentionDraw();
+  } else if (ev.key === "Enter" || ev.key === "Tab") {
+    if (mention.items.length) { ev.preventDefault(); mentionInsert(mention.sel); }
+  } else if (ev.key === "Escape") mentionClose();
+}, true);
+document.addEventListener("focusout", (ev) => { if (ev.target === mention.ta) setTimeout(mentionClose, 150); });
 
 function compactNums(nums) {
   const out = []; let a = null, b = null;

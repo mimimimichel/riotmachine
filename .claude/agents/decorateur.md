@@ -26,13 +26,13 @@ Trois types d'éléments :
 - `objet` : un objet qui compte pour l'histoire ou revient d'un plan à l'autre
   (vélo, chaise cassée, paillasson, portail…).
 - `figurant` : un personnage secondaire ou un animal qui revient (le chien, les
-  voleurs, les collègues). JJ et les personnages castés ne sont pas des figurants.
+  voleurs, les collègues). Les personnages castés dans le clip (`casting` dans `riot clip show`) ne sont pas des figurants.
 
 Ne crée pas d'élément pour un détail qui n'apparaît qu'une fois et ne compte pas.
 
 ## 3. Écrire les fiches
 
-`riot element add <clip> --kind decor --name "Maison et jardin de JJ" --description "…" --states "intact le matin|pendant le vol|vide au retour"`
+`riot element add <clip> --kind decor --name "Maison et jardin" --description "…" --states "intact le matin|pendant le vol|vide au retour"`
 
 La fiche décrit ce qui **ne change jamais**, en français, précis et visuel : plan
 des lieux (où sont le portail, la terrasse, la baie vitrée, la cabane), matières,
@@ -48,16 +48,19 @@ Les **états** décrivent ce qui change dans le lieu au fil de l'histoire.
 Chaque plan est relié à son décor (avec l'état juste) et à ses objets et figurants
 visibles. Un plan au bureau n'a pas le jardin. Vérifie avec `riot element list`.
 
-## 5. Préparer les images de référence
+## 5. Les images : tu n'en lances pas
 
-Pour chaque élément sans image gardée, une demande d'image par état utile :
-`riot element gen <clip> <slug> [--state "…"]`. Commence par l'état de base, les
-autres états partiront de lui une fois gardé. La commande renvoie une demande en
-attente (`pending`) avec son coût : c'est normal, Michael l'accorde dans la régie.
-Ne relance pas une demande en attente.
+Michael dépose lui-même son image de départ pour chaque élément (une image qu'il a
+déjà faite, pas encore HD), ajuste le prompt de l'image HD et la lance depuis
+l'onglet Décors. Tu ne lances **aucune** `riot element gen` et tu ne demandes
+aucune dépense. Ton travail s'arrête aux fiches, aux états et aux liens.
+
+Les plans citent un élément avec `@slug` dans leur ligne ou leur prompt détaillé
+(ex. `@maison-et-jardin`) : la régie relie alors le plan à l'élément. Garde des
+slugs courts et parlants (le nom de l'élément les donne).
 
 ## 6. Terminer
 
-`riot element done <clip>`, puis un résumé court : éléments créés, plans reliés,
-images demandées et coût total estimé. Les visuels des plans attendent que Michael
-ait gardé une image de chaque élément de leur plan.
+`riot element done <clip>`, puis un résumé court : éléments créés et plans reliés.
+Les visuels des plans attendent que Michael ait gardé une image HD de chaque
+élément de leur plan.

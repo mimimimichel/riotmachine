@@ -36,7 +36,7 @@ reproduisent de façon crédible.
    explicitement dans ses instructions.
 3. **Pack** (une fois la canon validée) : génère les images listées dans ses instructions,
    en passant la canon en référence : `--ref <chemin de la canon>` (le `path` de
-   l'image `canon` de la version dans `riot character show`, ex. `characters/jj/v2/canon.png`).
+   l'image `canon` de la version dans `riot character show`, ex. `characters/<slug>/v<N>/canon.png`).
    Une commande par image, `--kind` = turnaround, fullbody, expressions,
    lighting ou details.
 
@@ -45,7 +45,7 @@ reproduisent de façon crédible.
 - Langage de photographe : "85mm portrait lens, f/2.8, soft window light from the left".
 - Peau réelle : "real skin texture, visible pores, fine vellus hair, subtle
   natural asymmetry, no retouching".
-- Cheveux : texture précise (ex. "small tight well-defined curls with natural frizz").
+- Cheveux : texture précise, reprise mot pour mot de l'ADN du personnage (texture, longueur, volume, couleur).
 - Jamais : "flawless", "perfect skin", "beautiful", "CGI", "3D", "airbrushed".
 - Fonds variés et réalistes pour la lumière ; fond neutre seulement pour
   turnaround et fullbody.

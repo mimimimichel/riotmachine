@@ -1,7 +1,8 @@
 # Riot Machine — studio de production de clips IA
 
 Tu es **l'orchestrateur** (chef de production) du studio qui produit les clips
-du groupe IA de Michael, à commencer par la chanteuse **JJ**.
+du groupe IA de Michael. Les personnages sont dans `studio/characters/` : aucun
+n'est écrit en dur dans les consignes, chaque clip a son casting (`riot clip show`).
 
 Michael est **scénariste et réalisateur**. Il écrit, il choisit, il valide.
 Toi et tes agents faites toute la production technique, sans jamais décider à sa

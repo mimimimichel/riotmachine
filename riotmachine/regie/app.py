@@ -20,7 +20,7 @@ from fastapi.responses import HTMLResponse, FileResponse, JSONResponse, Redirect
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from .. import db, media, production, routing
+from .. import db, media, production, providers, routing
 from ..settings import get_settings
 
 STATIC = Path(__file__).parent / "static"
@@ -162,7 +162,7 @@ def providers() -> dict[str, Any]:
     """Page Fournisseurs : état, crédits, offres comparées sur un plan type de 6 s, carnet de rodage."""
     from .. import credits
     conn = _conn()
-    sample = {"t_start": 0, "t_end": 6, "motion": "medium", "framing": "MS", "characters": ["jj"]}
+    sample = {"t_start": 0, "t_end": 6, "motion": "medium", "framing": "MS", "characters": []}
     models = []
     for m in routing.video_models():
         est = routing.route_shot(sample, model_key=m["key"])
@@ -342,7 +342,7 @@ async def new_clip(
     pitch: str = Form(""),
     concept: str = Form(""),
     lyrics_text: str = Form(""),
-    characters: str = Form("jj"),
+    characters: str = Form(""),
     aspect: str = Form("16:9"),
     budget: float | None = Form(None),
     song: UploadFile = File(...),
@@ -590,6 +590,11 @@ class ElementIn(BaseModel):
 class ElementGen(BaseModel):
     state: str | None = None
     notes: str = ""
+    prompt: str | None = None   # prompt de l'image HD tel que Michael le voit (enregistré avant le lancement)
+
+
+class ElementPrompt(BaseModel):
+    text: str = ""
 
 
 class ShotElementIn(BaseModel):
@@ -607,8 +612,10 @@ def clip_elements(slug: str) -> dict[str, Any]:
              and r["clip_slug"] == slug]
     shots = [{"id": r["id"], "num": r["num"], "description": r["description"]} for r in
              conn.execute("SELECT id, num, description FROM shots WHERE clip_slug=? ORDER BY num", (slug,))]
+    key, mcfg, cost = elements.hd_model()
     return {"elements": elements.clip_elements(conn, slug), "decors_status": clip.get("decors_status"),
-            "spend": spend, "shots": shots}
+            "spend": spend, "shots": shots, "hd_cost": round(cost, 3), "hd_model": mcfg.get("label", key),
+            "hd_usable": routing.provider_usable(mcfg.get("provider", "fal"))}
 
 
 @app.post("/api/clips/{slug}/elements")
@@ -641,12 +648,13 @@ def remove_element(element_id: int) -> dict[str, Any]:
 
 
 @app.post("/api/elements/{element_id}/images")
-async def element_images(element_id: int, files: list[UploadFile] = File(...), state: str = Form("")) -> dict[str, Any]:
+async def element_images(element_id: int, files: list[UploadFile] = File(...), state: str = Form(""),
+                         role: str = Form("draft")) -> dict[str, Any]:
     from .. import elements
     tmp = Path(tempfile.mkdtemp(prefix="riot-upload-"))
     try:
         conn = _conn()
-        return {"ok": True, "images": [elements.add_image(conn, element_id, p, state or None)
+        return {"ok": True, "images": [elements.add_image(conn, element_id, p, state or None, role=role)
                                        for p in _save_uploads(tmp, files, "element")]}
     except production.ProductionError as exc:
         raise _error(exc)
@@ -659,10 +667,36 @@ def element_generate(element_id: int, body: ElementGen) -> dict[str, Any]:
     from .. import elements
     conn = _conn()
     try:
+        if body.prompt is not None:
+            elements.set_prompt(conn, element_id, body.prompt)
         e = elements._element(conn, element_id)
-        prompt = elements.generation_prompt(e, body.state, body.notes.strip()) if body.notes.strip() else None
-        return elements.launch_image(conn, element_id, body.state, prompt)
+        prompt = None
+        if body.notes.strip():
+            has_draft = bool(elements._draft_for_state(conn, element_id, body.state)
+                             or elements._draft_for_state(conn, element_id, None))
+            prompt = elements.generation_prompt(e, body.state, body.notes.strip(), from_draft=has_draft)
+        # Michael clique sur un bouton qui affiche le coût : c'est son accord
+        return elements.launch_image(conn, element_id, body.state, prompt, approved=True)
+    except (production.ProductionError, providers.ProviderError) as exc:
+        raise _error(exc)
+
+
+@app.post("/api/elements/{element_id}/prompt")
+def element_prompt(element_id: int, body: ElementPrompt) -> dict[str, Any]:
+    from .. import elements
+    try:
+        elements.set_prompt(_conn(), element_id, body.text)
     except production.ProductionError as exc:
+        raise _error(exc)
+    return {"ok": True}
+
+
+@app.post("/api/clips/{slug}/elements/generate-ready")
+def elements_generate_ready(slug: str) -> dict[str, Any]:
+    from .. import elements
+    try:
+        return elements.launch_ready(_conn(), slug)
+    except (production.ProductionError, providers.ProviderError) as exc:
         raise _error(exc)
 
 

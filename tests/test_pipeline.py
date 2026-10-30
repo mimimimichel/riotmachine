@@ -373,12 +373,27 @@ def test_elements_flow(studio, tmp_path):
     img = tmp_path / "j.jpg"
     subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "color=c=green:s=320x240",
                     "-frames:v", "1", str(img)], check=True)
-    elements.add_image(conn, e["id"], img)
-    refs, text = elements.shot_context(conn, ids[0])
-    assert refs and "Jardin de JJ" in text and "vide au retour" in text
-    production.launch_image(conn, ids[0])               # simulation : part directement
-    res = elements.launch_image(conn, e["id"], "vide au retour")
+    elements.add_image(conn, e["id"], img)               # image de départ : ne débloque pas les plans
+    assert elements.missing_refs(conn, ids[0]) == ["Jardin de JJ"]
+    ce = elements.clip_elements(conn, "decors")[0]
+    assert ce["step"] == "hd_todo" and "director's draft" in ce["prompt_text"]
+    elements.set_prompt(conn, e["id"], "Mon prompt à moi")
+    res = elements.launch_image(conn, e["id"], "vide au retour", approved=True)
+    job = conn.execute("SELECT * FROM jobs WHERE target_table='element_images' AND target_id=?",
+                       (res["image_id"],)).fetchone()
+    assert job is not None
     worker.tick(conn, wake=False)
-    gen = conn.execute("SELECT status FROM element_images WHERE id=?", (res["image_id"],)).fetchone()[0]
-    assert gen == "proposed"
+    gen = conn.execute("SELECT status, prompt FROM element_images WHERE id=?", (res["image_id"],)).fetchone()
+    assert gen["status"] == "proposed" and gen["prompt"].startswith("Mon prompt à moi")
+    elements.pick(conn, res["image_id"], "keep")
+    refs, text = elements.shot_context(conn, ids[0])
+    assert refs and "Jardin de JJ" in text and "vide au retour" in text and "@jardin-de-jj" in text
+    production.launch_image(conn, ids[0])               # simulation : part directement
     assert len(elements.clip_elements(conn, "decors")[0]["shots"]) == 2
+    # une image HD déposée telle quelle sert directement de référence
+    e2 = elements.create(conn, "decors", "objet", "Vélo", "Vélo rouge")
+    elements.add_image(conn, e2["id"], img, role="hd")
+    assert elements.clip_elements(conn, "decors")[1]["step"] == "done"
+    # @slug dans un plan relie l'élément
+    production.update_shot(conn, ids[1], description="Le @velo contre le mur")
+    assert [x["slug"] for x in elements.for_shot(conn, ids[1])] == ["jardin-de-jj", "velo"]

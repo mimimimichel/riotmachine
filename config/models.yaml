@@ -278,7 +278,7 @@ models:
     prompt_guide: |
       Kling 3 : très bon sur les mouvements de corps et la physique des cheveux et tissus.
       Décrire l'action pas à pas dans l'ordre chronologique, puis la caméra.
-      Préciser ce qui reste stable ("her face stays consistent, same outfit").
+      Préciser ce qui reste stable ("the character's face stays consistent, same outfit").
       negative_prompt utile : "blur, distorted hands, extra fingers, morphing face, low quality".
 
   kling-3-pro:
@@ -321,8 +321,8 @@ models:
     final_params: {resolution: "1080p"}
     prompt_guide: |
       Seedance 2.0 : le meilleur pour la danse et les mouvements complexes.
-      Décrire la chorégraphie en 2-3 temps ("she steps left, spins, then raises both arms on the beat").
-      Préciser la caméra ("camera orbits slowly around her", "wide static shot").
+      Décrire la chorégraphie en 2-3 temps ("the dancer steps left, spins, then raises both arms on the beat").
+      Préciser la caméra ("camera orbits slowly around the dancer", "wide static shot").
       Indiquer le tempo du morceau en mots ("energetic, on the beat", "slow sensual groove").
 
   seedance-2-mini:

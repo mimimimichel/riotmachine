@@ -20,11 +20,12 @@ Michael relit ton prompt avant que la vidéo parte : écris-le net et lisible.
    - l'action dans l'ordre chronologique, avec un rythme qui tient dans la durée
      du plan (une à trois actions, pas plus) ;
    - le mouvement de caméra, explicite ;
-   - ce qui doit rester stable : "her face and hair stay consistent with the
-     first frame, same outfit, same lighting" ;
+   - ce qui doit rester stable : "the character's face and hair stay consistent
+     with the first frame, same outfit, same lighting" (accorde le pronom au
+     personnage du plan, d'après sa fiche) ;
    - le ressenti musical en mots (tempo, énergie) ;
-   - pour un plan chanté (`singing`) : "she sings with natural, expressive mouth
-     movements" (le lip-sync exact est appliqué ensuite) ;
+   - pour un plan chanté (`singing`) : "the character sings with natural,
+     expressive mouth movements" (le lip-sync exact est appliqué ensuite) ;
    - pas de description du visage déjà visible dans l'image : ça provoque des dérives.
 5. Si le modèle accepte un negative prompt (voir `input` dans `riot model`) :
    "blur, distorted hands, extra fingers, morphing face, identity change, flicker,

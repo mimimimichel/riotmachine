@@ -602,7 +602,7 @@ def _canon_hd_prompt(vdir: Path) -> str:
     adn = (vdir / "adn.md").read_text(encoding="utf-8") if (vdir / "adn.md").is_file() else ""
     instr = (vdir / "instructions.md").read_text(encoding="utf-8") if (vdir / "instructions.md").is_file() else ""
     return ("Turn the reference image into a true photograph of the same person: keep exactly the same face shape, "
-            "eyes (shape and color), nose, lips, skin tone, freckles, hair (texture, length, volume, color), "
+            "eyes (shape and color), nose, lips, skin tone, skin marks (freckles, moles, scars) if any, hair (texture, length, volume, color), "
             "outfit and pose. Do not beautify, do not change identity. Real skin texture with visible pores and fine "
             "vellus hair, slight natural asymmetry, no retouching. Portrait photography, 85mm lens, f/2.8, soft "
             "natural light, neutral background, true-to-life colors, high resolution."
@@ -1019,6 +1019,9 @@ def import_shots(conn: sqlite3.Connection, slug: str, shots: Any, by: str = "age
             conn.execute("DELETE FROM blocks WHERE id=?", (bid,))
         conn.execute("UPDATE clips SET updated_at=? WHERE slug=?", (db.now(), slug))
         db.log_event(conn, slug, "decoupage", f"Découpage enregistré : {len(blocks)} blocs, {num} plans")
+    from . import elements
+    for r in conn.execute("SELECT id FROM shots WHERE clip_slug=?", (slug,)).fetchall():
+        elements.link_mentions(conn, r["id"])
     return num
 
 
@@ -1070,6 +1073,9 @@ def update_shot(conn: sqlite3.Connection, shot_id: int, **fields: Any) -> dict:
         values.append(v)
     if sets:
         conn.execute(f"UPDATE shots SET {', '.join(sets)}, updated_at=? WHERE id=?", (*values, db.now(), shot_id))
+        if "description" in fields or "detail" in fields:
+            from . import elements
+            elements.link_mentions(conn, shot_id)
     return db.get_shot(conn, shot_id)
 
 
@@ -1079,6 +1085,8 @@ def set_detail(conn: sqlite3.Connection, shot_id: int, text: str) -> dict:
     conn.execute("UPDATE shots SET detail=?, detail_edited=?, updated_at=? WHERE id=?",
                  (text.strip() or None, 1 if text.strip() else 0, db.now(), shot_id))
     db.log_event(conn, shot["clip_slug"], "decoupage", f"Plan {shot['num']} : prompt détaillé modifié par Michael")
+    from . import elements
+    elements.link_mentions(conn, shot_id)
     return db.get_shot(conn, shot_id)
 
 
@@ -1819,6 +1827,9 @@ def shot_view(conn: sqlite3.Connection, shot: dict) -> dict:
     if shot["status"] == "video_review":
         s["model_options"] = routing.model_options(shot)
     s["historique"] = db.shot_notes(conn, shot["id"])
+    from . import elements
+    s["elements"] = [{"id": e["id"], "slug": e["slug"], "name": e["name"], "kind": e["kind"], "state": e["shot_state"],
+                      "states": e["states"], "ref": (e["refs"] or [None])[0]} for e in elements.for_shot(conn, shot["id"])]
     # modèle vidéo effectif (choisi, ou celui par défaut) et écart de durée
     key = shot.get("model_key") or routing.default_video_model()
     try:
@@ -1865,7 +1876,7 @@ def clip_snapshot(conn: sqlite3.Connection, slug: str, compact: bool = False) ->
     clip["credits_used_usd"] = round(db.clip_cost(conn, slug, "credits"), 3)
     clip["decors_pending"] = conn.execute(
         "SELECT COUNT(*) FROM elements e WHERE e.clip_slug=? AND NOT EXISTS (SELECT 1 FROM element_images i "
-        "WHERE i.element_id=e.id AND i.status='kept')", (slug,)).fetchone()[0]
+        "WHERE i.element_id=e.id AND i.status='kept' AND i.role='hd')", (slug,)).fetchone()[0]
     counts: dict[str, int] = {}
     for s in shots:
         counts[s["status"]] = counts.get(s["status"], 0) + 1
@@ -1887,6 +1898,8 @@ def clip_snapshot(conn: sqlite3.Connection, slug: str, compact: bool = False) ->
         clip["video_default"] = routing.default_video_model()
         clip["video_models"] = routing.video_models()
         clip["lipsync_models"] = routing.lipsync_options()
+        from . import elements
+        clip["elements"] = elements.index(conn, slug)
         clip["video_cost_usd"] = round(sum(sh.get("video_cost") or (sh.get("estimate") or {}).get("cost_total_usd") or 0
                                            for sh in clip["shots"]), 2)
         clip["incomplete"] = [sh["num"] for sh in clip["shots"] if not (sh.get("framing") and sh.get("motion")
@@ -1922,7 +1935,7 @@ def needs_agent(conn: sqlite3.Connection, slug: str) -> dict:
                              "(SELECT shot_id FROM spend_requests WHERE shot_id IS NOT NULL "
                              "AND status IN ('pending','approved')) AND id NOT IN "
                              "(SELECT se.shot_id FROM shot_elements se WHERE NOT EXISTS (SELECT 1 FROM element_images ei "
-                             "WHERE ei.element_id=se.element_id AND ei.status='kept'))", (slug, status)).fetchone()[0]
+                             "WHERE ei.element_id=se.element_id AND ei.status='kept' AND ei.role='hd'))", (slug, status)).fetchone()[0]
             if n:
                 reasons.append(f"{status}: {n} plan(s)")
     brief_sig = None
