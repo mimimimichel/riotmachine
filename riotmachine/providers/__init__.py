@@ -42,6 +42,9 @@ def submit(model_cfg: dict, payload: dict, *, kind: str, label: str = "", second
            force_mock: bool = False) -> dict[str, str]:
     from .. import routing
     provider = model_cfg.get("provider", "fal")
+    if provider == "vertex" and kind == "image" and not simulated(provider):
+        # règle de Michael (30/10/2026) : les crédits Google Cloud sont réservés à la vidéo
+        raise ProviderError("Les crédits Google Cloud sont réservés à la vidéo : aucune image ne part chez Google.")
     if not simulated(provider) and not routing.provider_has_key(provider):
         # plus de démo : jamais de fichier factice dans un vrai clip
         cfg = (routing.models_cfg().get("providers") or {}).get(provider) or {}

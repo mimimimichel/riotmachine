@@ -295,11 +295,11 @@ def test_canon_hd_flow(studio, tmp_path):
     production.upload_canon_draft(conn, "nova", 1, img)
     worker.tick(conn, wake=False)
     hd = conn.execute("SELECT * FROM character_assets WHERE kind='canon' AND parent_id IS NOT NULL").fetchone()
-    assert hd["status"] == "proposed" and hd["model_key"] == "nano-banana-pro-vertex"
+    assert hd["status"] == "proposed" and hd["model_key"] == "nano-banana-pro"   # jamais Google pour une image
     production.review_canon_hd(conn, hd["id"], "redo", "les yeux ont changé")
     worker.tick(conn, wake=False)
     hd2 = conn.execute("SELECT * FROM character_assets WHERE kind='canon' AND status='proposed'").fetchone()
-    assert hd2["model_key"] == "nano-banana-pro-vertex"
+    assert hd2["model_key"] == "nano-banana-pro"
     assert conn.execute("SELECT status FROM character_assets WHERE id=?", (hd["id"],)).fetchone()[0] == "rejected"
     production.review_canon_hd(conn, hd2["id"], "approve")
     v = production.character_version(conn, "nova", 1)
@@ -342,6 +342,7 @@ def test_spend_needs_approval(studio, monkeypatch):
     sid = conn.execute("SELECT id FROM shots").fetchone()["id"]
     production.update_shot(conn, sid, image_prompt="x")
     monkeypatch.setattr(prov, "simulated", lambda provider="fal": False)
+    monkeypatch.setattr(routing, "provider_has_key", lambda key: True)   # fal branché pour ce test
     real_submit = prov.submit
     calls = []
     monkeypatch.setattr(prov, "submit", lambda *a, **k: calls.append(1) or real_submit(*a, **{**k, "force_mock": True}))
@@ -401,3 +402,53 @@ def test_elements_flow(studio, tmp_path):
     # @slug dans un plan relie l'élément
     production.update_shot(conn, ids[1], description="Le @velo contre le mur")
     assert [x["slug"] for x in elements.for_shot(conn, ids[1])] == ["jardin-de-jj", "velo"]
+
+
+def test_element_free_drafts(studio, tmp_path, monkeypatch):
+    """Inspirations + texte -> brouillons gratuits ; le brouillon gardé devient l'image de départ."""
+    import shutil
+    import subprocess
+    from riotmachine import elements
+    from riotmachine.providers import cloudflare
+    run("init")
+    conn = db.connect()
+    production.create_clip(conn, "Salon", song=studio["song"], characters=["jj"])
+    e = elements.create(conn, "salon", "decor", "Salon", "")
+    img = tmp_path / "i.jpg"
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "color=c=gray:s=320x240",
+                    "-frames:v", "1", str(img)], check=True)
+    elements.add_image(conn, e["id"], img, role="inspi")
+    elements.add_image(conn, e["id"], img, role="inspi")
+    assert elements.clip_elements(conn, "salon")[0]["step"] == "start"     # une inspiration n'est pas une image de départ
+    seen = {}
+
+    def fake(prompt, images, dest, **kw):
+        seen["prompt"], seen["n"] = prompt, len(images)
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(img, dest)
+        return dest
+    monkeypatch.setattr(cloudflare, "generate", fake)
+    r = elements.launch_drafts(conn, e["id"], "le canapé vert de la 2e image", 2)
+    assert len(r["images"]) == 2 and r["cost_usd"] == 0
+    assert seen["n"] == 2 and "canapé vert" in seen["prompt"]
+    ce = elements.clip_elements(conn, "salon")[0]
+    assert ce["step"] == "draft_choose" and ce["brief"] == "le canapé vert de la 2e image"
+    elements.pick(conn, r["images"][0], "keep")
+    ce = elements.clip_elements(conn, "salon")[0]
+    assert ce["step"] == "hd_todo" and ce["prompt_status"] == "requested" and len(ce["draft_paths"]) == 1
+
+
+def test_no_google_credits_for_images(studio):
+    """Règle de Michael : les crédits Google Cloud sont réservés à la vidéo."""
+    from riotmachine import providers
+    from riotmachine.providers._http import ProviderError
+    for role in ("storyboard", "casting", "canon_hd", "upscale", "upscale_fallback"):
+        for key in routing.models_cfg()["image"][role]:
+            assert routing.model(key).get("provider") != "vertex", (role, key)
+    monkeypatch_env = providers.simulated
+    providers.simulated = lambda p="fal": False
+    try:
+        with pytest.raises(ProviderError):
+            providers.submit({"provider": "vertex", "label": "x"}, {}, kind="image")
+    finally:
+        providers.simulated = monkeypatch_env

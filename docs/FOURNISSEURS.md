@@ -124,6 +124,21 @@ restants, toutes les offres classées par coût et le carnet de rodage.
   faire un petit dépôt, essayer quelques plans à la main depuis le plan vidéo,
   puis retirer la marque si la qualité et la fiabilité tiennent.
 
+## Images : jamais sur les crédits Google
+
+Règle de Michael (30/10/2026) : les 300 $ de crédits Google Cloud sont réservés à
+la **vidéo**. Aucune image ne part chez Google (le code le refuse).
+
+- **Brouillons des décors** : Cloudflare Workers AI, plan gratuit (10 000 neurones
+  par jour, renouvelés chaque jour, sans carte). FLUX.2 [klein] 4B, environ 90
+  images 1024 px par jour, jusqu'à 4 images d'inspiration en entrée. Clés :
+  `CLOUDFLARE_ACCOUNT_ID` et `CLOUDFLARE_API_TOKEN` (jeton avec la permission
+  « Workers AI »). Au-delà de l'enveloppe du jour, l'appel est refusé jusqu'au
+  lendemain : rien n'est facturé.
+- **Images payantes** (HD des décors, storyboard, casting) : fal.ai.
+- L'API Gemini (AI Studio) n'a **pas** de niveau gratuit pour les images (page
+  des tarifs vérifiée le 30/10/2026). Seul le site AI Studio est gratuit.
+
 ## Crédits gratuits des applications web
 
 Google Flow, Kling, Dreamina, PixVerse, Vidu et Hailuo offrent des crédits

@@ -35,11 +35,14 @@ approval:
 
 image:
   # Listes par ordre de préférence : le premier dont le fournisseur est branché sert.
-  storyboard: [nano-banana-vertex, nano-banana-2-vertex, nano-banana-2]   # visuel draft de chaque plan : le moins cher d'abord
-  casting: [nano-banana-pro-vertex, nano-banana-pro]     # pack de référence des personnages
-  canon_hd: [nano-banana-pro-vertex, nano-banana-pro]    # brouillon de Michael -> canon photoréaliste 2K
-  upscale: [topaz-image-hf, nano-banana-pro-vertex-hd]   # HD d'un visuel de plan validé, fidèle
-  upscale_fallback: [seedvr-image, nano-banana-pro-vertex-hd]
+  # Règle de Michael (30/10/2026) : les crédits Google Cloud sont réservés à la VIDÉO.
+  # Aucun modèle d'image Vertex dans ces listes (ils restent déclarés plus bas, inutilisés).
+  # Les brouillons des décors passent par Cloudflare (gratuit), hors de ces listes.
+  storyboard: [nano-banana-2]       # visuel draft de chaque plan
+  casting: [nano-banana-pro]        # pack de référence des personnages, image HD des décors
+  canon_hd: [nano-banana-pro]       # brouillon de Michael -> canon photoréaliste 2K
+  upscale: [topaz-image-hf]         # HD d'un visuel de plan validé, fidèle
+  upscale_fallback: [seedvr-image]
 
 # Fournisseurs. Un fournisseur est utilisable s'il est branché dans le code ET si
 # ses clés sont dans .env (`env` : toutes requises ; `env_any` : au moins une).
@@ -56,6 +59,10 @@ providers:
     env_any: [VERTEX_API_KEY, GOOGLE_APPLICATION_CREDENTIALS]
     note: Veo 3.1. Seule voie payable par les 300 $ de l'essai Google Cloud. Pas de format 1:1.
     credits: {label: "crédits Google Cloud", usd: 300, start: "2026-10-29", expires: "2027-01-27"}
+  cloudflare:
+    label: Cloudflare Workers AI (gratuit)
+    env: [CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_API_TOKEN]
+    note: Brouillons des décors, gratuits (FLUX.2 klein, environ 90 images par jour, plan gratuit sans carte).
   kling:
     label: Kling AI (API officielle)
     env: [KLING_API_KEY]

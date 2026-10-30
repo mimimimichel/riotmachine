@@ -416,8 +416,11 @@ LATER_COLUMNS = {
     # prompt : le prompt de l'image HD, réécrit par Michael (NULL = prompt par défaut)
     # prompt_agent : le prompt écrit par le décorateur d'après l'image de départ de Michael
     # prompt_status : requested quand une image de départ attend d'être regardée par le décorateur
-    "elements": [("prompt", "TEXT"), ("prompt_agent", "TEXT"), ("prompt_status", "TEXT NOT NULL DEFAULT 'none'")],
-    # role : draft = image de départ de Michael (source de l'HD), hd = référence des visuels de plan
+    # brief : ce que Michael veut tirer de ses images d'inspiration (texte des brouillons)
+    "elements": [("prompt", "TEXT"), ("prompt_agent", "TEXT"), ("prompt_status", "TEXT NOT NULL DEFAULT 'none'"),
+                 ("brief", "TEXT")],
+    # role : inspi = image d'inspiration (trouvée par Michael), draft = image de départ (déposée, ou brouillon
+    # généré puis gardé), hd = référence des visuels de plan
     "element_images": [("role", "TEXT NOT NULL DEFAULT 'hd'")],
 }
 

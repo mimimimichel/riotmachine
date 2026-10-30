@@ -21,6 +21,7 @@ from __future__ import annotations
 import json
 import re
 import shutil
+import subprocess
 import sqlite3
 from pathlib import Path
 from typing import Any
@@ -116,13 +117,13 @@ def add_image(conn: sqlite3.Connection, element_id: int, src: str | Path, state:
     - draft : son image de départ (pas encore HD ni photoréaliste). L'image HD en part.
     - hd : une image déjà finie, gardée telle quelle comme référence des visuels de plan.
     """
-    if role not in ("draft", "hd"):
-        raise ProductionError("Rôle d'image : draft ou hd")
+    if role not in ("draft", "hd", "inspi"):
+        raise ProductionError("Rôle d'image : inspi, draft ou hd")
     e = _element(conn, element_id)
     src = Path(src)
     if src.suffix.lower() not in IMAGE_EXT:
         raise ProductionError("Une image est attendue (png, jpg, webp)")
-    folder = "depart" if role == "draft" else "sources"
+    folder = {"draft": "depart", "inspi": "inspiration"}.get(role, "sources")
     dest = _free_name(absp(e["dir"]) / folder / f"{slugify(src.stem) or 'image'}{src.suffix.lower()}")
     dest.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy(src, dest)
@@ -239,7 +240,7 @@ def launch_image(conn: sqlite3.Connection, element_id: int, state: str | None = 
     drafts = _draft_for_state(conn, element_id, state)
     if not drafts and state:
         drafts = _draft_for_state(conn, element_id, None)
-    refs = (drafts[:2] + _refs(conn, element_id, state, limit=2))[:4]
+    refs = (drafts[-1:] + _refs(conn, element_id, state, limit=2))[:3]   # une seule image de départ : sa composition
     text = prompt or generation_prompt(e, state, from_draft=bool(drafts))
     if _needs_approval(mcfg.get("provider", "fal"), cost, False, approved):
         return _ask_spend(conn, "element_image", {"element_id": element_id, "state": state, "prompt": prompt},
@@ -262,6 +263,71 @@ def launch_image(conn: sqlite3.Connection, element_id: int, state: str | None = 
     return {"image_id": cur.lastrowid, "cost_usd": cost}
 
 
+DRAFT_SIZE = {"decor": (1024, 576), "objet": (768, 768), "figurant": (640, 896)}
+KIND_EN = {"decor": "location", "objet": "object", "figurant": "person or animal"}
+
+
+def set_brief(conn: sqlite3.Connection, element_id: int, text: str) -> dict:
+    _element(conn, element_id)
+    conn.execute("UPDATE elements SET brief=? WHERE id=?", (text.strip() or None, element_id))
+    return _element(conn, element_id)
+
+
+def draft_prompt(e: dict, brief: str, n_refs: int) -> str:
+    """Le texte des brouillons : la direction de Michael d'abord, ses images ensuite, la fiche en appui."""
+    parts = [f"A single realistic draft photograph of a {KIND_EN[e['kind']]}: {e['name']}."]
+    if brief.strip():
+        parts.append(f"Director's direction (French, follow it first): {brief.strip()}")
+    if n_refs:
+        parts.append(f"Use the {n_refs} reference image{'s' if n_refs > 1 else ''} (image 0"
+                     + "".join(f", image {i}" for i in range(1, n_refs)) + ") as inspiration: "
+                     "combine them into one coherent picture as the direction says.")
+    if (e.get("description") or "").strip():
+        parts.append(f"Appearance notes (French): {e['description'].strip()}")
+    parts.append({"decor": "Wide establishing view, no people.",
+                  "objet": "The whole object, alone, plain neutral background.",
+                  "figurant": "Alone, full body, standing still, neutral background."}[e["kind"]])
+    parts.append("Natural light, photographic look. No text, no watermark.")
+    return " ".join(parts)
+
+
+def launch_drafts(conn: sqlite3.Connection, element_id: int, brief: str | None = None, n: int = 2) -> dict:
+    """Brouillons gratuits (Cloudflare) à partir des images d'inspiration et du texte de Michael.
+
+    Synchrone : les images arrivent en quelques secondes, à choisir (garder ou écarter)."""
+    from .providers import cloudflare
+    from .providers._http import ProviderError
+    e = _element(conn, element_id)
+    if brief is not None:
+        set_brief(conn, element_id, brief)
+        e = _element(conn, element_id)
+    inspi = [p for p in (absp(r["path"]) for r in conn.execute(
+        "SELECT path FROM element_images WHERE element_id=? AND role='inspi' AND status='kept' AND path IS NOT NULL "
+        "ORDER BY id", (element_id,)).fetchall()) if p and p.is_file()][:4]
+    if not inspi and not (e.get("brief") or "").strip():
+        raise ProductionError("Ajoute des images d'inspiration ou écris ce que tu veux")
+    text = draft_prompt(e, e.get("brief") or "", len(inspi))
+    w, h = DRAFT_SIZE[e["kind"]]
+    made = []
+    import random
+    for i in range(max(1, min(n, 4))):
+        out = _free_name(absp(e["dir"]) / "brouillons" / f"brouillon-{db.now()[:10]}.png")
+        try:
+            cloudflare.generate(text, inspi, out, width=w, height=h, seed=random.randint(1, 2**31 - 1))
+        except (ProviderError, OSError, subprocess.CalledProcessError) as exc:
+            if not made:
+                raise ProductionError(str(exc))
+            break
+        cur = conn.execute(
+            "INSERT INTO element_images (element_id, source, path, label, prompt, model_key, cost_usd, funding, "
+            "status, role, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+            (element_id, "gen", rel(out), "brouillon", text, "cloudflare-flux2-klein", 0, "free", "proposed", "draft",
+             db.now()))
+        made.append(cur.lastrowid)
+    db.log_event(conn, e["clip_slug"], "decors", f"{len(made)} brouillon(s) gratuit(s) : {e['name']}")
+    return {"images": made, "cost_usd": 0}
+
+
 def launch_ready(conn: sqlite3.Connection, clip_slug: str) -> dict:
     """Michael lance d'un coup l'image HD de chaque élément qui a une image de départ et pas encore d'HD."""
     n, total = 0, 0.0
@@ -280,6 +346,10 @@ def pick(conn: sqlite3.Connection, image_id: int, decision: str) -> None:
         raise ProductionError(f"Image inconnue : {image_id}")
     if decision == "keep":
         conn.execute("UPDATE element_images SET status='kept' WHERE id=?", (image_id,))
+        if img["role"] == "draft":
+            # un brouillon gardé devient l'image de départ : le décorateur écrit le prompt HD d'après lui
+            cancel_pending(conn, img["element_id"], "remplacée : nouvelle image de départ")
+            conn.execute("UPDATE elements SET prompt_status='requested' WHERE id=?", (img["element_id"],))
     elif decision == "reject":
         p = absp(img["path"])
         if p and p.is_file():
@@ -346,8 +416,10 @@ def _step(images: list[dict]) -> str:
         return "done"
     if any(i["role"] == "hd" and i["status"] in ("generating", "proposed") for i in images):
         return "hd_wait"
-    if any(i["role"] == "draft" for i in images):
+    if any(i["role"] == "draft" and i["status"] == "kept" for i in images):
         return "hd_todo"
+    if any(i["role"] == "draft" for i in images):
+        return "draft_choose"
     return "start"
 
 
@@ -363,14 +435,14 @@ def clip_elements(conn: sqlite3.Connection, clip_slug: str) -> list[dict]:
         e["shots"] = [x["num"] for x in conn.execute(
             "SELECT s.num FROM shot_elements se JOIN shots s ON s.id=se.shot_id WHERE se.element_id=? ORDER BY s.num",
             (e["id"],)).fetchall()]
-        has_draft = any(i["role"] == "draft" for i in e["images"])
+        has_draft = any(i["role"] == "draft" and i["status"] == "kept" for i in e["images"])
         e["step"] = _step(e["images"])
         e["prompt_default"] = proposed_prompt(e, has_draft)
         e["prompt_text"] = (e.get("prompt") or "").strip() or e["prompt_default"]
         e["prompt_edited"] = bool((e.get("prompt") or "").strip())
         e["prompt_by"] = ("michael" if e["prompt_edited"] else "agent" if (e.get("prompt_agent") or "").strip()
                           else "default")
-        e["draft_paths"] = [i["path"] for i in e["images"] if i["role"] == "draft"]
+        e["draft_paths"] = [i["path"] for i in e["images"] if i["role"] == "draft" and i["status"] == "kept"]
         out.append(e)
     return out
 

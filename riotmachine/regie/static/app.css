@@ -775,3 +775,5 @@ textarea { overflow-y: hidden; }
 .elpicker h4 { margin: 10px 0 6px; font-size: 13px; color: var(--muted); }
 details.sources-box > div { padding: 10px 0 0; }
 .sources-box .file .nm { white-space: normal; }
+.elsub { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 10px;
+  border: 1px solid var(--line-2); background: #ffffff06; margin: 8px 0; }

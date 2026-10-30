@@ -179,7 +179,7 @@ def shot_seconds(shot: dict[str, Any]) -> float:
 
 # Fournisseurs dont l'appel est écrit dans le code. Les autres sont déclarés
 # dans models.yaml mais attendent leur branchement.
-IMPLEMENTED_PROVIDERS = {"fal", "vertex", "kling", "runway", "gemini", "minimax", "atlas", "replicate", "evolink"}
+IMPLEMENTED_PROVIDERS = {"fal", "vertex", "kling", "runway", "gemini", "minimax", "atlas", "replicate", "evolink", "cloudflare"}
 
 
 def _forced_simulation() -> bool:

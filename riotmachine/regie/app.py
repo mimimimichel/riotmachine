@@ -624,6 +624,21 @@ class ElementIn(BaseModel):
     states: list[str] | None = None
 
 
+class ElementDrafts(BaseModel):
+    brief: str = ""
+    n: int = 2
+
+
+@app.post("/api/elements/{element_id}/drafts")
+def element_drafts(element_id: int, body: ElementDrafts) -> dict[str, Any]:
+    """Brouillons gratuits (Cloudflare) d'après les images d'inspiration et le texte de Michael."""
+    from .. import elements
+    try:
+        return elements.launch_drafts(_conn(), element_id, body.brief, body.n)
+    except production.ProductionError as exc:
+        raise _error(exc)
+
+
 class ElementGen(BaseModel):
     state: str | None = None
     notes: str = ""
@@ -652,7 +667,9 @@ def clip_elements(slug: str) -> dict[str, Any]:
     key, mcfg, cost = elements.hd_model()
     return {"elements": elements.clip_elements(conn, slug), "decors_status": clip.get("decors_status"),
             "spend": spend, "shots": shots, "hd_cost": round(cost, 3), "hd_model": mcfg.get("label", key),
-            "hd_usable": routing.provider_usable(mcfg.get("provider", "fal"))}
+            "hd_usable": routing.provider_usable(mcfg.get("provider", "fal")) and mcfg.get("provider") != "vertex",
+            "hd_provider": (routing.models_cfg().get("providers") or {}).get(mcfg.get("provider", "fal"), {}).get("label"),
+            "drafts_usable": routing.provider_usable("cloudflare")}
 
 
 @app.post("/api/clips/{slug}/elements")

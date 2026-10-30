@@ -2466,6 +2466,7 @@ const EL_KIND = {
   objet: ["Objets clés", "Les objets qui reviennent ou comptent pour l'histoire.", "O"] };
 const EL_STEP = {
   start: ["Image de départ à déposer", "review"],
+  draft_choose: ["Brouillon à choisir", "review"],
   hd_todo: ["Image HD à lancer", "review"],
   hd_wait: ["Image HD en cours ou à choisir", "work"],
   done: ["Prêt", "done"] };
@@ -2490,7 +2491,9 @@ async function loadDecors(clip, keep = false) {
   const cost = (n) => money(n * d.hd_cost);
 
   const card = (e) => {
-    const drafts = e.images.filter((i) => i.role === "draft");
+    const drafts = e.images.filter((i) => i.role === "draft" && i.status === "kept");
+    const draftProp = e.images.filter((i) => i.role === "draft" && i.status !== "kept");
+    const inspi = e.images.filter((i) => i.role === "inspi");
     const hdKept = e.images.filter((i) => i.role === "hd" && i.status === "kept");
     const hdProp = e.images.filter((i) => i.role === "hd" && i.status !== "kept");
     const sp = spendFor(e);
@@ -2514,13 +2517,23 @@ async function loadDecors(clip, keep = false) {
           <button class="btn small ghost danger" data-eldel="${e.id}">Supprimer</button>
         </div>
         <div class="elstep ${s1 ? "ok" : ""}">
-          <div class="elstep-h"><span class="num">1</span><b>Ton image de départ</b>
-            <span class="hint">L'image que tu as faite, même brute. L'image HD en repart.</span></div>
-          ${drafts.length ? elGrid(drafts, "draft") : ""}
-          <div class="row" style="gap:8px;align-items:flex-start">
-            ${e.states.length ? `<label class="field" style="min-width:180px"><span>Pour l'état</span>${stateSelect(e, `data-eldropstate="${e.id}"`)}</label>` : ""}
-            <div style="flex:1;min-width:220px">${dropZone(`el:${e.id}:draft`, drafts.length ? "Ajouter une image de départ" : "Déposer ton image de départ", "png, jpg ou webp", "image/*", true)}</div>
+          <div class="elstep-h"><span class="num">1</span><b>Image de départ</b>
+            <span class="hint">Elle fixe la composition de l'image HD.</span></div>
+          ${drafts.length ? `<p class="hint">Ton image de départ :</p>${elGrid(drafts, "draft")}` : ""}
+          <div class="elsub">
+            <b>Inspirations et brouillons gratuits</b>
+            <span class="hint">Ajoute des images trouvées sur Internet, dis ce que tu veux en tirer, et la machine crée des brouillons.
+              Tu gardes le bon : il devient ton image de départ.</span>
+            ${inspi.length ? elGrid(inspi, "inspi") : ""}
+            ${dropZone(`el:${e.id}:inspi`, inspi.length ? "Ajouter des inspirations" : "Déposer des images d'inspiration", "png, jpg ou webp, 4 au plus", "image/*", true)}
+            <label class="field"><span>Ce que tu veux</span>
+              <textarea rows="3" data-elbrief="${e.id}" placeholder="Ex. : le canapé vert de la 2e image, la fenêtre à droite comme sur la 1re, lumière de fin de journée">${esc(e.brief || "")}</textarea></label>
+            <div class="row" style="gap:8px"><button class="btn ${drafts.length ? "" : "go"}" data-eldrafts="${e.id}" ${d.drafts_usable ? "" : "disabled"}>Créer 2 brouillons · gratuit</button>
+              <span class="hint">${d.drafts_usable ? "Gratuit (Cloudflare), une dizaine de secondes." : "Pas encore branché : il faut un compte Cloudflare gratuit (voir la page Fournisseurs)."}</span></div>
+            ${draftProp.length ? `<p class="hint"><b>Brouillons</b> : garde celui qui devient ton image de départ, écarte les autres.</p>${elGrid(draftProp, "choose")}` : ""}
           </div>
+          <details class="fold"><summary>J'ai déjà mon image de départ</summary><div class="stack" style="gap:6px">
+            ${dropZone(`el:${e.id}:draft`, "Déposer ton image de départ", "png, jpg ou webp", "image/*", false)}</div></details>
           <details class="fold"><summary>J'ai déjà une image HD finie</summary><div class="stack" style="gap:6px">
             <p class="hint">Elle sert directement de référence aux plans, sans génération.</p>
             ${dropZone(`el:${e.id}:hd`, "Déposer une image HD finie", "png, jpg ou webp", "image/*", true)}</div></details>
@@ -2550,6 +2563,7 @@ async function loadDecors(clip, keep = false) {
           ${hdKept.length ? elGrid(hdKept, "kept") : ""}
           ${hdProp.length ? `<p class="hint">Propositions : garde la bonne.</p>${elGrid(hdProp, "choose")}` : ""}
           ${sp.length ? spendRows(sp) : ""}
+          ${d.hd_usable ? "" : `<p class="hint" style="color:var(--amber)">L'image HD payante n'est pas branchée : il faut une clé fal.ai (page Fournisseurs). Les crédits Google restent réservés à la vidéo.</p>`}
           <div class="row" style="gap:8px;align-items:flex-end">
             ${e.states.length ? `<label class="field" style="min-width:180px"><span>État</span>${stateSelect(e, `data-elstate="${e.id}"`)}</label>` : ""}
             <input type="text" data-elnotes="${e.id}" placeholder="Précision pour cette fois (facultatif)" style="flex:1;min-width:180px">
@@ -2613,7 +2627,8 @@ async function loadDecors(clip, keep = false) {
     toast("Envoi…");
     try {
       await upload(`/api/elements/${id}/images`, fd); remember(id);
-      toast(role === "draft" ? "Image de départ ajoutée : vérifie le prompt puis lance l'HD" : "Image HD gardée comme référence");
+      toast(role === "draft" ? "Image de départ ajoutée : le décorateur écrit le prompt HD d'après elle"
+        : role === "inspi" ? "Inspiration ajoutée : dis ce que tu veux, puis crée les brouillons" : "Image HD gardée comme référence");
       loadDecors(clip);
     } catch (e) { toast(e.message, "err"); }
   });
@@ -2653,6 +2668,13 @@ async function loadDecors(clip, keep = false) {
           kind: document.getElementById("el-kind").value, name, description: document.getElementById("el-desc").value } });
         remember(e.id);
         toast("Ajouté : dépose ton image de départ"); return reload();
+      }
+      if (dd.eldrafts) {
+        const brief = box.querySelector(`[data-elbrief="${dd.eldrafts}"]`).value;
+        t.disabled = true; t.textContent = "Création des brouillons…";
+        await api(`/api/elements/${dd.eldrafts}/drafts`, { json: { brief, n: 2 } });
+        remember(dd.eldrafts);
+        toast("Brouillons prêts : garde le bon"); return reload();
       }
       if (dd.eldescribe) {
         await api(`/api/elements/${dd.eldescribe}/describe`, { method: "POST" });
@@ -2704,7 +2726,7 @@ function elGrid(list, mode) {
   return `<div class="packgrid elgrid">${list.map((i) => `<div class="packitem ${mode === "kept" ? "kept" : ""}">
       ${i.status === "generating" ? `<div class="none" style="aspect-ratio:4/3;display:grid;place-items:center">${led("work")} en cours</div>`
         : `<img src="${media(i.path)}" data-zoom="${media(i.path)}" alt="">`}
-      <div class="pi"><span class="hint">${esc(i.state || "état de base")}${i.source === "michael" && mode === "kept" ? " · ton image" : ""}</span>
+      <div class="pi"><span class="hint">${i.role === "inspi" ? "inspiration" : i.role === "draft" ? (i.source === "gen" ? "brouillon" : "ton image") : i.source === "michael" ? "ton image HD" : "image HD"}</span>
         ${mode === "choose" && i.status === "proposed" ? `<div class="row" style="gap:6px"><button class="btn small ok" data-elpick="${i.id}:keep">Garder</button>
           <button class="btn small" data-elpick="${i.id}:reject">Écarter</button></div>` : ""}
         ${mode !== "choose" ? `<button class="btn small ghost" data-elpick="${i.id}:reject">Retirer</button>` : ""}</div></div>`).join("")}</div>`;
