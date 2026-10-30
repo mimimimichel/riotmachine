@@ -66,7 +66,7 @@ p { margin: 0; }
   position: sticky; top: 0; z-index: 30;
   display: flex; align-items: center; gap: 22px;
   padding: 12px max(16px, env(safe-area-inset-left)) 12px max(16px, env(safe-area-inset-right));
-  background: #0a0911e6; backdrop-filter: blur(12px);
+  background: #0a0911;
   border-bottom: 1px solid var(--line);
 }
 .brand {
@@ -96,12 +96,12 @@ main { max-width: 1360px; margin: 0 auto; padding: 24px max(16px, env(safe-area-
   background: var(--idle);
 }
 .led.review { background: var(--amber); box-shadow: 0 0 8px var(--amber); }
-.led.work { background: var(--violet); box-shadow: 0 0 8px var(--violet); animation: pulse 1.6s ease-in-out infinite; }
+.led.work { background: var(--violet); animation: pulse 2.4s ease-in-out infinite; }
 .led.done { background: var(--led); box-shadow: 0 0 6px #3df0a2aa; }
 .led.change { background: var(--magenta); box-shadow: 0 0 8px var(--magenta); }
 .led.failed { background: var(--red); box-shadow: 0 0 8px var(--red); }
 .led.wait { background: var(--idle); }
-@keyframes pulse { 50% { opacity: 0.35; } }
+@keyframes pulse { 50% { opacity: 0.55; } }
 
 .pill {
   display: inline-flex; align-items: center; gap: 6px;
@@ -229,7 +229,7 @@ label.field .hint { font-weight: 400; }
 
 .console {
   position: sticky; top: 61px; z-index: 20;
-  background: #0d0b16f2; backdrop-filter: blur(10px);
+  background: #0d0b16;
   border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px 10px;
   margin-bottom: 18px; box-shadow: var(--shadow);
 }
@@ -777,3 +777,6 @@ details.sources-box > div { padding: 10px 0 0; }
 .sources-box .file .nm { white-space: normal; }
 .elsub { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 10px;
   border: 1px solid var(--line-2); background: #ffffff06; margin: 8px 0; }
+
+/* pas d'animation pour qui la refuse ; et pas de scintillement des bordures fines */
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
