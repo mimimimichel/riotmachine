@@ -624,6 +624,19 @@ class ElementIn(BaseModel):
     states: list[str] | None = None
 
 
+class ElementBrief(BaseModel):
+    text: str = ""
+
+
+@app.post("/api/elements/{element_id}/brief")
+def element_brief(element_id: int, body: ElementBrief) -> dict[str, Any]:
+    from .. import elements
+    try:
+        return elements.set_brief(_conn(), element_id, body.text)
+    except production.ProductionError as exc:
+        raise _error(exc)
+
+
 class ElementDrafts(BaseModel):
     brief: str = ""
     n: int = 2

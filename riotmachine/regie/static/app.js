@@ -2465,7 +2465,7 @@ const EL_KIND = {
   figurant: ["Figurants", "Les personnages secondaires et les animaux.", "F"],
   objet: ["Objets clés", "Les objets qui reviennent ou comptent pour l'histoire.", "O"] };
 const EL_STEP = {
-  start: ["Image de départ à déposer", "review"],
+  start: ["Images et instruction à donner", "review"],
   draft_choose: ["Brouillon à choisir", "review"],
   hd_todo: ["Image HD à lancer", "review"],
   hd_wait: ["Image HD en cours ou à choisir", "work"],
@@ -2516,60 +2516,45 @@ async function loadDecors(clip, keep = false) {
           <button class="btn small" data-elrename="${e.id}">Renommer</button>
           <button class="btn small ghost danger" data-eldel="${e.id}">Supprimer</button>
         </div>
-        <div class="elstep ${s1 ? "ok" : ""}">
-          <div class="elstep-h"><span class="num">1</span><b>Image de départ</b>
-            <span class="hint">Elle fixe la composition de l'image HD.</span></div>
-          ${drafts.length ? `<p class="hint">Ton image de départ :</p>${elGrid(drafts, "draft")}` : ""}
-          <div class="elsub">
-            <b>Inspirations et brouillons gratuits</b>
-            <span class="hint">Ajoute des images trouvées sur Internet, dis ce que tu veux en tirer, et la machine crée des brouillons.
-              Tu gardes le bon : il devient ton image de départ.</span>
-            ${inspi.length ? elGrid(inspi, "inspi") : ""}
-            ${dropZone(`el:${e.id}:inspi`, inspi.length ? "Ajouter des inspirations" : "Déposer des images d'inspiration", "png, jpg ou webp, 4 au plus", "image/*", true)}
-            <label class="field"><span>Ce que tu veux</span>
-              <textarea rows="3" data-elbrief="${e.id}" placeholder="Ex. : le canapé vert de la 2e image, la fenêtre à droite comme sur la 1re, lumière de fin de journée">${esc(e.brief || "")}</textarea></label>
-            <div class="row" style="gap:8px"><button class="btn ${drafts.length ? "" : "go"}" data-eldrafts="${e.id}" ${d.drafts_usable ? "" : "disabled"}>Créer 2 brouillons · gratuit</button>
-              <span class="hint">${d.drafts_usable ? "Gratuit (Cloudflare), une dizaine de secondes." : "Pas encore branché : il faut un compte Cloudflare gratuit (voir la page Fournisseurs)."}</span></div>
-            ${draftProp.length ? `<p class="hint"><b>Brouillons</b> : garde celui qui devient ton image de départ, écarte les autres.</p>${elGrid(draftProp, "choose")}` : ""}
-          </div>
-          <details class="fold"><summary>J'ai déjà mon image de départ</summary><div class="stack" style="gap:6px">
-            ${dropZone(`el:${e.id}:draft`, "Déposer ton image de départ", "png, jpg ou webp", "image/*", false)}</div></details>
-          <details class="fold"><summary>J'ai déjà une image HD finie</summary><div class="stack" style="gap:6px">
-            <p class="hint">Elle sert directement de référence aux plans, sans génération.</p>
-            ${dropZone(`el:${e.id}:hd`, "Déposer une image HD finie", "png, jpg ou webp", "image/*", true)}</div></details>
+        <div class="elstep ${inspi.length || (e.brief || "").trim() || drafts.length ? "ok" : ""}">
+          <div class="elstep-h"><span class="num">1</span><b>Tes images et ton instruction</b>
+            <span class="hint">Des images trouvées ou faites ailleurs, et ce que tu veux. Elles servent à créer le brouillon.</span></div>
+          ${inspi.length ? elGrid(inspi, "inspi") : ""}
+          ${dropZone(`el:${e.id}:inspi`, inspi.length ? "Ajouter des images" : "Déposer des images", "png, jpg ou webp, 4 au plus", "image/*", true)}
+          <label class="field"><span>Ton instruction</span>
+            <textarea rows="3" data-elbrief="${e.id}" placeholder="Ex. : le canapé vert de la 2e image, la fenêtre à droite comme sur la 1re, lumière de fin de journée">${esc(e.brief || "")}</textarea></label>
         </div>
 
-        <div class="elstep ${e.prompt_by !== "default" && e.prompt_status !== "requested" ? "ok" : ""}">
-          <div class="elstep-h"><span class="num">2</span><b>Prompt de l'image HD</b>
-            <span class="hint">${e.prompt_edited ? "Écrit par toi."
-              : e.prompt_by === "agent" ? "Écrit par le décorateur, d'après ton image de départ. Corrige-le si besoin."
-              : drafts.length ? "Prompt provisoire : le décorateur va regarder ton image et le réécrire."
-              : "Proposé d'après la fiche. Dépose d'abord ton image de départ : le prompt sera écrit d'après elle."}</span></div>
-          ${e.prompt_status === "requested" ? `<div class="agentbar">${led("work")}Le décorateur regarde ton image : il réécrit la fiche et le prompt d'après elle (une à deux minutes).</div>` : ""}
-          <textarea rows="6" data-elprompt="${e.id}">${esc(e.prompt_text)}</textarea>
-          ${drafts.length && e.prompt_status !== "requested" ? `<div class="row"><button class="btn small ${e.prompt_by === "agent" ? "ghost" : "go"}" data-eldescribe="${e.id}">${e.prompt_by === "agent" ? "Réécrire" : "Écrire"} le prompt d'après ${drafts.length > 1 ? "mes images" : "mon image"}</button>
-            <span class="hint">Le décorateur regarde ${drafts.length > 1 ? "tes images" : "ton image"} et décrit ce qu'${drafts.length > 1 ? "elles montrent" : "elle montre"}. Gratuit.</span></div>` : ""}
-          <div class="row" style="gap:8px"><button class="btn small" data-elsaveprompt="${e.id}">Enregistrer le prompt</button>
-            ${e.prompt_edited ? `<button class="btn small ghost" data-elresetprompt="${e.id}">Revenir au prompt ${e.prompt_agent ? "du décorateur" : "proposé"}</button>` : ""}</div>
-          <details class="fold"><summary>Fiche${e.description ? "" : " · vide"}</summary><div class="stack" style="gap:6px">
-            <label class="hint">Ce qu'on voit : plan des lieux, matières, couleurs, lumière, style. Si le lieu change d'aspect (avant / après), crée un second élément.</label>
-            <textarea data-elf="${e.id}:description" rows="4">${esc(e.description || "")}</textarea>
-            <div class="row"><button class="btn small" data-elsave="${e.id}">Enregistrer la fiche</button></div></div></details>
+        <div class="elstep ${drafts.length ? "ok" : ""}">
+          <div class="elstep-h"><span class="num">2</span><b>Brouillon</b>
+            <span class="hint">${drafts.length ? "Gardé : l'image HD reprendra sa composition." : "Crée-le gratuitement à partir de l'étape 1, ou dépose le tien."}</span></div>
+          ${drafts.length ? elGrid(drafts, "draft") : ""}
+          ${draftProp.length ? `<p class="hint">Garde le brouillon qui te plaît, écarte les autres.</p>${elGrid(draftProp, "choose")}` : ""}
+          <div class="row" style="gap:8px">
+            <button class="btn ${drafts.length ? "" : "go"}" data-eldrafts="${e.id}" ${d.drafts_usable ? "" : "disabled"}>${draftProp.length || drafts.length ? "Créer 2 autres brouillons" : "Créer 2 brouillons"} · gratuit</button>
+            <span class="hint">${d.drafts_usable ? "Une dizaine de secondes." : "Pas encore branché : il manque le jeton Cloudflare (gratuit)."}</span></div>
+          <details class="fold"><summary>Ou dépose ton propre brouillon</summary><div class="stack" style="gap:6px">
+            ${dropZone(`el:${e.id}:draft`, "Déposer ton brouillon", "png, jpg ou webp", "image/*", false)}</div></details>
         </div>
 
         <div class="elstep ${s3 ? "ok" : ""}">
           <div class="elstep-h"><span class="num">3</span><b>Image HD</b>
-            <span class="hint">${s3 ? "Gardée : elle part en référence des visuels des plans." : "Les visuels des plans de cet élément l'attendent."}</span></div>
+            <span class="hint">${s3 ? "Gardée : elle sert de référence aux visuels des plans." : "La version finale du brouillon, qui servira de référence aux plans."}</span></div>
           ${hdKept.length ? elGrid(hdKept, "kept") : ""}
-          ${hdProp.length ? `<p class="hint">Propositions : garde la bonne.</p>${elGrid(hdProp, "choose")}` : ""}
+          ${hdProp.length ? `<p class="hint">Garde la bonne image HD.</p>${elGrid(hdProp, "choose")}` : ""}
           ${sp.length ? spendRows(sp) : ""}
-          ${d.hd_usable ? "" : `<p class="hint" style="color:var(--amber)">L'image HD payante n'est pas branchée : il faut une clé fal.ai (page Fournisseurs). Les crédits Google restent réservés à la vidéo.</p>`}
-          <div class="row" style="gap:8px;align-items:flex-end">
-            ${e.states.length ? `<label class="field" style="min-width:180px"><span>État</span>${stateSelect(e, `data-elstate="${e.id}"`)}</label>` : ""}
-            <input type="text" data-elnotes="${e.id}" placeholder="Précision pour cette fois (facultatif)" style="flex:1;min-width:180px">
-            <button class="btn ${e.step === "hd_todo" ? "go" : ""}" data-elgen="${e.id}" ${d.hd_usable && e.prompt_status !== "requested" ? "" : "disabled"}
-              title="${e.prompt_status === "requested" ? "Attends le prompt du décorateur" : ""}">${hdKept.length || hdProp.length ? "Refaire" : "Générer"} l'image HD · ${money(d.hd_cost)}</button>
-          </div>
+          ${!drafts.length ? `<p class="hint">Garde d'abord un brouillon à l'étape 2.</p>`
+            : e.prompt_status === "requested" ? `<div class="agentbar">${led("work")}Le décorateur regarde ton brouillon et écrit le prompt de l'image HD (une à deux minutes).</div>`
+            : `<label class="field"><span>Ce qui sera demandé pour l'image HD${e.prompt_edited ? " · modifié par toi" : " · écrit d'après ton brouillon, modifiable"}</span>
+                <textarea rows="5" data-elprompt="${e.id}">${esc(e.prompt_text)}</textarea></label>
+              <div class="row" style="gap:8px">
+                <button class="btn ${e.step === "hd_todo" ? "go" : ""}" data-elgen="${e.id}" ${d.hd_usable ? "" : "disabled"}>${hdKept.length || hdProp.length ? "Refaire" : "Générer"} l'image HD · ${money(d.hd_cost)}</button>
+                ${e.prompt_edited ? `<button class="btn small ghost" data-elresetprompt="${e.id}">Revenir au texte d'origine</button>`
+                  : `<button class="btn small ghost" data-eldescribe="${e.id}">Réécrire d'après le brouillon</button>`}
+              </div>
+              ${d.hd_usable ? "" : `<p class="hint" style="color:var(--amber)">L'image HD n'est pas encore branchée.</p>`}`}
+          <details class="fold"><summary>J'ai déjà une image HD finie</summary><div class="stack" style="gap:6px">
+            ${dropZone(`el:${e.id}:hd`, "Déposer une image HD finie", "png, jpg ou webp", "image/*", true)}</div></details>
         </div>
       </div>
     </details>`;
@@ -2593,9 +2578,9 @@ async function loadDecors(clip, keep = false) {
   const nDone = d.elements.filter((e) => e.step === "done").length;
   box.innerHTML = `
     <section class="panel stack">
-      <p class="hint helptext">Pour chaque décor, objet ou figurant : <b>1.</b> dépose ton image de départ,
-        <b>2.</b> ajuste le prompt si besoin, <b>3.</b> lance l'image HD et garde la bonne. L'image HD gardée part en référence
-        de tous les plans où l'élément apparaît. Dans un plan, tape <b>@</b> pour citer un élément.</p>
+      <p class="hint helptext">Pour chaque décor, objet ou figurant : <b>1.</b> dépose des images et écris ce que tu veux,
+        <b>2.</b> crée un brouillon gratuit (ou dépose le tien) et garde le bon, <b>3.</b> génère l'image HD et garde la bonne.
+        L'image HD gardée sert de référence à tous les plans où l'élément apparaît. Dans un plan, tape <b>@</b> pour citer un élément.</p>
       <div class="row" style="gap:10px">
         <span class="hint"><b>${nDone} / ${d.elements.length}</b> prêts${status ? " · " + status : ""}</span><span class="spacer"></span>
         ${ready.length ? `<button class="btn go" data-elgenready>Générer les ${ready.length} image${ready.length > 1 ? "s" : ""} HD prêtes · ${cost(ready.length)}</button>` : ""}
@@ -2608,7 +2593,7 @@ async function loadDecors(clip, keep = false) {
     <section class="panel stack" style="margin-top:18px"><h2>Ajouter un élément</h2>
       <div class="row" style="gap:8px"><select id="el-kind"><option value="decor">Décor</option><option value="objet">Objet clé</option><option value="figurant">Figurant</option></select>
       <input type="text" id="el-name" placeholder="Nom (ex. Maison et jardin, le chien, le vélo)" style="flex:1;min-width:200px"></div>
-      <textarea id="el-desc" rows="3" placeholder="Fiche (facultatif) : à quoi il ressemble, ce qui ne change jamais"></textarea>
+
       <div class="row"><button class="btn go" data-elnew>Ajouter</button><span class="hint">Tu y déposeras ton image de départ ensuite.</span></div>
     </section>`;
   box.querySelectorAll("details.elcard").forEach((el) => el.addEventListener("toggle", () => {
@@ -2627,11 +2612,17 @@ async function loadDecors(clip, keep = false) {
     toast("Envoi…");
     try {
       await upload(`/api/elements/${id}/images`, fd); remember(id);
-      toast(role === "draft" ? "Image de départ ajoutée : le décorateur écrit le prompt HD d'après elle"
+      toast(role === "draft" ? "Brouillon ajouté : le décorateur écrit le prompt de l'image HD d'après lui"
         : role === "inspi" ? "Inspiration ajoutée : dis ce que tu veux, puis crée les brouillons" : "Image HD gardée comme référence");
       loadDecors(clip);
     } catch (e) { toast(e.message, "err"); }
   });
+  box.onchange = async (ev) => {
+    const t = ev.target;
+    if (!t.dataset || !t.dataset.elbrief) return;
+    try { await api(`/api/elements/${t.dataset.elbrief}/brief`, { json: { text: t.value } }); toast("Instruction enregistrée"); }
+    catch (e) { toast(e.message, "err"); }
+  };
   box.onclick = async (ev) => {
     const t = ev.target.closest("button, [data-zoom]");
     if (!t) return;
@@ -2665,7 +2656,7 @@ async function loadDecors(clip, keep = false) {
         const name = document.getElementById("el-name").value.trim();
         if (!name) { toast("Donne un nom", "err"); return; }
         const e = await api(`/api/clips/${encodeURIComponent(clip.slug)}/elements`, { json: {
-          kind: document.getElementById("el-kind").value, name, description: document.getElementById("el-desc").value } });
+          kind: document.getElementById("el-kind").value, name, description: "" } });
         remember(e.id);
         toast("Ajouté : dépose ton image de départ"); return reload();
       }
@@ -2678,7 +2669,7 @@ async function loadDecors(clip, keep = false) {
       }
       if (dd.eldescribe) {
         await api(`/api/elements/${dd.eldescribe}/describe`, { method: "POST" });
-        toast("Le décorateur regarde ton image"); return reload();
+        toast("Le décorateur regarde ton brouillon"); return reload();
       }
       if (dd.elrename) {
         const name = box.querySelector(`[data-elname="${dd.elrename}"]`).value.trim();
@@ -2695,7 +2686,7 @@ async function loadDecors(clip, keep = false) {
         const id = dd.elsaveprompt || dd.elresetprompt;
         const text = dd.elresetprompt ? "" : box.querySelector(`[data-elprompt="${id}"]`).value;
         await api(`/api/elements/${id}/prompt`, { json: { text } });
-        toast(dd.elresetprompt ? "Prompt proposé remis" : "Prompt enregistré"); return reload();
+        toast(dd.elresetprompt ? "Texte d'origine remis" : "Prompt enregistré"); return reload();
       }
       if (dd.eldel) {
         if (needsConfirm(t, "eldel" + dd.eldel)) return;
@@ -2705,10 +2696,7 @@ async function loadDecors(clip, keep = false) {
       if (dd.elgen) {
         if (needsConfirm(t, "elgen" + dd.elgen)) return;
         t.disabled = true;
-        const st = box.querySelector(`[data-elstate="${dd.elgen}"]`);
         const r = await api(`/api/elements/${dd.elgen}/generate`, { json: {
-          state: st ? st.value || null : null,
-          notes: box.querySelector(`[data-elnotes="${dd.elgen}"]`).value || "",
           prompt: box.querySelector(`[data-elprompt="${dd.elgen}"]`).value } });
         toast(`Image HD lancée · ${money(r.cost_usd)} : elle arrive dans une à deux minutes`);
         refreshSys(); return reload();
