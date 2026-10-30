@@ -30,6 +30,10 @@ et `needs_agent`. Si `needs_agent` est vide, dis-le et arrête-toi.
    `decorateur` : repérage des décors, objets et figurants, fiches, liens avec les
    plans (un élément = une image, pas d'états). Il ne lance aucune image. Les visuels des plans ne partent qu'une
    fois les décors repérés (`riot element done`) et leurs références gardées.
+   Si la raison est « image(s) de départ à regarder », Michael a déposé une image
+   ou demandé un prompt : le décorateur regarde ses images de départ, réécrit la
+   fiche et le prompt HD d'après elles (`riot element describe`), sans rien d'autre.
+   Le repérage ne part que lorsque tous les plans ont leur prompt détaillé.
 4. **Plans `change_requested`** → trie toi-même chaque retour de Michael
    (`riot review list --clip $ARGUMENTS`, tableau des routes dans CLAUDE.md),
    puis `riot review handle`. Les plans repartent à la bonne étape et sont traités
