@@ -2355,7 +2355,7 @@ async function showProviders() {
       <details class="fold" ${p.implemented && p.enabled && !p.has_key ? "open" : ""}><summary>Clés${p.has_key ? "" : " · à renseigner"}</summary><div class="stack" style="gap:10px">${keys}
         <p class="hint">La clé est rangée sur le PC (fichier .env) et n'est jamais réaffichée : seuls ses 4 derniers caractères le sont.</p></div></details>
       <div class="row"><button class="btn small ${p.enabled ? "ghost" : "go"}" data-penable="${esc(p.key)}:${p.enabled ? "0" : "1"}">${p.enabled ? "Désactiver" : "Activer"}</button>
-        <span class="hint">${p.enabled ? "Désactivé, il ne serait plus utilisé, même avec ses clés." : "Désactivé : il n'est pas utilisé, même avec ses clés."}</span></div>
+        <span class="hint">${p.enabled ? "Une fois désactivé, il n'est plus utilisé, même avec ses clés." : "Il n'est pas utilisé tant qu'il est désactivé."}</span></div>
     </div>`;
   }).join("");
   const rows = d.video_models.map((m) => `<tr style="${m.usable ? "" : "opacity:.5"}">
