@@ -452,3 +452,27 @@ def test_no_google_credits_for_images(studio):
             providers.submit({"provider": "vertex", "label": "x"}, {}, kind="image")
     finally:
         providers.simulated = monkeypatch_env
+
+
+def test_provider_keys_admin(studio, tmp_path, monkeypatch):
+    """Régie : ajouter, changer, retirer une clé, désactiver un fournisseur ; la clé n'est jamais renvoyée."""
+    import os
+    from riotmachine import provider_keys
+    env = tmp_path / ".env"
+    env.write_text("TELEGRAM_CHAT_ID=42\n")
+    monkeypatch.setattr(provider_keys, "ENV_FILE", env)
+    monkeypatch.delenv("CLOUDFLARE_API_TOKEN", raising=False)
+    provider_keys.set_key("cloudflare", "CLOUDFLARE_API_TOKEN", "abcdefgh12345678")
+    assert "CLOUDFLARE_API_TOKEN=abcdefgh12345678" in env.read_text() and "TELEGRAM_CHAT_ID=42" in env.read_text()
+    assert oct(env.stat().st_mode)[-3:] == "600"
+    assert provider_keys.masked("CLOUDFLARE_API_TOKEN") == "••••5678"
+    with pytest.raises(provider_keys.KeyError_):
+        provider_keys.set_key("cloudflare", "TELEGRAM_CHAT_ID", "x")      # seulement les clés du fournisseur
+    provider_keys.set_key("cloudflare", "CLOUDFLARE_API_TOKEN", "zzzzzzzz99990000")
+    assert env.read_text().count("CLOUDFLARE_API_TOKEN=") == 1
+    provider_keys.set_enabled("cloudflare", False)
+    assert not next(p for p in routing.providers() if p["key"] == "cloudflare")["enabled"]
+    provider_keys.set_enabled("cloudflare", True)
+    provider_keys.remove_key("cloudflare", "CLOUDFLARE_API_TOKEN")
+    assert "CLOUDFLARE_API_TOKEN" not in env.read_text() and not os.environ.get("CLOUDFLARE_API_TOKEN")
+    assert "RIOT_DISABLED_PROVIDERS" not in env.read_text()

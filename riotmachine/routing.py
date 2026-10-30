@@ -198,6 +198,7 @@ def provider_has_key(key: str) -> bool:
 
 
 def providers() -> list[dict[str, Any]]:
+    from . import provider_keys
     """État de chaque fournisseur : branché dans le code, clés présentes, utilisable.
 
     Un fournisseur sans clé n'est pas utilisable : aucun fichier factice n'est
@@ -212,11 +213,15 @@ def providers() -> list[dict[str, Any]]:
         env_any = cfg.get("env_any") or []
         has_key = keys[key] and not forced
         implemented = key in IMPLEMENTED_PROVIDERS
+        enabled = key not in provider_keys.disabled()
         out.append({
             "key": key, "label": cfg.get("label", key), "note": cfg.get("note", ""),
             "env": env_all + ([" ou ".join(env_any)] if env_any else []),
-            "implemented": implemented, "has_key": has_key,
-            "usable": implemented and (has_key or forced), "simulated": forced,
+            "keys": [{"name": n, "required": n in env_all, "masked": provider_keys.masked(n)}
+                     for n in env_all + list(env_any)],
+            "any_of": list(env_any),
+            "implemented": implemented, "has_key": has_key, "enabled": enabled,
+            "usable": implemented and enabled and (has_key or forced), "simulated": forced,
         })
     return out
 

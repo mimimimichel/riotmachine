@@ -175,6 +175,46 @@ def providers() -> dict[str, Any]:
             "image_upscale": routing.models_cfg()["image"].get("upscale")}
 
 
+class ProviderKey(BaseModel):
+    name: str
+    value: str
+
+
+@app.post("/api/providers/{key}/key")
+def provider_set_key(key: str, body: ProviderKey) -> dict[str, Any]:
+    """Ajoute ou change une clé d'API. Elle est écrite dans .env, jamais renvoyée."""
+    from .. import provider_keys
+    try:
+        provider_keys.set_key(key, body.name, body.value)
+    except provider_keys.KeyError_ as exc:
+        raise HTTPException(400, str(exc))
+    return {"ok": True, "masked": provider_keys.masked(body.name)}
+
+
+@app.delete("/api/providers/{key}/key/{name}")
+def provider_remove_key(key: str, name: str) -> dict[str, Any]:
+    from .. import provider_keys
+    try:
+        provider_keys.remove_key(key, name)
+    except provider_keys.KeyError_ as exc:
+        raise HTTPException(400, str(exc))
+    return {"ok": True}
+
+
+class ProviderEnabled(BaseModel):
+    enabled: bool
+
+
+@app.post("/api/providers/{key}/enabled")
+def provider_enable(key: str, body: ProviderEnabled) -> dict[str, Any]:
+    from .. import provider_keys
+    try:
+        provider_keys.set_enabled(key, body.enabled)
+    except provider_keys.KeyError_ as exc:
+        raise HTTPException(400, str(exc))
+    return {"ok": True}
+
+
 @app.get("/api/clips/{slug}/waveform")
 def waveform(slug: str) -> dict[str, Any]:
     conn = _conn()

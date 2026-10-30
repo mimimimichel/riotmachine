@@ -2335,14 +2335,27 @@ async function showProviders() {
   const d = await api("/api/providers");
   const provLabel = Object.fromEntries(d.providers.map((p) => [p.key, p.label]));
   const provs = d.providers.map((p) => {
-    const st = p.has_key ? ["branché", "done"] : p.simulated ? ["simulation", "review"] : ["clé manquante", "wait"];
+    const st = !p.implemented ? ["pas encore dans le code", "wait"] : !p.enabled ? ["désactivé", "wait"]
+      : p.has_key ? ["branché", "done"] : p.simulated ? ["simulation", "review"] : ["clé manquante", "review"];
     const cr = d.credits[p.key];
-    return `<div class="panel stack" style="gap:8px">
+    const keys = p.keys.map((k) => `<div class="pkey">
+        <div class="row" style="gap:6px"><span class="mono">${esc(k.name)}</span>
+          ${p.any_of.includes(k.name) && p.any_of.length > 1 ? `<span class="hint">(une des ${p.any_of.length} suffit)</span>` : ""}
+          <span class="spacer"></span>${k.masked ? `<span class="mono hint">${esc(k.masked)}</span>` : `<span class="hint">absente</span>`}</div>
+        <div class="row" style="gap:6px">
+          <input type="password" autocomplete="off" data-pkeyval="${esc(p.key)}:${esc(k.name)}" placeholder="${k.masked ? "Nouvelle valeur pour la changer" : "Colle la clé ici"}" style="flex:1;min-width:150px">
+          <button class="btn small" data-pkeyset="${esc(p.key)}:${esc(k.name)}">${k.masked ? "Changer" : "Ajouter"}</button>
+          ${k.masked ? `<button class="btn small ghost danger" data-pkeyrm="${esc(p.key)}:${esc(k.name)}">Retirer</button>` : ""}
+        </div></div>`).join("");
+    return `<div class="panel stack prov ${p.enabled ? "" : "off"}" style="gap:8px">
       <div class="row"><b>${esc(p.label)}</b><span class="spacer"></span>${pill(st[0], st[1])}</div>
       <p class="hint">${esc(p.note)}</p>
-      <p class="hint mono">.env : ${p.env.map(esc).join(", ")}</p>
       ${cr ? `<div class="progress"><i style="width:${Math.min(100, (100 * cr.spent) / cr.usd)}%"></i></div>
         <p class="mono" style="font-size:13px">${esc(cr.label)} : ${money(cr.remaining)} restants sur ${cr.usd.toFixed(0)} $${cr.expires ? ` · jusqu'au ${esc(cr.expires)}` : ""}</p>` : ""}
+      <details class="fold" ${p.implemented && p.enabled && !p.has_key ? "open" : ""}><summary>Clés${p.has_key ? "" : " · à renseigner"}</summary><div class="stack" style="gap:10px">${keys}
+        <p class="hint">La clé est rangée sur le PC (fichier .env) et n'est jamais réaffichée : seuls ses 4 derniers caractères le sont.</p></div></details>
+      <div class="row"><button class="btn small ${p.enabled ? "ghost" : "go"}" data-penable="${esc(p.key)}:${p.enabled ? "0" : "1"}">${p.enabled ? "Désactiver" : "Activer"}</button>
+        <span class="hint">${p.enabled ? "Désactivé, il ne serait plus utilisé, même avec ses clés." : "Désactivé : il n'est pas utilisé, même avec ses clés."}</span></div>
     </div>`;
   }).join("");
   const rows = d.video_models.map((m) => `<tr style="${m.usable ? "" : "opacity:.5"}">
@@ -2370,6 +2383,32 @@ async function showProviders() {
         <thead><tr><th align="left">Modèle</th><th align="left">Vidéos</th><th align="left">Validées du 1er coup</th><th align="left">Refaites</th><th align="left">Échecs</th><th align="left">Derniers retours</th></tr></thead>
         <tbody>${rod}</tbody></table></div>
     <p class="hint" style="margin-top:14px">Lip-sync : ${esc(d.lipsync)} · Visuel HD : ${esc(d.image_upscale)}</p>`;
+  $view.onclick = async (ev) => {
+    const t = ev.target.closest("button");
+    if (!t) return;
+    const d2 = t.dataset;
+    try {
+      if (d2.pkeyset) {
+        const [prov, name] = d2.pkeyset.split(":");
+        const input = $view.querySelector(`[data-pkeyval="${prov}:${name}"]`);
+        if (!input.value.trim()) { toast("Colle d'abord la clé", "err"); return; }
+        await api(`/api/providers/${prov}/key`, { json: { name, value: input.value.trim() } });
+        input.value = "";
+        toast("Clé enregistrée"); refreshSys(); return showProviders();
+      }
+      if (d2.pkeyrm) {
+        if (needsConfirm(t, "pkeyrm" + d2.pkeyrm)) return;
+        const [prov, name] = d2.pkeyrm.split(":");
+        await api(`/api/providers/${prov}/key/${name}`, { method: "DELETE" });
+        toast("Clé retirée"); refreshSys(); return showProviders();
+      }
+      if (d2.penable) {
+        const [prov, on] = d2.penable.split(":");
+        await api(`/api/providers/${prov}/enabled`, { json: { enabled: on === "1" } });
+        toast(on === "1" ? "Fournisseur activé" : "Fournisseur désactivé"); return showProviders();
+      }
+    } catch (e) { toast(e.message, "err"); }
+  };
   every(30000, () => { if (!isBusy()) showProviders(); });
 }
 

@@ -245,6 +245,8 @@ def run_forever() -> None:
         mark_stale_runs(conn)
         while True:
             try:
+                from . import provider_keys
+                provider_keys.reload()   # clés ajoutées ou changées depuis la régie
                 out = tick(conn)
                 if out["jobs_done"] or out["auto_launched"] or out["spend_launched"] or out["agents"]:
                     print(f"[{db.now()}] {out}", flush=True)

@@ -145,7 +145,7 @@ main { max-width: 1360px; margin: 0 auto; padding: 24px max(16px, env(safe-area-
 }
 .iconbtn:hover { color: var(--text); border-color: var(--line-2); }
 
-input[type=text], input[type=number], input[type=search], textarea, select {
+input[type=text], input[type=password], input[type=number], input[type=search], textarea, select {
   width: 100%; padding: 10px 12px; border-radius: 10px; outline: none;
   background: var(--bg-2); border: 1px solid var(--line-2); color: var(--text);
 }
@@ -780,3 +780,5 @@ details.sources-box > div { padding: 10px 0 0; }
 
 /* pas d'animation pour qui la refuse ; et pas de scintillement des bordures fines */
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+.pkey { display: grid; gap: 6px; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: #ffffff05; }
+.prov.off { opacity: .6; }
