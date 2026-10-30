@@ -607,35 +607,142 @@ function songDuration(clip) {
   return Math.max(clip.duration_s || 0, last, 1);
 }
 
+const TL_ZOOMS = [1, 1.5, 2, 3, 4, 6, 8, 12, 16];
+function tlMaxZoom() {
+  const vw = document.getElementById("tlview")?.clientWidth || Math.min(window.innerWidth, 1200);
+  return Math.max(1, Math.min(16, Math.floor(14000 / vw)));
+}
+function tlZoom() {
+  if (state.tlZoom == null && state.clip) {
+    state.tlZoom = prefs("tlzoom:" + state.clip.slug) || 1;
+    state.tlScroll = prefs("tlscroll:" + state.clip.slug) || 0;
+  }
+  return Math.min(state.tlZoom || 1, tlMaxZoom());
+}
+
 function renderConsole(clip) {
   const total = songDuration(clip);
+  const z = tlZoom();
   const pct = (t) => (100 * t) / total;
   const shotById = Object.fromEntries(clip.shots.map((s) => [s.id, s]));
-  const blocks = clip.blocks.map((b) => {
+  const blocks = clip.blocks.map((b, i) => {
     const ss = b.shot_ids.map((id) => shotById[id]).filter(Boolean);
     if (!ss.length) return "";
-    const a = ss[0].t_start; const z = ss[ss.length - 1].t_end;
-    return `<span class="tl-block" data-goblock="${b.id ?? ""}" style="left:${pct(a)}%;width:${pct(z - a)}%" title="${esc(b.name)}">${esc(b.name)}</span>`;
+    const a = ss[0].t_start; const e = ss[ss.length - 1].t_end;
+    return `<span class="tl-block ${i % 2 ? "odd" : ""}" data-goblock="${b.id ?? ""}" data-a="${a}" data-z="${e}" style="left:${pct(a)}%;width:${pct(e - a)}%"
+      title="${esc(b.name)} · ${tc(a)} → ${tc(e)} · ${ss.length} plans · toucher pour zoomer"><span>${esc(b.name)}</span></span>`;
   }).join("");
   const pre = clip.stage === "script" || clip.stage === "decoupage_review";
   const shots = clip.shots.map((s) => `<span class="tl-shot c-${pre ? "wait" : shotState(s)} ${s.id === state.shotId ? "sel" : ""}" data-openshot="${s.id}"
-      style="left:${pct(s.t_start)}%;width:${pct(s.t_end - s.t_start)}%" title="Plan ${s.num} · ${esc(statusLabel(s))}"></span>`).join("");
+      style="left:${pct(s.t_start)}%;width:${pct(s.t_end - s.t_start)}%" title="Plan ${s.num} · ${tc(s.t_start)} → ${tc(s.t_end)} · ${esc(s.description || "")}"><b>${s.num}</b></span>`).join("");
+  const ll = clip.lyrics_lines || [];
+  // chaque vers occupe sa ligne jusqu'au vers suivant de la même ligne (deux lignes alternées)
+  const lyrics = ll.map((l, i) => {
+    const until = ll[i + 2] ? ll[i + 2].start : total;
+    return `<span class="r${i % 2}" style="left:${pct(l.start)}%;width:${pct(Math.max(until - l.start, 0.5))}%" title="${tc(l.start)} : ${esc(l.text)}">${esc(l.text)}</span>`;
+  }).join("");
+  const step = Math.max(1, [1, 2, 5, 10, 15, 30][[1, 2, 5, 10, 15, 30].findIndex((x) => (x * 100 * z) / total >= 6)] || 30);
+  const ticks = [];
+  for (let t = 0; t <= total; t += step) ticks.push(`<span style="left:${pct(t)}%">${tc(t).replace(/\.\d$/, "")}</span>`);
   return `<section class="console" id="console">
       <div class="transport">
         <button class="playbtn" data-play aria-label="Lecture">${song.paused ? "▶" : "❚❚"}</button>
         <span class="clock mono" id="clock">${tc(song.currentTime || 0)} <span>/ ${tc(total)}</span></span>
         <span class="now" id="nowshot"></span>
+        <span class="tl-tools">
+          <button class="zbtn" data-tlzoom="out" aria-label="Dézoomer" ${z <= 1 ? "disabled" : ""}>−</button>
+          <span class="mono zval">×${z}</span>
+          <button class="zbtn" data-tlzoom="in" aria-label="Zoomer" ${z >= tlMaxZoom() ? "disabled" : ""}>＋</button>
+          ${z > 1 ? `<button class="zbtn wide" data-tlzoom="fit">Tout voir</button>` : ""}
+        </span>
       </div>
-      <div class="timeline" id="timeline" data-total="${total}">
-        <div class="tl-blocks">${blocks}</div>
-        <div class="tl-wave" id="wave"><canvas id="wave-base"></canvas>
-          <div id="wave-played" style="position:absolute;inset:0;width:0;overflow:hidden"><canvas id="wave-top"></canvas></div></div>
-        <div class="tl-shots">${shots}</div>
-        ${(clip.lyrics_lines || []).length ? `<div class="tl-lyrics">${clip.lyrics_lines.map((l) =>
-          `<span style="left:${pct(l.start)}%;width:${pct(l.end - l.start)}%" title="${tc(l.start)} : ${esc(l.text)}">${esc(l.text)}</span>`).join("")}</div>` : ""}
-        <span class="tl-head" id="tlhead"></span>
+      <div class="tl-viewport" id="tlview">
+        <div class="timeline" id="timeline" data-total="${total}" style="width:${z * 100}%">
+          <div class="tl-ticks">${ticks.join("")}</div>
+          <div class="tl-blocks">${blocks}</div>
+          <div class="tl-wave" id="wave"><canvas id="wave-base"></canvas>
+            <div id="wave-played" style="position:absolute;inset:0;width:0;overflow:hidden"><canvas id="wave-top"></canvas></div></div>
+          <div class="tl-shots">${shots}</div>
+          ${lyrics ? `<div class="tl-lyrics">${lyrics}</div>` : ""}
+          <span class="tl-head" id="tlhead"></span>
+        </div>
       </div>
+      <p class="tl-help">Touche un bloc pour zoomer dessus, un plan pour l'ouvrir. Pince à deux doigts sur la frise pour zoomer.</p>
     </section>`;
+}
+
+/* zoom de la frise : redessine seulement la console, garde la position */
+function setTlZoom(z, centerT) {
+  const clip = state.clip;
+  const view = document.getElementById("tlview");
+  const total = songDuration(clip);
+  if (centerT == null && view) {
+    const inner = document.getElementById("timeline").clientWidth;
+    centerT = ((view.scrollLeft + view.clientWidth / 2) / inner) * total;
+  }
+  state.tlZoom = Math.max(1, Math.min(tlMaxZoom(), z));
+  prefs("tlzoom:" + clip.slug, state.tlZoom);
+  const node = document.getElementById("console");
+  if (!node) return;
+  node.outerHTML = renderConsole(clip);
+  bindTimeline();
+  drawWave().then(() => {
+    const v = document.getElementById("tlview");
+    const inner = document.getElementById("timeline").clientWidth;
+    v.scrollLeft = Math.max(0, (centerT / total) * inner - v.clientWidth / 2);
+  });
+}
+
+function focusRange(a, e) {
+  const view = document.getElementById("tlview");
+  const total = songDuration(state.clip);
+  const z = Math.max(1, Math.min(tlMaxZoom(), (total / Math.max(1, e - a)) / 1.15));
+  setTlZoom(Math.round(z * 10) / 10, (a + e) / 2);
+  if (!view) return;
+}
+
+function bindTimeline() {
+  const tl = document.getElementById("timeline");
+  const view = document.getElementById("tlview");
+  if (!tl || !view) return;
+  tl.addEventListener("click", (e) => {
+    if (e.target.closest("[data-openshot], [data-goblock]")) return;
+    const r = tl.getBoundingClientRect();
+    song.currentTime = ((e.clientX - r.left) / r.width) * +tl.dataset.total;
+    updateHead();
+  });
+  const keepScroll = debounce(() => prefs("tlscroll:" + state.clip.slug, state.tlScroll), 400);
+  view.addEventListener("scroll", () => { state.tlScroll = view.scrollLeft; keepScroll(); }, { passive: true });
+  // pincement à deux doigts (tablette) et ctrl + molette (ordinateur)
+  let pinch = null;
+  view.addEventListener("touchstart", (e) => {
+    if (e.touches.length !== 2) return;
+    const [p, q] = e.touches;
+    const r = tl.getBoundingClientRect();
+    pinch = { d: Math.hypot(p.clientX - q.clientX, p.clientY - q.clientY), z: tlZoom(),
+      t: (((p.clientX + q.clientX) / 2 - r.left) / r.width) * +tl.dataset.total, ratio: 1 };
+  }, { passive: true });
+  view.addEventListener("touchmove", (e) => {
+    if (!pinch || e.touches.length !== 2) return;
+    e.preventDefault();
+    const [p, q] = e.touches;
+    pinch.ratio = Math.hypot(p.clientX - q.clientX, p.clientY - q.clientY) / pinch.d;
+    tl.style.transformOrigin = "left center";
+    tl.style.transform = `scaleX(${pinch.ratio})`;
+  }, { passive: false });
+  view.addEventListener("touchend", () => {
+    if (!pinch) return;
+    const p = pinch; pinch = null;
+    tl.style.transform = "";
+    if (Math.abs(p.ratio - 1) > 0.08) setTlZoom(Math.round(p.z * p.ratio * 10) / 10, p.t);
+  });
+  view.addEventListener("wheel", (e) => {
+    if (!e.ctrlKey) return;
+    e.preventDefault();
+    const r = tl.getBoundingClientRect();
+    const t = ((e.clientX - r.left) / r.width) * +tl.dataset.total;
+    setTlZoom(tlZoom() * (e.deltaY < 0 ? 1.5 : 1 / 1.5), t);
+  }, { passive: false });
 }
 
 async function drawWave() {
@@ -671,6 +778,8 @@ async function drawWave() {
   };
   paint(base, ["#5b3a8f", "#7a3a78"]);
   paint(document.getElementById("wave-top"), ["#b46cff", "#ff3fbf"]);
+  const view = document.getElementById("tlview");
+  if (view && state.tlScroll && tlZoom() > 1) view.scrollLeft = state.tlScroll;
   updateHead();
 }
 window.addEventListener("resize", debounce(drawWave, 200));
@@ -682,6 +791,11 @@ function updateHead() {
   const total = +tl.dataset.total;
   const pct = Math.min(100, (100 * (song.currentTime || 0)) / total);
   document.getElementById("tlhead").style.left = pct + "%";
+  const view = document.getElementById("tlview");
+  if (view && !song.paused && tlZoom() > 1) {
+    const x = (pct / 100) * tl.clientWidth;
+    if (x < view.scrollLeft || x > view.scrollLeft + view.clientWidth - 30) view.scrollLeft = Math.max(0, x - 40);
+  }
   const played = document.getElementById("wave-played");
   if (played) played.style.width = pct + "%";
   const clock = document.getElementById("clock");
@@ -915,13 +1029,27 @@ function renderDrawer() {
         <span class="hint">${(shot.assets || []).some((a) => a.kind === "image") ? "Le visuel déjà fait ne change pas tout seul : demande une modif pour le refaire." : "Le storyboard part de ce texte."}</span></div></div></details>`;
 
   const linked = new Set((shot.elements || []).map((e) => e.id));
-  const elBox = `<div class="shot-els">
-      <span class="hint">Décors, objets et figurants du plan</span>
-      <div class="row" style="gap:6px">${(shot.elements || []).map((e) => `<span class="elchip k-${e.kind}">
-        ${e.ref ? `<img src="${media(e.ref)}" data-zoom="${media(e.ref)}" alt="">` : ""}<b>${esc(e.name)}</b>
-        ${e.states.length ? `<select data-shotelstate="${e.id}" aria-label="État"><option value="">état de base</option>${e.states.map((x) => `<option ${x === e.state ? "selected" : ""}>${esc(x)}</option>`).join("")}</select>` : ""}
-        <button class="x" data-elunlink="${e.id}" title="Retirer du plan">✕</button></span>`).join("")}
-        ${(clip.elements || []).some((e) => !linked.has(e.id)) ? `<select data-shoteladd aria-label="Ajouter un élément"><option value="">＋ Ajouter…</option>${(clip.elements || []).filter((e) => !linked.has(e.id)).map((e) => `<option value="${e.id}">${esc(e.name)}</option>`).join("")}</select>` : ""}
+  const elIndex = Object.fromEntries((clip.elements || []).map((e) => [e.id, e]));
+  const KLAB = { decor: "Décor", objet: "Objet", figurant: "Figurant" };
+  const elTile = (e, attrs, extra = "") => {
+    const th = e.ref || (elIndex[e.id] || {}).thumb;
+    return `<div class="eltile2 k-${e.kind}" ${attrs}>
+        <div class="img" style="${th ? `background-image:url('${media(th)}')` : ""}">${th ? "" : `<span>pas encore d'image</span>`}</div>
+        <span class="nm">${esc(e.name)}</span><span class="kd">${KLAB[e.kind] || e.kind}</span>${extra}</div>`;
+  };
+  const free = (clip.elements || []).filter((e) => !linked.has(e.id));
+  const elBox = `<div class="shot-els panel">
+      <div class="panel-head"><h3>Décors, objets et figurants du plan</h3>
+        <a class="hint" href="#/clip/${encodeURIComponent(clip.slug)}/decors">tous les décors</a></div>
+      <p class="hint">Leur image sert de référence au visuel du plan. Pour en ajouter : touche ＋, ou tape @ dans le prompt détaillé.</p>
+      <div class="eltiles2">
+        ${(shot.elements || []).map((e) => elTile(e, "", `<button class="x" data-elunlink="${e.id}" title="Retirer du plan" aria-label="Retirer du plan">✕</button>`)).join("")}
+        ${free.length ? `<button class="eltile2 add" data-elpick><span class="plus">＋</span><span class="nm">Ajouter</span></button>` : ""}
+      </div>
+      <div class="elpicker" id="elpicker" hidden>
+        <p class="hint">Touche un élément pour l'ajouter au plan.</p>
+        ${["decor", "figurant", "objet"].map((k) => free.filter((e) => e.kind === k)).filter((l) => l.length)
+          .map((l) => `<h4>${KLAB[l[0].kind]}s</h4><div class="eltiles2">${l.map((e) => elTile(e, `data-eladd="${e.id}" role="button" tabindex="0"`)).join("")}</div>`).join("")}
       </div></div>`;
   if (!document.querySelector(".drawer-backdrop")) {
     const bd = document.createElement("div");
@@ -969,14 +1097,6 @@ function renderDrawer() {
         if (!t.value) { toast("Choisis un modèle dans la liste", "err"); return; }
         await api(`/api/shots/${t.dataset.shotmodel}/model`, { json: { model_key: t.value } });
         toast("Modèle changé"); return reload();
-      }
-      if (t.dataset.shoteladd !== undefined && t.value) {
-        await api(`/api/shots/${shot.id}/elements`, { json: { element_id: +t.value } });
-        toast("Ajouté au plan"); return reload();
-      }
-      if (t.dataset.shotelstate) {
-        await api(`/api/shots/${shot.id}/elements`, { json: { element_id: +t.dataset.shotelstate, state: t.value || null } });
-        toast("État changé"); return reload();
       }
       if (t.dataset.shotlipsync) {
         await api(`/api/shots/${t.dataset.shotlipsync}/lipsync`, { json: { model_key: t.value || null } });
@@ -1129,7 +1249,7 @@ function renderPlanVideo(shot, isGate) {
 }
 
 async function drawerClick(ev) {
-  const t = ev.target.closest("button, [data-zoom], input[data-model]");
+  const t = ev.target.closest("button, [data-zoom], input[data-model], [data-eladd]");
   if (ev.target.matches && ev.target.matches("select")) return;
   if (!t) return;
   const d = t.dataset;
@@ -1154,6 +1274,16 @@ async function drawerClick(ev) {
       await api(`/api/shots/${d.model}/model`, { json: { model_key: t.value } });
       toast("Modèle changé");
       return reload();
+    }
+    if (d.elpick !== undefined) {
+      const pk = document.getElementById("elpicker");
+      pk.hidden = !pk.hidden;
+      if (!pk.hidden) pk.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      return;
+    }
+    if (d.eladd) {
+      await api(`/api/shots/${state.shotId}/elements`, { json: { element_id: +d.eladd } });
+      toast("Ajouté au plan"); return reload();
     }
     if (d.elunlink) {
       await api(`/api/shots/${state.shotId}/elements`, { json: { element_id: +d.elunlink, remove: true } });
@@ -1229,6 +1359,9 @@ function editorFromClip(clip) {
     })),
   }));
   if (!blocks.length) blocks.push({ name: "Intro", intention: "", shots: [{ t_start: "0:00.0", t_end: "", description: "", singing: false, characters: defaultCast(clip) }] });
+  const open = new Set(prefs("decopen:" + clip.slug) || []);
+  const wasOpen = new Set((state.editor || []).flatMap((b) => b.shots.filter((x) => x._open && x.id).map((x) => x.id)));
+  blocks.forEach((b, i) => { b._open = open.has(i); b.shots.forEach((x) => { x._open = wasOpen.has(x.id); }); });
   return blocks;
 }
 
@@ -1278,46 +1411,95 @@ function renderDecoupageTab(clip) {
     </div>`;
   }
   let n = 0;
-  const blocks = state.editor.map((b, bi) => `<div class="dec-block">
-      <div class="dec-block-head">
-        <input type="text" value="${esc(b.name)}" data-bf="${bi}:name" placeholder="Nom du bloc (couplet 1…)">
-        <textarea rows="1" data-bf="${bi}:intention" placeholder="Intention du bloc (facultatif)">${esc(b.intention)}</textarea>
-        <textarea rows="1" data-bf="${bi}:look" placeholder="Lumière et étalonnage communs au bloc (en anglais, facultatif)" title="Les plans du bloc partagent cette lumière. Le premier visuel validé du bloc sert de référence aux autres.">${esc(b.look || "")}</textarea>
-        <button class="iconbtn" data-delblock="${bi}" title="Supprimer le bloc">✕</button>
-      </div>
-      <div class="colhead"><span>#</span><span>Début</span><span>Fin</span><span>Durée</span><span>Ce qu'on voit</span><span></span></div>
-      ${b.shots.map((s, si) => {
-        n++;
-        const tech = [s.framing, s.motion && `mouvement ${s.motion}`, s.camera, (s.characters || []).join(", ")].filter(Boolean).join(" · ");
-        return `<div class="dec-shot">
-          <span class="n">${n}</span>
-          <input class="tc" type="text" inputmode="decimal" value="${esc(s.t_start)}" data-sf="${bi}:${si}:t_start" placeholder="0:00.0">
-          <input class="tc" type="text" inputmode="decimal" value="${esc(s.t_end)}" data-sf="${bi}:${si}:t_end" placeholder="0:04.0">
-          <span class="dur" data-dur="${bi}:${si}">${durText(s)}</span>
-          <textarea rows="1" data-mention data-sf="${bi}:${si}:description" placeholder="Ce qu'on voit, en une ligne (tape @ pour citer un décor)">${esc(s.description)}</textarea>
-          <span class="shot-acts">
-            <label class="sing" title="Plan chanté face caméra : lip-sync"><input type="checkbox" ${s.singing ? "checked" : ""} data-sf="${bi}:${si}:singing"> ♪ chanté</label>
-            ${si < b.shots.length - 1 ? `<button class="btn small ghost" data-mergeshot="${bi}:${si}" title="Fusionner avec le plan suivant">Fusionner avec le suivant</button>` : ""}
-            <button class="btn small ghost" data-splitshot="${bi}:${si}" title="Couper ce plan en deux au milieu">Couper en deux</button>
-            <button class="iconbtn" data-delshot="${bi}:${si}" title="Supprimer le plan">✕</button>
-          </span>
-          ${tech ? `<span class="tech">${esc(tech)}</span>` : ""}
-          <div class="dec-more">
-            <div class="row" style="gap:8px">${modelSelect(clip, s.model_key, `data-sf="${bi}:${si}:model_key" aria-label="Modèle vidéo"`)}
-              <span data-fit="${bi}:${si}">${fitBadge(fitFor(clip, s.model_key, parseTc(s.t_end) - parseTc(s.t_start)))}</span></div>
-            <details class="fold detail" ${s.detail ? "" : "open"}><summary>Prompt détaillé${s.detail_edited ? " · écrit par toi" : s.detail ? "" : " · à écrire"}</summary>
-              <textarea rows="3" data-mention data-sf="${bi}:${si}:detail" placeholder="Le plan en détail : sujet, action, décor, lumière, cadrage. Le script doctor le remplit, tu peux le réécrire.">${esc(s.detail || "")}</textarea></details>
+  const nOpen = state.editor.filter((b) => b._open).length;
+  const tools = `<div class="dec-tools">
+      <span class="hint">${state.editor.length} blocs · ${allShots.length} plans</span><span class="spacer"></span>
+      <button class="btn small ghost" data-decall="open" ${nOpen === state.editor.length ? "disabled" : ""}>Tout déplier</button>
+      <button class="btn small ghost" data-decall="close" ${nOpen ? "" : "disabled"}>Tout replier</button>
+    </div>`;
+  const blocks = state.editor.map((b, bi) => {
+    const first = n + 1;
+    const a = b.shots.length ? parseTc(b.shots[0].t_start) : null;
+    const e = b.shots.length ? parseTc(b.shots[b.shots.length - 1].t_end) : null;
+    const todo = b.shots.filter((s) => !(s.detail && s.framing && s.motion)).length;
+    const shotsHtml = b.shots.map((s, si) => {
+      n++;
+      const key = `${bi}:${si}`;
+      const fit = fitFor(clip, s.model_key, parseTc(s.t_end) - parseTc(s.t_start));
+      const tech = [FRAMING_FR[s.framing] || s.framing, s.motion && `mouvement ${MOTION_FR[s.motion] || s.motion}`, s.camera].filter(Boolean).join(" · ");
+      const complete = s.detail && s.framing && s.motion;
+      return `<div class="dshot ${s._open ? "open" : ""} ${bi % 2 ? "alt" : ""}" id="dshot-${key}">
+        <div class="dshot-head" data-toggleshot="${key}">
+          <span class="dshot-n">${n}</span>
+          <span class="dshot-tc mono">${esc(s.t_start || "?")} → ${esc(s.t_end || "?")}</span>
+          <span class="dshot-dur mono" data-dur="${key}">${durText(s)}</span>
+          ${s.singing ? `<span class="dshot-sing" title="Plan chanté : lip-sync">♪</span>` : ""}
+          <span data-fit="${key}">${fit && fit.level !== "ok" ? fitBadge(fit) : ""}</span>
+          <span class="spacer"></span>
+          ${complete ? "" : `<span class="pill review">à compléter</span>`}
+          <span class="chev">›</span>
+        </div>
+        <div class="dshot-sum" data-toggleshot="${key}">
+          <p class="dshot-desc" data-desc="${key}">${mentionHtml(s.description) || `<i class="hint">Pas encore de description</i>`}</p>
+          ${tech ? `<p class="dshot-tech">${esc(tech)}</p>` : ""}
+        </div>
+        <div class="dshot-body">
+          <div class="dshot-row">
+            <label class="field"><span>Début</span><input class="tc" type="text" inputmode="decimal" value="${esc(s.t_start)}" data-sf="${key}:t_start" placeholder="0:00.0"></label>
+            <label class="field"><span>Fin</span><input class="tc" type="text" inputmode="decimal" value="${esc(s.t_end)}" data-sf="${key}:t_end" placeholder="0:04.0"></label>
+            <label class="sing" title="Plan chanté face caméra : lip-sync"><input type="checkbox" ${s.singing ? "checked" : ""} data-sf="${key}:singing"> ♪ chanté</label>
           </div>
-        </div>`;
-      }).join("")}
-      <div class="row" style="margin-top:8px"><button class="btn small" data-addshot="${bi}">＋ Plan</button></div>
-    </div>`).join("");
-  return `${head}${summary}${blocks}
+          <label class="field"><span>Ce qu'on voit (ligne courte)</span>
+            <textarea rows="2" data-mention data-sf="${key}:description" placeholder="Ce qu'on voit, en une ligne (tape @ pour citer un décor)">${esc(s.description)}</textarea></label>
+          <label class="field"><span>Prompt détaillé${s.detail_edited ? " · écrit par toi" : s.detail ? " · écrit par le script doctor" : " · à écrire"}</span>
+            <textarea rows="5" data-mention data-sf="${key}:detail" placeholder="Le plan en détail : sujet, action, décor, lumière, cadrage. Le script doctor le remplit, tu peux le réécrire.">${esc(s.detail || "")}</textarea></label>
+          <div class="row" style="gap:8px">${modelSelect(clip, s.model_key, `data-sf="${key}:model_key" aria-label="Modèle vidéo"`)}
+            <span data-fitfull="${key}">${fitBadge(fit)}</span></div>
+          <div class="dshot-acts">
+            ${si < b.shots.length - 1 ? `<button class="btn small ghost" data-mergeshot="${key}">Fusionner avec le plan suivant</button>` : ""}
+            <button class="btn small ghost" data-splitshot="${key}">Couper en deux</button>
+            <button class="btn small ghost danger" data-delshot="${key}">Supprimer le plan</button>
+          </div>
+        </div>
+      </div>`;
+    }).join("");
+    return `<section class="dblock ${b._open ? "open" : ""} ${bi % 2 ? "alt" : ""}" id="decblock-${bi}">
+      <div class="dblock-head" data-toggledec="${bi}">
+        <span class="chev">›</span>
+        <span class="dblock-num">Bloc ${bi + 1}</span>
+        <span class="dblock-title">
+          <b>${esc(b.name || "Sans nom")}</b>
+          <span class="mono">${a != null && !isNaN(a) ? tc(a) : "?"} → ${e != null && !isNaN(e) ? tc(e) : "?"} · ${b.shots.length ? `plans ${first} à ${n}` : "aucun plan"}${a != null && e != null && !isNaN(a) && !isNaN(e) ? ` · ${(e - a).toFixed(0)} s` : ""}</span>
+          ${b.intention ? `<span class="dblock-int">${esc(b.intention)}</span>` : ""}
+        </span>
+        ${todo ? `<span class="pill review">${todo} à compléter</span>` : b.shots.length ? `<span class="pill done">complet</span>` : ""}
+      </div>
+      <div class="dblock-body">
+        <details class="fold dblock-set"><summary>Nom, intention et lumière du bloc</summary><div class="stack" style="gap:8px">
+          <label class="field"><span>Nom</span><input type="text" value="${esc(b.name)}" data-bf="${bi}:name" placeholder="Nom du bloc (couplet 1…)"></label>
+          <label class="field"><span>Intention</span><textarea rows="2" data-bf="${bi}:intention" placeholder="Ce que raconte ce bloc">${esc(b.intention)}</textarea></label>
+          <label class="field"><span>Lumière et étalonnage (en anglais)</span><textarea rows="2" data-bf="${bi}:look" placeholder="Lumière commune à tous les plans du bloc" title="Les plans du bloc partagent cette lumière. Le premier visuel validé du bloc sert de référence aux autres.">${esc(b.look || "")}</textarea></label>
+          <div class="row"><button class="btn small ghost danger" data-delblock="${bi}">Supprimer le bloc</button></div>
+        </div></details>
+        <div class="dshots">${shotsHtml}</div>
+        <div class="row" style="margin-top:10px"><button class="btn small" data-addshot="${bi}">＋ Plan</button></div>
+      </div>
+    </section>`;
+  }).join("");
+  return `${head}${summary}${renderSourcesBox(clip, true)}${tools}${blocks}
     <div class="row" style="position:sticky;bottom:12px;z-index:5;background:#0a0911ee;padding:10px;border-radius:12px;border:1px solid var(--line)">
       <button class="btn" data-addblock>＋ Bloc</button><span class="spacer"></span>
       <span class="hint" id="dec-status">${state.editorDirty ? "Modifications non enregistrées" : `${n} plans`}</span>
       <button class="btn go" data-savedec>Enregistrer le découpage</button>
     </div>`;
+}
+
+const FRAMING_FR = { ECU: "très gros plan", CU: "gros plan", MCU: "plan rapproché", MS: "plan taille", MWS: "plan américain",
+  WS: "plan large", EWS: "plan très large" };
+const MOTION_FR = { static: "aucun", low: "faible", medium: "moyen", high: "fort" };
+
+function saveDecOpen(clip) {
+  prefs("decopen:" + clip.slug, (state.editor || []).map((b, i) => (b._open ? i : null)).filter((x) => x !== null));
 }
 
 function renderDecoupageRead(clip) {
@@ -1391,6 +1573,7 @@ function renderDossier(clip) {
   const formats = [["16:9", "Horizontal", "YouTube, écran", 48, 27], ["9:16", "Vertical", "Reels, TikTok, Shorts", 22, 39], ["1:1", "Carré", "Posts", 34, 34]];
   const formatLocked = clip.stage !== "script" && clip.stage !== "decoupage_review";
   return `${cta}
+    ${renderSourcesBox(clip, false)}
     <div id="scenario-box" class="panel stack" style="margin-bottom:16px"><p class="loading">Chargement…</p></div>
     <div class="two-col">
       <div class="panel stack">
@@ -1453,6 +1636,53 @@ function renderDossier(clip) {
     </div>`;
 }
 
+/* ----- sources du script doctor et mémoire de réalisation ----- */
+
+function sizeText(n) {
+  if (!n) return "";
+  const k = Math.round(n / 1000);
+  return k >= 1 ? `≈ ${k.toLocaleString("fr-FR")} 000 caractères` : `${n} caractères`;
+}
+
+function renderSourcesBox(clip, inDecoupage) {
+  const sources = (clip.files || []).filter((f) => f.kind === "source");
+  const unread = new Set(clip.sources_unread || []);
+  const nNew = sources.filter((f) => unread.has(f.id)).length;
+  const working = clip.memoire_status === "requested" || (clip.needs_agent || []).some((r) => r.includes("sources à relire"));
+  const rows = sources.map((f) => `<div class="file"><span class="ico">TXT</span>
+      <span class="nm">${esc(f.label)}<br><span class="hint">${sizeText(f.size)}</span></span>
+      ${unread.has(f.id) ? pill("pas encore lue", "review") : pill("lue", "done")}
+      <a href="${media(f.path)}" target="_blank" rel="noopener">ouvrir</a>
+      <button class="iconbtn" data-rmfile="${f.id}" title="Retirer">✕</button></div>`).join("");
+  const memo = clip.memoire || "";
+  const body = `
+    <p class="hint">Colle ou dépose tout ce qui a nourri le clip : conversations entières avec d'autres IA,
+      transcriptions audio, notes. Aucune limite de taille. Le script doctor les lit en entier et en tire la
+      mémoire de réalisation : tes décisions, ce que tu as écarté et pourquoi. Tous les agents la lisent, pour ne
+      jamais te reproposer une idée refusée.</p>
+    <div class="files">${rows || `<p class="hint">Aucune source pour l'instant.</p>`}</div>
+    ${working ? `<div class="agentbar">${led("work")}Le script doctor relit tes sources et met à jour la mémoire${clip.stage === "script" || clip.stage === "decoupage_review" ? " et les plans" : ""}.</div>`
+      : nNew ? `<div class="row"><button class="btn go" data-askmemoire>Faire lire ${nNew > 1 ? `ces ${nNew} sources` : "cette source"} au script doctor</button>
+          <span class="hint">${clip.stage === "script" || clip.stage === "decoupage_review" ? "Il met à jour la mémoire, puis reprend les plans concernés." : "Il met à jour la mémoire ; les plans déjà validés ne bougent pas."}</span></div>` : ""}
+    <details class="fold" ${sources.length ? "" : "open"}><summary>Coller un texte</summary><div class="stack" style="gap:8px">
+      <input type="text" id="src-label" placeholder="Titre (ex. : conversation avec ChatGPT du 29 octobre)">
+      <textarea id="src-text" rows="8" placeholder="Colle ici la conversation ou la transcription entière, telle quelle"></textarea>
+      <div class="row"><button class="btn" data-addsource>Ajouter cette source</button></div></div></details>
+    ${dropZone("source", "Ou déposer des fichiers", "txt, md, pdf, docx, srt : conversations exportées, transcriptions", "", true)}
+    <h3 style="margin-top:6px">Mémoire de réalisation</h3>
+    ${memo ? `<details class="fold"><summary>Lire et corriger la mémoire (${memo.split("\n").filter((l) => l.trim()).length} lignes)</summary><div class="stack" style="gap:8px">
+        <textarea id="memoire" rows="18">${esc(memo)}</textarea>
+        <div class="row"><button class="btn" data-savememoire>Enregistrer ma correction</button></div></div></details>`
+      : `<p class="hint">Pas encore écrite : elle apparaît ici quand le script doctor a lu tes sources.</p>`}`;
+  if (inDecoupage) {
+    return `<details class="panel fold sources-box" id="sources" ${nNew || working ? "open" : ""}>
+      <summary><b>Sources et mémoire du script doctor</b> <span class="hint">${sources.length} source${sources.length > 1 ? "s" : ""}${nNew ? ` · ${nNew} pas encore lue${nNew > 1 ? "s" : ""}` : ""}${memo ? " · mémoire écrite" : ""}</span></summary>
+      <div class="stack">${body}</div></details>`;
+  }
+  return `<div class="panel stack sources-box" id="sources" style="margin-bottom:16px">
+      <div class="panel-head"><h2>Sources du script doctor</h2></div>${body}</div>`;
+}
+
 async function loadLyrics(clip) {
   const typed = (clip.files || []).find((f) => f.kind === "lyrics" && f.path.endsWith("script/paroles.md"));
   state.lyricsText = "";
@@ -1475,8 +1705,8 @@ function bindClip() {
   const clip = state.clip;
   drawWave();
   bindCompare($view);
-  if (state.tab === "dossier") {
-    loadLyrics(clip);
+  if (state.tab === "dossier" || state.tab === "decoupage") {
+    if (state.tab === "dossier") loadLyrics(clip);
     bindDrops($view, async (kind, files) => {
       const fd = new FormData();
       fd.set("kind", kind);
@@ -1486,30 +1716,31 @@ function bindClip() {
         await upload(`/api/clips/${encodeURIComponent(clip.slug)}/files`, fd, (p) => toast(`Envoi : ${Math.round(p * 100)} %`));
         toast("Fichier ajouté");
         if (kind === "song") delete state.peaks[clip.slug];
-        await showClip(clip.slug, "dossier");
+        await showClip(clip.slug, state.tab);
       } catch (e) { toast(e.message, "err"); }
     });
   }
-  const tl = document.getElementById("timeline");
-  if (tl) {
-    tl.addEventListener("click", (e) => {
-      if (e.target.closest("[data-openshot], [data-goblock]")) return;
-      const r = tl.getBoundingClientRect();
-      song.currentTime = ((e.clientX - r.left) / r.width) * +tl.dataset.total;
-      updateHead();
-    });
-  }
+  bindTimeline();
   $view.oninput = (e) => {
     const t = e.target;
     if (t.dataset.sf) {
       const [bi, si, f] = t.dataset.sf.split(":");
       state.editor[+bi].shots[+si][f] = t.type === "checkbox" ? t.checked : t.value;
+      const sh = state.editor[+bi].shots[+si];
       if (f === "t_start" || f === "t_end" || f === "model_key") {
-        const sh = state.editor[+bi].shots[+si];
         const el = $view.querySelector(`[data-dur="${bi}:${si}"]`);
         if (el) el.textContent = durText(sh);
+        const fit = fitFor(clip, sh.model_key, parseTc(sh.t_end) - parseTc(sh.t_start));
         const fe = $view.querySelector(`[data-fit="${bi}:${si}"]`);
-        if (fe) fe.innerHTML = fitBadge(fitFor(clip, sh.model_key, parseTc(sh.t_end) - parseTc(sh.t_start)));
+        if (fe) fe.innerHTML = fit && fit.level !== "ok" ? fitBadge(fit) : "";
+        const ff = $view.querySelector(`[data-fitfull="${bi}:${si}"]`);
+        if (ff) ff.innerHTML = fitBadge(fit);
+        const tcEl = $view.querySelector(`#dshot-${bi}\\:${si} .dshot-tc`);
+        if (tcEl) tcEl.textContent = `${sh.t_start || "?"} → ${sh.t_end || "?"}`;
+      }
+      if (f === "description") {
+        const de = $view.querySelector(`[data-desc="${bi}:${si}"]`);
+        if (de) de.innerHTML = mentionHtml(sh.description);
       }
       markDirty();
     } else if (t.dataset.bf) {
@@ -1519,7 +1750,7 @@ function bindClip() {
     }
   };
   $view.onclick = async (ev) => {
-    const t = ev.target.closest("button, [data-openshot], [data-goblock], [data-toggleblock], [data-zoom], [data-unfold]");
+    const t = ev.target.closest("button, [data-openshot], [data-goblock], [data-toggleblock], [data-zoom], [data-unfold], [data-toggledec], [data-toggleshot]");
     if (!t) return;
     const d = t.dataset;
     const reload = (tab = state.tab) => showClip(clip.slug, tab, false);
@@ -1533,12 +1764,28 @@ function bindClip() {
         location.hash = shotHref(d.openshot);
         return;
       }
+      if (d.tlzoom) {
+        const z = tlZoom();
+        if (d.tlzoom === "fit") return setTlZoom(1);
+        const next = d.tlzoom === "in" ? TL_ZOOMS.find((x) => x > z) || z : [...TL_ZOOMS].reverse().find((x) => x < z) || 1;
+        return setTlZoom(next);
+      }
       if (d.goblock !== undefined) {
-        if (state.tab !== "plans") { location.hash = `#/clip/${encodeURIComponent(clip.slug)}/plans`; return; }
+        // un bloc touché dans la frise : on zoome dessus, et on ouvre ce bloc dans la liste
+        if (t.classList.contains("tl-block")) focusRange(+d.a, +d.z);
+        if (state.tab === "decoupage") {
+          const bi = clip.blocks.findIndex((b) => String(b.id) === d.goblock);
+          if (bi >= 0 && state.editor && state.editor[bi]) {
+            state.editor[bi]._open = true;
+            const node = document.getElementById("decblock-" + bi);
+            if (node) { node.classList.add("open"); saveDecOpen(clip); node.scrollIntoView({ behavior: "smooth", block: "start" }); }
+          }
+          return;
+        }
+        if (state.tab !== "plans") return;
         const open = openBlocks(clip); open.add(d.goblock); prefs("open:" + clip.slug, [...open]);
-        state.tempOpen[d.goblock] = true;
-        renderClip();
-        document.getElementById("block-" + d.goblock)?.scrollIntoView({ behavior: "smooth", block: "start" });
+        const node = document.getElementById("block-" + d.goblock);
+        if (node) { node.classList.add("open"); node.scrollIntoView({ behavior: "smooth", block: "start" }); }
         return;
       }
       if (d.toggleblock) {
@@ -1579,16 +1826,38 @@ function bindClip() {
         return;
       }
       // découpage
+      if (d.toggledec !== undefined) {
+        const b = state.editor[+d.toggledec];
+        b._open = !b._open;
+        document.getElementById("decblock-" + d.toggledec)?.classList.toggle("open", b._open);
+        saveDecOpen(clip);
+        return;
+      }
+      if (d.toggleshot) {
+        if (ev.target.closest("a, .mention")) return;
+        const [bi, si] = d.toggleshot.split(":").map(Number);
+        const sh = state.editor[bi].shots[si];
+        sh._open = !sh._open;
+        document.getElementById(`dshot-${bi}:${si}`)?.classList.toggle("open", sh._open);
+        if (sh._open) fitAll(document.getElementById(`dshot-${bi}:${si}`));
+        return;
+      }
+      if (d.decall) {
+        state.editor.forEach((b) => { b._open = d.decall === "open"; });
+        saveDecOpen(clip);
+        return renderClip();
+      }
       if (d.addshot) {
         const b = state.editor[+d.addshot];
         const last = b.shots[b.shots.length - 1];
-        b.shots.push({ t_start: last ? last.t_end : "", t_end: "", description: "", singing: false, characters: defaultCast(clip) });
+        b.shots.push({ t_start: last ? last.t_end : "", t_end: "", description: "", singing: false, characters: defaultCast(clip), _open: true });
         markDirty(); return renderClip();
       }
       if (d.addblock !== undefined) {
         const lastB = state.editor[state.editor.length - 1];
         const lastS = lastB && lastB.shots[lastB.shots.length - 1];
-        state.editor.push({ name: "", intention: "", shots: [{ t_start: lastS ? lastS.t_end : "0:00.0", t_end: "", description: "", singing: false, characters: defaultCast(clip) }] });
+        state.editor.push({ name: "", intention: "", _open: true, shots: [{ t_start: lastS ? lastS.t_end : "0:00.0", t_end: "", description: "", singing: false, characters: defaultCast(clip), _open: true }] });
+        saveDecOpen(clip);
         markDirty(); return renderClip();
       }
       if (d.mergeshot) {
@@ -1608,7 +1877,7 @@ function bindClip() {
         const t0 = parseTc(a.t_start), t1 = parseTc(a.t_end);
         if (t0 == null || t1 == null || isNaN(t0) || isNaN(t1) || t1 - t0 < 1) { toast("Plan trop court pour être coupé", "err"); return; }
         const mid = tc(t0 + (t1 - t0) / 2);
-        shots.splice(si + 1, 0, { ...a, id: null, split_from: a.id || null, t_start: mid, description: "", detail: a.detail, detail_edited: false });
+        shots.splice(si + 1, 0, { ...a, id: null, split_from: a.id || null, t_start: mid, description: "", detail: a.detail, detail_edited: false, _open: true });
         a.t_end = mid;
         markDirty(); return renderClip();
       }
@@ -1645,6 +1914,26 @@ function bindClip() {
         await api(`/api/clips/${encodeURIComponent(clip.slug)}/decoupage`, { json: { decision: d.cut, comment } });
         toast(d.cut === "approve" ? "Découpage validé : le storyboard démarre" : "Retour envoyé au script doctor");
         return reload(d.cut === "approve" ? "plans" : "decoupage");
+      }
+      // sources et mémoire
+      if (d.addsource !== undefined) {
+        const text = document.getElementById("src-text").value;
+        if (!text.trim()) { toast("Colle d'abord le texte", "err"); return; }
+        t.disabled = true;
+        await api(`/api/clips/${encodeURIComponent(clip.slug)}/sources`, { json: { label: document.getElementById("src-label").value, text } });
+        toast("Source ajoutée");
+        return reload();
+      }
+      if (d.askmemoire !== undefined) {
+        t.disabled = true;
+        await api(`/api/clips/${encodeURIComponent(clip.slug)}/memoire/request`, { method: "POST" });
+        toast("Le script doctor va lire tes sources");
+        return reload();
+      }
+      if (d.savememoire !== undefined) {
+        await api(`/api/clips/${encodeURIComponent(clip.slug)}/memoire`, { json: { text: document.getElementById("memoire").value } });
+        toast("Mémoire enregistrée");
+        return reload();
       }
       // dossier
       if (d.savebrief !== undefined) {
@@ -2197,7 +2486,7 @@ async function loadDecors(clip, keep = false) {
   const thumbOfEl = (e) => (e.images.find((i) => i.role === "hd" && i.status === "kept")
     || e.images.find((i) => i.role === "draft") || {}).path;
   const stateSelect = (e, attr) => `<select ${attr}><option value="">État de base</option>${e.states.map((x) => `<option>${esc(x)}</option>`).join("")}</select>`;
-  const ready = d.elements.filter((e) => e.step === "hd_todo");
+  const ready = d.elements.filter((e) => e.step === "hd_todo" && e.prompt_status !== "requested");
   const cost = (n) => money(n * d.hd_cost);
 
   const card = (e) => {
@@ -2219,6 +2508,10 @@ async function loadDecors(clip, keep = false) {
         ${pill(stepTxt, stepCls)}
       </summary>
       <div class="elbody">
+        <div class="row elrename" style="gap:8px">
+          <input type="text" data-elname="${e.id}" value="${esc(e.name)}" aria-label="Nom" style="flex:1;min-width:180px">
+          <button class="btn small" data-elrename="${e.id}">Renommer</button>
+        </div>
         <div class="elstep ${s1 ? "ok" : ""}">
           <div class="elstep-h"><span class="num">1</span><b>Ton image de départ</b>
             <span class="hint">L'image que tu as faite, même brute. L'image HD en repart.</span></div>
@@ -2232,17 +2525,21 @@ async function loadDecors(clip, keep = false) {
             ${dropZone(`el:${e.id}:hd`, "Déposer une image HD finie", "png, jpg ou webp", "image/*", true)}</div></details>
         </div>
 
-        <div class="elstep ${e.prompt_edited ? "ok" : ""}">
+        <div class="elstep ${e.prompt_by !== "default" && e.prompt_status !== "requested" ? "ok" : ""}">
           <div class="elstep-h"><span class="num">2</span><b>Prompt de l'image HD</b>
-            <span class="hint">${e.prompt_edited ? "Écrit par toi." : drafts.length ? "Proposé : il demande de garder ton image et d'en faire une version photoréaliste." : "Proposé à partir de la fiche. Dépose d'abord ton image de départ si tu en as une."}</span></div>
+            <span class="hint">${e.prompt_edited ? "Écrit par toi."
+              : e.prompt_by === "agent" ? "Écrit par le décorateur, d'après ton image de départ. Corrige-le si besoin."
+              : drafts.length ? "Prompt provisoire : le décorateur va regarder ton image et le réécrire."
+              : "Proposé d'après la fiche. Dépose d'abord ton image de départ : le prompt sera écrit d'après elle."}</span></div>
+          ${e.prompt_status === "requested" ? `<div class="agentbar">${led("work")}Le décorateur regarde ton image : il réécrit la fiche et le prompt d'après elle (une à deux minutes).</div>` : ""}
           <textarea rows="6" data-elprompt="${e.id}">${esc(e.prompt_text)}</textarea>
+          ${drafts.length && e.prompt_status !== "requested" ? `<div class="row"><button class="btn small ${e.prompt_by === "agent" ? "ghost" : "go"}" data-eldescribe="${e.id}">${e.prompt_by === "agent" ? "Réécrire" : "Écrire"} le prompt d'après ${drafts.length > 1 ? "mes images" : "mon image"}</button>
+            <span class="hint">Le décorateur regarde ${drafts.length > 1 ? "tes images" : "ton image"} et décrit ce qu'${drafts.length > 1 ? "elles montrent" : "elle montre"}. Gratuit.</span></div>` : ""}
           <div class="row" style="gap:8px"><button class="btn small" data-elsaveprompt="${e.id}">Enregistrer le prompt</button>
-            ${e.prompt_edited ? `<button class="btn small ghost" data-elresetprompt="${e.id}">Revenir au prompt proposé</button>` : ""}</div>
-          <details class="fold"><summary>Fiche${e.description ? "" : " · vide"} et états</summary><div class="stack" style="gap:6px">
-            <label class="hint">Ce qui ne change jamais : plan des lieux, matières, couleurs, lumière, style</label>
+            ${e.prompt_edited ? `<button class="btn small ghost" data-elresetprompt="${e.id}">Revenir au prompt ${e.prompt_agent ? "du décorateur" : "proposé"}</button>` : ""}</div>
+          <details class="fold"><summary>Fiche${e.description ? "" : " · vide"}</summary><div class="stack" style="gap:6px">
+            <label class="hint">Ce qu'on voit : plan des lieux, matières, couleurs, lumière, style. Si le lieu change d'aspect (avant / après), crée un second élément.</label>
             <textarea data-elf="${e.id}:description" rows="4">${esc(e.description || "")}</textarea>
-            <label class="hint">États, un par ligne : ce qui change au fil du clip</label>
-            <textarea data-elf="${e.id}:states" rows="3">${esc(e.states.join("\n"))}</textarea>
             <div class="row"><button class="btn small" data-elsave="${e.id}">Enregistrer la fiche</button>
               <span class="spacer"></span><button class="btn small ghost" data-eldel="${e.id}">Supprimer l'élément</button></div></div></details>
         </div>
@@ -2256,7 +2553,8 @@ async function loadDecors(clip, keep = false) {
           <div class="row" style="gap:8px;align-items:flex-end">
             ${e.states.length ? `<label class="field" style="min-width:180px"><span>État</span>${stateSelect(e, `data-elstate="${e.id}"`)}</label>` : ""}
             <input type="text" data-elnotes="${e.id}" placeholder="Précision pour cette fois (facultatif)" style="flex:1;min-width:180px">
-            <button class="btn ${e.step === "hd_todo" ? "go" : ""}" data-elgen="${e.id}" ${d.hd_usable ? "" : "disabled"}>${hdKept.length || hdProp.length ? "Refaire" : "Générer"} l'image HD · ${money(d.hd_cost)}</button>
+            <button class="btn ${e.step === "hd_todo" ? "go" : ""}" data-elgen="${e.id}" ${d.hd_usable && e.prompt_status !== "requested" ? "" : "disabled"}
+              title="${e.prompt_status === "requested" ? "Attends le prompt du décorateur" : ""}">${hdKept.length || hdProp.length ? "Refaire" : "Générer"} l'image HD · ${money(d.hd_cost)}</button>
           </div>
         </div>
       </div>
@@ -2356,10 +2654,19 @@ async function loadDecors(clip, keep = false) {
         remember(e.id);
         toast("Ajouté : dépose ton image de départ"); return reload();
       }
+      if (dd.eldescribe) {
+        await api(`/api/elements/${dd.eldescribe}/describe`, { method: "POST" });
+        toast("Le décorateur regarde ton image"); return reload();
+      }
+      if (dd.elrename) {
+        const name = box.querySelector(`[data-elname="${dd.elrename}"]`).value.trim();
+        if (!name) { toast("Donne un nom", "err"); return; }
+        await api(`/api/elements/${dd.elrename}`, { json: { name } });
+        toast("Renommé"); return reload();
+      }
       if (dd.elsave) {
         const desc = box.querySelector(`[data-elf="${dd.elsave}:description"]`).value;
-        const states = box.querySelector(`[data-elf="${dd.elsave}:states"]`).value.split("\n").map((x) => x.trim()).filter(Boolean);
-        await api(`/api/elements/${dd.elsave}`, { json: { description: desc, states } });
+        await api(`/api/elements/${dd.elsave}`, { json: { description: desc } });
         toast("Fiche enregistrée"); return reload();
       }
       if (dd.elsaveprompt || dd.elresetprompt) {

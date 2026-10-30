@@ -43,6 +43,60 @@ Accepte toute variante lisible (« 0:04-0:08 », « de 4,2 s à 8 s », un table
 - Lis **tout** le dossier avec Read : les `.txt` à côté des PDF et Word, les images
   de référence, les paroles (`script/paroles.md` et les fichiers de paroles).
 - `riot character show <slug>` : ADN de la version castée de chaque personnage.
+- `riot clip memoire <clip>` : la **mémoire de réalisation** et la liste des
+  **sources** (conversations, transcriptions audio, notes de travail de Michael),
+  avec pour chacune `deja_lue`.
+- `riot element list <clip>` : décors, objets et figurants, avec leur `slug`.
+
+## Les sources et la mémoire de réalisation
+
+Michael te donne ses **sources** : conversations entières avec d'autres agents IA,
+transcriptions audio, notes. Elles sont longues (des dizaines de milliers de
+caractères) et c'est voulu : tout y compte, surtout les allers-retours.
+
+1. **Lis chaque source en entier**, du début à la fin, avec Read (par tranches
+   `offset`/`limit` si le fichier est long ; `text_path` en donne une version
+   lisible). Ne survole pas, ne t'arrête pas au premier résumé : une conversation
+   contient souvent plusieurs versions successives du storyboard, et ce sont les
+   corrections de Michael entre deux versions qui comptent le plus.
+2. Écris la mémoire dans un fichier, puis enregistre-la :
+   `riot clip memoire <clip> <fichier.md>` (elle est rangée dans
+   `script/memoire.md` et les sources sont marquées comme lues). Reprends la
+   mémoire existante et complète-la : ne perds rien de ce qu'elle contenait,
+   surtout pas ce que Michael y a corrigé lui-même.
+
+La mémoire est en français, en phrases courtes, avec ces parties :
+
+```
+# Mémoire de réalisation : <titre>
+## L'intention
+Le pitch, le ton, l'arc, les images signatures, en quelques lignes.
+## Direction artistique
+Lumière, couleurs, références (films, clips), rythme, règles de cadrage, par partie du clip.
+## Ce que Michael a décidé
+Une ligne par décision, avec le plan ou le bloc concerné quand il y en a un.
+## Ce que Michael a écarté, et pourquoi
+Une ligne par idée refusée : l'idée, sa raison (ses mots quand il en donne),
+la source. Ex. : « Larme numérique du chien (plan 28 de la v1) : non, juste les
+sourcils qui remontent, comme triste. »
+## Détails à ne pas perdre
+Ce qui a été dit dans une version puis oublié dans un résumé, sans avoir été refusé.
+## Questions ouvertes
+Ce qui reste flou ou contradictoire entre les sources.
+```
+
+**Ce qui est écarté ne revient jamais**, ni dans un plan, ni dans un prompt, ni
+dans une suggestion de `notes.md`, même reformulé. Si une source plus récente
+contredit une plus ancienne, la plus récente gagne ; un refus explicite de
+Michael gagne toujours sur une proposition d'un agent.
+
+Quand `needs_agent` dit « sources à relire » : lis les sources non lues (et
+relis les autres si besoin), mets la mémoire à jour, puis :
+- avant la validation du découpage (`script`, `decoupage_review`) : reprends les
+  plans concernés (prompts détaillés, cadrage, lignes courtes si une précision
+  validée manque) et réimporte avec les `id` ;
+- après la validation : ne touche pas aux plans ; écris dans `notes.md` les plans
+  que la mémoire remet en cause, Michael décidera.
 
 ## Deux cas
 
@@ -55,6 +109,7 @@ Accepte toute variante lisible (« 0:04-0:08 », « de 4,2 s à 8 s », un table
 
 ## Ce que tu produis
 
+0. **La mémoire de réalisation** (voir plus haut), avant tout le reste.
 1. **Relecture** dans `studio/clips/<clip>/script/notes.md` : ce qui fonctionne,
    les incohérences (de décor, de tenue, de lumière d'un plan à l'autre), ce qui
    sera difficile ou coûteux à générer en IA (foules, mains en gros plan, texte à
@@ -84,12 +139,26 @@ Accepte toute variante lisible (« 0:04-0:08 », « de 4,2 s à 8 s », un table
 
    Chaque plan a deux textes :
    - `description` : **une ligne courte en français** qui dit ce qu'on voit
-     (10 à 15 mots). C'est ce que Michael lit dans la liste des plans. Garde ses mots.
-   - `detail` : **le prompt détaillé**, en anglais, 60 à 120 mots : sujet, action,
-     décor, lumière, cadrage, objectif, ambiance, ce qui se passe du début à la fin
-     du plan. Le storyboard et le prompteur partent de ce texte. Michael peut le
-     réécrire à la main : un `detail` qu'il a modifié (`detail_edited: 1`) ne se
-     touche plus, même si tu le trouves améliorable (propose dans `notes.md`).
+     (10 à 25 mots). C'est ce que Michael lit dans la liste des plans. Garde ses
+     mots ; ajoute une précision validée dans les sources si elle manque.
+   - `detail` : **le prompt détaillé**, en anglais, 80 à 150 mots. Le storyboard et
+     le prompteur partent de ce texte, rien d'autre : tout ce qui compte pour ce
+     plan doit y être. Dans l'ordre :
+     1. le sujet et l'action précise, du début à la fin du plan (gestes, regard,
+        expression, ce qui change), avec le détail concret tiré des sources
+        (« tire deux fois sur le portail pour vérifier », pas « ferme le portail ») ;
+     2. le décor et les objets, cités par leur `@slug` (`@jardin-de-jj`,
+        `@portail-du-jardin`) : le plan est relié à ces références ;
+     3. le cadrage, l'objectif, le mouvement de caméra ;
+     4. la lumière et la couleur du bloc ;
+     5. l'émotion et le ton (humour, tension, mélancolie) et la place du plan
+        dans l'histoire, en une phrase ;
+     6. ce qu'il ne faut pas montrer, quand la mémoire l'a écarté
+        (« no tear, only raised eyebrows »).
+     Pas de mot vague (« énergique », « belle lumière ») sans le concret qui va
+     avec. Michael peut réécrire ce texte : un `detail` qu'il a modifié
+     (`detail_edited: 1`) ne se touche plus, même si tu le trouves améliorable
+     (propose dans `notes.md`).
 
    Chaque bloc a un `look` : une phrase en anglais sur la lumière et l'étalonnage
    communs à tous ses plans (source de lumière, heure, contraste, couleurs, grain).

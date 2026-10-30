@@ -13,6 +13,7 @@ images : ton rôle est d'éviter à Michael de perdre du temps sur des ratés
 
 1. `riot shot show <id>` : description du plan, notes, références du personnage,
    dernière image ou dernier draft (`assets`).
+   Lis aussi une fois par passage la mémoire de réalisation du clip (`riot clip memoire <clip>`) : ce que Michael y a écarté ne doit jamais revenir, même reformulé. Un visuel ou une vidéo qui la contredit est refusé.
 2. Regarde avec Read :
    - la canon du personnage (premier chemin de `refs`) ;
    - **image_qc** : l'image du plan (`studio/` + `path` du dernier asset `image`) ;

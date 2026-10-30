@@ -376,7 +376,11 @@ def test_elements_flow(studio, tmp_path):
     elements.add_image(conn, e["id"], img)               # image de départ : ne débloque pas les plans
     assert elements.missing_refs(conn, ids[0]) == ["Jardin de JJ"]
     ce = elements.clip_elements(conn, "decors")[0]
-    assert ce["step"] == "hd_todo" and "director's draft" in ce["prompt_text"]
+    assert ce["step"] == "hd_todo" and "reference image" in ce["prompt_text"] and ce["prompt_status"] == "requested"
+    assert any("image(s) de départ à regarder" in r for r in production.needs_agent(conn, "decors")["reasons"])
+    elements.describe(conn, e["id"], "Photorealistic high-definition photograph of a green garden.", "Jardin vert")
+    ce = elements.clip_elements(conn, "decors")[0]
+    assert ce["prompt_by"] == "agent" and ce["prompt_text"].startswith("Photorealistic") and ce["prompt_status"] == "none"
     elements.set_prompt(conn, e["id"], "Mon prompt à moi")
     res = elements.launch_image(conn, e["id"], "vide au retour", approved=True)
     job = conn.execute("SELECT * FROM jobs WHERE target_table='element_images' AND target_id=?",

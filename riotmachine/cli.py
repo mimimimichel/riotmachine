@@ -82,6 +82,20 @@ def cmd_clip_show(a) -> None:
     out(production.clip_snapshot(_conn(), a.clip, compact=not a.full))
 
 
+def cmd_clip_memoire(a) -> None:
+    conn = _conn()
+    if a.file:
+        production.save_memoire(conn, a.clip, Path(a.file).read_text(encoding="utf-8"), by="agent")
+        out({"clip": a.clip, "memoire": "enregistrée", "sources_non_lues": []})
+        return
+    unread = {f["id"] for f in production.sources_unread(conn, a.clip)}
+    files = [f for f in production.clip_files(conn, a.clip) if f["kind"] in ("source", "dossier")]
+    out({"memoire_path": production.rel(production.memoire_file(db.get_clip(conn, a.clip))),
+         "memoire": production.memoire_text(conn, a.clip),
+         "sources": [{"id": f["id"], "kind": f["kind"], "label": f["label"], "text_path": f["text_path"] or f["path"],
+                      "deja_lue": f["id"] not in unread} for f in files]})
+
+
 def cmd_clip_stage(a) -> None:
     conn = _conn()
     production.set_stage(conn, a.clip, a.stage)
@@ -226,6 +240,11 @@ def cmd_element(a) -> None:
     elif a.action == "link":
         e = elements.find(conn, a.clip, a.ref)
         out({"element": e["slug"], "plans_relies": elements.link(conn, _shot_ids(conn, a.clip, a.shots), e["id"], a.state)})
+    elif a.action == "describe":
+        e = elements.find(conn, a.clip, a.ref)
+        if not a.prompt:
+            raise SystemExit("--prompt est obligatoire : le prompt HD qui décrit l'image de départ")
+        out(elements.describe(conn, e["id"], a.prompt, a.description))
     elif a.action == "gen":
         e = elements.find(conn, a.clip, a.ref)
         out(elements.launch_image(conn, e["id"], a.state, a.prompt))
@@ -424,6 +443,11 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("clip")
     sp.add_argument("stage", choices=db.CLIP_STAGES)
     sp.set_defaults(func=cmd_clip_stage)
+    sp = clip.add_parser("memoire", help="Mémoire de réalisation : sans fichier, l'affiche avec les sources ; "
+                                         "avec un fichier, l'enregistre (sources marquées comme lues)")
+    sp.add_argument("clip")
+    sp.add_argument("file", nargs="?")
+    sp.set_defaults(func=cmd_clip_memoire)
     sp = clip.add_parser("budget", help="Fixe le budget d'un clip (dollars)")
     sp.add_argument("clip")
     sp.add_argument("usd", type=float)
@@ -549,7 +573,7 @@ def build_parser() -> argparse.ArgumentParser:
     sp.set_defaults(func=cmd_rodage)
 
     sp = sub.add_parser("element", help="Décors, objets et figurants d'un clip (références de cohérence)")
-    sp.add_argument("action", choices=["list", "add", "set", "link", "gen", "done"])
+    sp.add_argument("action", choices=["list", "add", "set", "link", "describe", "gen", "done"])
     sp.add_argument("clip")
     sp.add_argument("ref", nargs="?", help="slug ou id de l'élément (set, link, gen)")
     sp.add_argument("--kind", choices=["decor", "objet", "figurant"])
@@ -558,7 +582,7 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--states", help="états séparés par | (ex. « intact le matin|vide au retour »)")
     sp.add_argument("--shots", help="numéros de plans : 1,2,5-9")
     sp.add_argument("--state", help="état de l'élément dans ces plans, ou de l'image à générer")
-    sp.add_argument("--prompt", help="prompt de l'image de référence (sinon construit depuis la fiche)")
+    sp.add_argument("--prompt", help="describe : prompt HD qui décrit l'image de départ (anglais)")
     sp.set_defaults(func=cmd_element)
 
     sp = sub.add_parser("analyse", help="Analyse le morceau (tempo, temps, position des paroles) pour caler le découpage")

@@ -132,6 +132,8 @@ def add_image(conn: sqlite3.Connection, element_id: int, src: str | Path, state:
         (element_id, state or None, "michael", rel(dest), label or src.stem, "kept", role, db.now()))
     if role == "draft":
         cancel_pending(conn, element_id, "remplacée : Michael a déposé son image de départ")
+        # le décorateur regarde l'image et écrit la fiche et le prompt HD qui la décrivent
+        conn.execute("UPDATE elements SET prompt_status='requested' WHERE id=?", (element_id,))
     return db.row(conn.execute("SELECT * FROM element_images WHERE id=?", (cur.lastrowid,)).fetchone())
 
 
@@ -157,35 +159,65 @@ def _draft_for_state(conn: sqlite3.Connection, element_id: int, state: str | Non
 
 WHAT = {"decor": "a photographic reference plate of this location, wide establishing view, no people",
         "objet": "a product-style photographic reference of this object, plain neutral background, whole object visible",
-        "figurant": "a photographic character reference of this person or animal, full body, neutral background"}
+        "figurant": "a photographic reference of this person or animal, full body, standing still, neutral background"}
 
 
 def default_prompt(e: dict, from_draft: bool) -> str:
-    """Le prompt proposé à Michael pour l'image HD (il peut le réécrire)."""
+    """Prompt de secours, avant que le décorateur ait regardé l'image de départ.
+
+    Avec une image de départ, l'image fait foi : la fiche n'est pas recopiée (elle
+    pourrait la contredire). Sans image, la fiche décrit seulement l'apparence."""
     if from_draft:
-        head = (f"Turn the first reference image (the director's draft) into {WHAT[e['kind']]}. "
+        return (f"Turn the reference image into {WHAT[e['kind']]}. "
                 "Keep its exact composition, layout, camera angle, objects, proportions and colour palette. "
-                "Only raise the realism: photographic materials and textures, natural light, fine detail, high definition. "
-                "Do not add, remove or move anything.")
-    else:
-        head = (f"Create {WHAT[e['kind']]}. Photorealistic, natural light, true-to-life colors, "
-                "consistent with any reference images.")
-    return f"{head}\n\nDescription (French, authoritative):\n{e['description'] or e['name']}"
+                "Only raise the realism: photographic materials and textures, natural light, fine detail, "
+                "high definition. Do not add, remove or move anything.")
+    return (f"{WHAT[e['kind']][0].upper()}{WHAT[e['kind']][1:]}: {e['name']}. "
+            f"{(e['description'] or '').strip()} Photorealistic, natural light, true-to-life colours.").strip()
+
+
+def proposed_prompt(e: dict, from_draft: bool) -> str:
+    """Le prompt proposé à Michael : celui du décorateur s'il a regardé l'image, sinon le prompt de secours."""
+    return (e.get("prompt_agent") or "").strip() or default_prompt(e, from_draft)
 
 
 def generation_prompt(e: dict, state: str | None, extra: str = "", from_draft: bool = False) -> str:
-    base = (e.get("prompt") or "").strip() or default_prompt(e, from_draft)
-    return (base + (f"\n\nState of the place in this image: {state}" if state else "")
-            + (f"\n\nDirector's notes: {extra}" if extra else ""))
+    base = (e.get("prompt") or "").strip() or proposed_prompt(e, from_draft)
+    return base + (f"\n\nDirector's notes: {extra}" if extra else "")
 
 
 def set_prompt(conn: sqlite3.Connection, element_id: int, text: str) -> dict:
-    """Michael réécrit le prompt de l'image HD ; un texte vide rend le prompt par défaut."""
+    """Michael réécrit le prompt de l'image HD ; un texte vide rend le prompt proposé."""
     e = _element(conn, element_id)
     clean = text.strip()
-    if clean and clean in (default_prompt(e, True), default_prompt(e, False)):
+    if clean and clean in (proposed_prompt(e, True), proposed_prompt(e, False)):
         clean = ""
     conn.execute("UPDATE elements SET prompt=? WHERE id=?", (clean or None, element_id))
+    return _element(conn, element_id)
+
+
+def request_describe(conn: sqlite3.Connection, element_id: int) -> dict:
+    """Michael demande au décorateur d'écrire la fiche et le prompt HD d'après ses images de départ."""
+    e = _element(conn, element_id)
+    if not conn.execute("SELECT 1 FROM element_images WHERE element_id=? AND role='draft' AND status='kept'",
+                        (element_id,)).fetchone():
+        raise ProductionError("Dépose d'abord ton image de départ")
+    conn.execute("UPDATE elements SET prompt_status='requested' WHERE id=?", (element_id,))
+    db.log_event(conn, e["clip_slug"], "decors", f"Prompt HD demandé au décorateur : {e['name']}")
+    return _element(conn, element_id)
+
+
+def describe(conn: sqlite3.Connection, element_id: int, prompt: str, description: str | None = None) -> dict:
+    """Le décorateur a regardé l'image de départ : fiche (apparence seule) et prompt HD qui décrit l'image."""
+    e = _element(conn, element_id)
+    if not prompt.strip():
+        raise ProductionError("Le prompt est vide")
+    with db.tx(conn):
+        if description is not None and description.strip():
+            conn.execute("UPDATE elements SET description=? WHERE id=?", (description.strip(), element_id))
+        conn.execute("UPDATE elements SET prompt_agent=?, prompt_status='none' WHERE id=?", (prompt.strip(), element_id))
+        cancel_pending(conn, element_id, "remplacée : le décorateur a écrit le prompt d'après l'image de départ")
+        db.log_event(conn, e["clip_slug"], "decors", f"Prompt HD écrit d'après l'image de départ : {e['name']}")
     return _element(conn, element_id)
 
 
@@ -234,7 +266,7 @@ def launch_ready(conn: sqlite3.Connection, clip_slug: str) -> dict:
     """Michael lance d'un coup l'image HD de chaque élément qui a une image de départ et pas encore d'HD."""
     n, total = 0, 0.0
     for e in clip_elements(conn, clip_slug):
-        if e["step"] == "hd_todo":
+        if e["step"] == "hd_todo" and e.get("prompt_status") != "requested":
             r = launch_image(conn, e["id"], None, approved=True)
             n += 1
             total += r["cost_usd"]
@@ -333,9 +365,12 @@ def clip_elements(conn: sqlite3.Connection, clip_slug: str) -> list[dict]:
             (e["id"],)).fetchall()]
         has_draft = any(i["role"] == "draft" for i in e["images"])
         e["step"] = _step(e["images"])
-        e["prompt_default"] = default_prompt(e, has_draft)
+        e["prompt_default"] = proposed_prompt(e, has_draft)
         e["prompt_text"] = (e.get("prompt") or "").strip() or e["prompt_default"]
         e["prompt_edited"] = bool((e.get("prompt") or "").strip())
+        e["prompt_by"] = ("michael" if e["prompt_edited"] else "agent" if (e.get("prompt_agent") or "").strip()
+                          else "default")
+        e["draft_paths"] = [i["path"] for i in e["images"] if i["role"] == "draft"]
         out.append(e)
     return out
 

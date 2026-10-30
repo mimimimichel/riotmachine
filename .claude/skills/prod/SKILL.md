@@ -17,6 +17,10 @@ et `needs_agent`. Si `needs_agent` est vide, dis-le et arrête-toi.
 0. **Scénariste** (`needs_agent` contient « scenariste ») → délègue à l'agent
    `scenariste` : il lit le brainstorm collé par Michael et dépose ses propositions.
    Puis continue (les propositions attendent Michael, rien d'autre ne dépend d'elles).
+0 bis. **Sources à relire** (`needs_agent` contient « sources à relire ») → délègue à
+   l'agent `script-doctor` : il lit les nouvelles sources de Michael (conversations,
+   transcriptions, notes), met à jour la mémoire de réalisation (`riot clip memoire`)
+   et, avant validation du découpage, reprend les plans concernés.
 1. **Étape `script`** (Michael a envoyé son dossier) → délègue à l'agent
    `script-doctor` (outil Agent) : lecture du dossier, découpage en blocs et plans,
    import, passage en `decoupage_review`. Puis arrête-toi : Michael valide.
@@ -24,7 +28,7 @@ et `needs_agent`. Si `needs_agent` est vide, dis-le et arrête-toi.
    `script-doctor` pour corriger. Puis arrête-toi.
 3. **Décors** (`needs_agent` contient « decorateur ») → délègue à l'agent
    `decorateur` : repérage des décors, objets et figurants, fiches, liens avec les
-   plans, demandes d'images de référence. Les visuels des plans ne partent qu'une
+   plans (un élément = une image, pas d'états). Il ne lance aucune image. Les visuels des plans ne partent qu'une
    fois les décors repérés (`riot element done`) et leurs références gardées.
 4. **Plans `change_requested`** → trie toi-même chaque retour de Michael
    (`riot review list --clip $ARGUMENTS`, tableau des routes dans CLAUDE.md),

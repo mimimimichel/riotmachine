@@ -381,6 +381,43 @@ async def add_files(slug: str, kind: str = Form(...), files: list[UploadFile] = 
     return {"ok": True, "files": added}
 
 
+class SourceText(BaseModel):
+    label: str = ""
+    text: str
+
+
+@app.post("/api/clips/{slug}/sources")
+def add_source(slug: str, body: SourceText) -> dict[str, Any]:
+    """Conversation, transcription ou notes collées pour le script doctor (aucune limite de taille)."""
+    try:
+        f = production.add_source_text(_conn(), slug, body.label, body.text)
+    except (production.ProductionError, LookupError) as exc:
+        raise _error(exc)
+    return {"ok": True, "file": f}
+
+
+class MemoireText(BaseModel):
+    text: str
+
+
+@app.post("/api/clips/{slug}/memoire")
+def edit_memoire(slug: str, body: MemoireText) -> dict[str, Any]:
+    try:
+        production.save_memoire(_conn(), slug, body.text, by="michael")
+    except (production.ProductionError, LookupError) as exc:
+        raise _error(exc)
+    return {"ok": True}
+
+
+@app.post("/api/clips/{slug}/memoire/request")
+def ask_memoire(slug: str) -> dict[str, Any]:
+    try:
+        production.request_memoire(_conn(), slug)
+    except (production.ProductionError, LookupError) as exc:
+        raise _error(exc)
+    return {"ok": True}
+
+
 @app.delete("/api/files/{file_id}")
 def remove_file(file_id: int) -> dict[str, Any]:
     try:
@@ -633,6 +670,15 @@ def edit_element(element_id: int, body: ElementIn) -> dict[str, Any]:
     try:
         return elements.update(_conn(), element_id, name=body.name or None, description=body.description,
                                states=body.states)
+    except production.ProductionError as exc:
+        raise _error(exc)
+
+
+@app.post("/api/elements/{element_id}/describe")
+def describe_element(element_id: int) -> dict[str, Any]:
+    from .. import elements
+    try:
+        return elements.request_describe(_conn(), element_id)
     except production.ProductionError as exc:
         raise _error(exc)
 

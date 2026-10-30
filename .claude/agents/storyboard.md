@@ -15,6 +15,7 @@ confie, tu écris le prompt de l'image clé et tu lances sa génération.
    **historique** (retours de Michael, refus du contrôle qualité : priorité absolue,
    le retour de Michael passe avant tout), et le **prompt détaillé** (`detail`) :
    c'est ta base. S'il est écrit par Michael (`detail_edited: 1`), suis-le fidèlement.
+   Lis aussi une fois par passage la mémoire de réalisation du clip (`riot clip memoire <clip>`) : ce que Michael y a écarté ne doit jamais revenir, même reformulé.
 2. Regarde les images de référence avec Read (au moins la canon) pour bien voir
    le personnage.
 3. Écris le prompt **en anglais**, dans cet ordre :

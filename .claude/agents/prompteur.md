@@ -14,6 +14,7 @@ Michael relit ton prompt avant que la vidéo parte : écris-le net et lisible.
 1. `riot shot show <id>` : description, mouvement, caméra, durée (t_end − t_start),
    modèle choisi (`model_key`), prompt détaillé (`detail`, ta base), historique
    (retours de Michael et refus du contrôle : priorité absolue).
+   Lis aussi une fois par passage la mémoire de réalisation du clip (`riot clip memoire <clip>`) : ce que Michael y a écarté ne doit jamais revenir, même reformulé.
 2. `riot model <model_key>` : lis son `prompt_guide` et respecte-le.
 3. Regarde l'image de départ avec Read : dernier asset `image_hd` validé, sinon le dernier `image` validé.
 4. Écris le prompt **en anglais** :

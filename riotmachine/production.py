@@ -14,6 +14,7 @@ import random
 import re
 import shutil
 import sqlite3
+import tempfile
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -751,12 +752,14 @@ def add_clip_file(conn: sqlite3.Connection, slug: str, kind: str, src: str | Pat
             bin_dir.mkdir(exist_ok=True)
             old.rename(_free_name(bin_dir / f"{old.stem}-{db.now()[:10]}{old.suffix}"))
     else:
-        folder = cdir / ("script" if kind == "lyrics" else "dossier")
+        folder = cdir / {"lyrics": "script", "source": "dossier/sources"}.get(kind, "dossier")
         folder.mkdir(parents=True, exist_ok=True)
         dest = _free_name(folder / _safe_name(src.name))
     dest.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy(src, dest)
     text_path = media.extract_text(dest)
+    if text_path and kind not in ("song", "vocals"):
+        text_path = _readable_copy(text_path)
     with db.tx(conn):
         if kind in ("song", "vocals"):
             conn.execute("DELETE FROM clip_files WHERE clip_slug=? AND kind=?", (slug, kind))
@@ -777,7 +780,84 @@ def add_clip_file(conn: sqlite3.Connection, slug: str, kind: str, src: str | Pat
 
 
 FILE_KIND_LABEL = {"song": "morceau", "vocals": "voix isolée", "dossier": "dossier de réalisation",
-                   "lyrics": "paroles", "reference": "référence"}
+                   "lyrics": "paroles", "reference": "référence", "source": "source du script doctor"}
+
+
+def _readable_copy(text_path: Path) -> Path:
+    """Une transcription ou une conversation copiée tient souvent sur des lignes immenses,
+    que les agents lisent mal. Dans ce cas, une copie `.lu.txt` coupe ces lignes
+    (sans rien retirer) et sert de version texte."""
+    try:
+        text = Path(text_path).read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return text_path
+    if all(len(line) <= 1500 for line in text.splitlines()):
+        return text_path
+    import textwrap
+    out_lines: list[str] = []
+    for line in text.splitlines():
+        out_lines.extend(textwrap.wrap(line, 800, break_long_words=False, break_on_hyphens=False) or [""])
+    out = Path(text_path).with_name(Path(text_path).name + ".lu.txt")
+    out.write_text("\n".join(out_lines) + "\n", encoding="utf-8")
+    return out
+
+
+def add_source_text(conn: sqlite3.Connection, slug: str, label: str, text: str) -> dict:
+    """Michael colle une conversation, une transcription ou des notes : aucune limite de taille."""
+    if not text.strip():
+        raise ProductionError("Le texte est vide")
+    label = (label or "").strip() or f"Texte collé le {db.now()[:10]}"
+    stamp = db.now()[:16].replace("T", "-").replace(":", "")
+    with tempfile.TemporaryDirectory() as tmp:
+        src = Path(tmp) / f"{stamp}-{slugify(label)[:50] or 'source'}.txt"
+        src.write_text(text.strip() + "\n", encoding="utf-8")
+        return add_clip_file(conn, slug, "source", src, label=label)
+
+
+def memoire_file(clip: dict) -> Path:
+    return studio() / clip["dir"] / "script" / "memoire.md"
+
+
+def memoire_text(conn: sqlite3.Connection, slug: str) -> str:
+    f = memoire_file(db.get_clip(conn, slug))
+    return f.read_text(encoding="utf-8") if f.is_file() else ""
+
+
+def sources_unread(conn: sqlite3.Connection, slug: str) -> list[dict]:
+    """Sources que le script doctor n'a pas encore reprises dans la mémoire de réalisation."""
+    clip = db.get_clip(conn, slug)
+    read = set(json.loads(clip.get("memoire_sources") or "[]"))
+    return [f for f in clip_files(conn, slug) if f["kind"] == "source" and f["id"] not in read]
+
+
+def save_memoire(conn: sqlite3.Connection, slug: str, text: str, by: str = "agent") -> None:
+    """La mémoire de réalisation : ce que Michael a décidé, écarté (et pourquoi), ajusté.
+
+    Écrite par le script doctor après lecture de toutes les sources ; Michael peut la corriger.
+    Quand l'agent l'enregistre, toutes les sources présentes sont marquées comme lues."""
+    clip = db.get_clip(conn, slug)
+    if not text.strip():
+        raise ProductionError("La mémoire est vide")
+    f = memoire_file(clip)
+    f.parent.mkdir(parents=True, exist_ok=True)
+    f.write_text(text.strip() + "\n", encoding="utf-8")
+    with db.tx(conn):
+        if by == "agent":
+            ids = [r[0] for r in conn.execute(
+                "SELECT id FROM clip_files WHERE clip_slug=? AND kind IN ('source','dossier') ORDER BY id", (slug,))]
+            conn.execute("UPDATE clips SET memoire_sources=?, memoire_status='none', updated_at=? WHERE slug=?",
+                         (json.dumps(ids), db.now(), slug))
+        db.log_event(conn, slug, "script", "Mémoire de réalisation mise à jour" + (" par Michael" if by == "michael" else ""))
+
+
+def request_memoire(conn: sqlite3.Connection, slug: str) -> None:
+    """Michael demande au script doctor de relire les sources (nouvelles conversations, notes)."""
+    db.get_clip(conn, slug)
+    if not conn.execute("SELECT 1 FROM clip_files WHERE clip_slug=? AND kind IN ('source','dossier')", (slug,)).fetchone():
+        raise ProductionError("Ajoute d'abord une source : conversation, transcription ou notes")
+    with db.tx(conn):
+        conn.execute("UPDATE clips SET memoire_status='requested', updated_at=? WHERE slug=?", (db.now(), slug))
+        db.log_event(conn, slug, "script", "Sources envoyées au script doctor (relecture et mémoire de réalisation)")
 
 
 def _safe_name(name: str) -> str:
@@ -1893,6 +1973,11 @@ def clip_snapshot(conn: sqlite3.Connection, slug: str, compact: bool = False) ->
     clip["blocks"] = [{k: v for k, v in b.items() if k != "shots"} | {"shot_ids": [x["id"] for x in b["shots"]]}
                       for b in decoupage(conn, slug)]
     clip["files"] = clip_files(conn, slug)
+    for f in clip["files"]:
+        p = absp(f.get("text_path") or f["path"])
+        f["size"] = p.stat().st_size if p and p.is_file() else None
+    clip["memoire_path"] = rel(memoire_file(clip))
+    clip["sources_unread"] = [f["id"] for f in sources_unread(conn, slug)]
     clip["needs_agent"] = needs_agent(conn, slug)["reasons"]
     if not compact:
         clip["video_default"] = routing.default_video_model()
@@ -1900,6 +1985,7 @@ def clip_snapshot(conn: sqlite3.Connection, slug: str, compact: bool = False) ->
         clip["lipsync_models"] = routing.lipsync_options()
         from . import elements
         clip["elements"] = elements.index(conn, slug)
+        clip["memoire"] = memoire_text(conn, slug)
         clip["video_cost_usd"] = round(sum(sh.get("video_cost") or (sh.get("estimate") or {}).get("cost_total_usd") or 0
                                            for sh in clip["shots"]), 2)
         clip["incomplete"] = [sh["num"] for sh in clip["shots"] if not (sh.get("framing") and sh.get("motion")
@@ -1916,6 +2002,10 @@ def needs_agent(conn: sqlite3.Connection, slug: str) -> dict:
         return {"clip": slug, "reasons": [], "fingerprint": "demo", "retry_on_backoff": False}
     if clip.get("scenario_status") == "requested":
         reasons.append("scenariste: brainstorm à exploiter (propositions pour Michael)")
+    if clip.get("memoire_status") == "requested" and not (clip["stage"] == "script" and clip.get("brief_ready")):
+        reasons.append("script_doctor: sources à relire, mémoire de réalisation et plans à mettre à jour"
+                       if clip["stage"] in ("script", "decoupage_review") else
+                       "script_doctor: sources à relire, mémoire de réalisation à mettre à jour")
     if clip["stage"] == "script" and clip.get("brief_ready"):
         reasons.append("script_doctor: découpage à compléter" if n_shots else "script_doctor: découpage à extraire du dossier")
     pending_dec = conn.execute(
@@ -1923,10 +2013,18 @@ def needs_agent(conn: sqlite3.Connection, slug: str) -> dict:
     ).fetchone()[0]
     if pending_dec:
         reasons.append("script_doctor: retours sur le découpage")
+    n_look = conn.execute("SELECT COUNT(*) FROM elements WHERE clip_slug=? AND prompt_status='requested'",
+                          (slug,)).fetchone()[0]
+    if n_look:
+        reasons.append(f"decorateur: {n_look} image(s) de départ à regarder (fiche et prompt HD)")
     if clip["stage"] in ("decoupage_review", "production") and n_shots:
         n_el = conn.execute("SELECT COUNT(*) FROM elements WHERE clip_slug=?", (slug,)).fetchone()[0]
-        if clip.get("decors_status") == "requested" or (clip.get("decors_status", "todo") == "todo" and not n_el):
-            reasons.append("decorateur: décors, objets et figurants à repérer")
+        # le repérage part de plans complets (prompt détaillé écrit), pas des seules lignes courtes
+        n_bare = conn.execute("SELECT COUNT(*) FROM shots WHERE clip_slug=? AND COALESCE(detail,'')=''",
+                              (slug,)).fetchone()[0]
+        if clip.get("decors_status") == "requested" or (clip.get("decors_status", "todo") == "todo" and not n_el
+                                                        and not n_bare):
+            reasons.append("decorateur: décors, objets et figurants à repérer (plans complets)")
     if clip["stage"] == "production" and n_shots:
         for status in db.AGENT_STATUSES:
             if status == "image_todo" and clip.get("decors_status", "done") != "done":

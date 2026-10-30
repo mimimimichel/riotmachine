@@ -70,7 +70,8 @@ AUTO_STATUSES = ("hd_todo", "draft_todo", "final_todo", "lipsync_todo")
 FRAMINGS = ["ECU", "CU", "MCU", "MS", "MWS", "WS", "EWS"]
 MOTIONS = ["static", "low", "medium", "high"]
 
-CLIP_FILE_KINDS = ["song", "vocals", "dossier", "lyrics", "reference"]
+# source : conversation, transcription ou notes de travail que le script doctor relit en entier
+CLIP_FILE_KINDS = ["song", "vocals", "dossier", "lyrics", "reference", "source"]
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS characters (
@@ -402,7 +403,10 @@ LATER_COLUMNS = {
     "assets": [("funding", "TEXT NOT NULL DEFAULT 'cash'")],
     "character_assets": [("funding", "TEXT NOT NULL DEFAULT 'cash'")],
     "clips": [("decors_status", "TEXT NOT NULL DEFAULT 'todo'"),   # todo | requested | done
-              ("scenario_status", "TEXT NOT NULL DEFAULT 'none'")],  # none | requested | proposed
+              ("scenario_status", "TEXT NOT NULL DEFAULT 'none'"),  # none | requested | proposed
+              # mémoire de réalisation (script/memoire.md) : none | requested (le script doctor relit les sources)
+              ("memoire_status", "TEXT NOT NULL DEFAULT 'none'"),
+              ("memoire_sources", "TEXT")],  # ids (JSON) des sources déjà lues par le script doctor
     # detail : le prompt détaillé du plan (description courte = `description`)
     # detail_edited : 1 quand Michael l'a modifié à la main (les agents ne le réécrivent plus)
     # failed_step : l'étape qui a échoué, pour relancer au bon endroit
@@ -410,7 +414,9 @@ LATER_COLUMNS = {
               ("lipsync_key", "TEXT")],   # lip-sync choisi par Michael pour ce plan
     "blocks": [("look", "TEXT")],   # lumière et étalonnage communs aux plans du bloc
     # prompt : le prompt de l'image HD, réécrit par Michael (NULL = prompt par défaut)
-    "elements": [("prompt", "TEXT")],
+    # prompt_agent : le prompt écrit par le décorateur d'après l'image de départ de Michael
+    # prompt_status : requested quand une image de départ attend d'être regardée par le décorateur
+    "elements": [("prompt", "TEXT"), ("prompt_agent", "TEXT"), ("prompt_status", "TEXT NOT NULL DEFAULT 'none'")],
     # role : draft = image de départ de Michael (source de l'HD), hd = référence des visuels de plan
     "element_images": [("role", "TEXT NOT NULL DEFAULT 'hd'")],
 }
