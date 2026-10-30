@@ -247,3 +247,11 @@ Section à enrichir au fil des clips : une ligne par leçon, avec sa date.
 | Personnages | `studio/characters/<slug>/v<N>/` |
 | Base (statuts, validations, coûts) | `studio/riot.db` |
 | Journaux des agents | `studio/logs/` |
+
+### 30/10/2026 : revue de l'application
+
+- Veo 3.1 (Vertex) génère 4, 6 ou 8 s et ne sait pas enchaîner plusieurs plans dans une prise à partir d'une image (seulement en texte seul, « expérimental »). Un plan de moins de 4 s fait payer 4 s : sur Nobody Saw, 41 plans sur 65 sont dans ce cas. Fusionner deux plans courts voisins coûte moins cher. Les modèles qui font plusieurs plans par prise : Seedance 2.x, Kling 3 (multi_prompt), Wan 2.6, Gemini Omni Flash.
+- Veo 3.1 GA sur Vertex est annoncé retiré « au plus tôt le 17/11/2026 » ; Google pousse Gemini Omni 1.1 Flash (préversion, jusqu'à 10 s, plans multiples documentés, pas d'audio en entrée).
+- Lip-sync sur une voix fournie : rien sur Vertex AI. Voies hors fal : API Kling (lip-sync), sync.so, OmniHuman (BytePlus), Hedra. Seedance 2.0 accepte des pistes audio en référence, mais le calage des lèvres sur une voix chantée fournie n'est pas confirmé : à tester sur 2 s avant de s'y fier.
+- Plus de simulation : un fournisseur sans clé refuse la génération au lieu de produire un faux fichier.
+- Chaque remarque sur un plan va dans son historique (shot_notes) : le retour de Michael n'est plus écrasé par le contrôleur ou par une erreur.

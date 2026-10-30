@@ -14,6 +14,9 @@ et `needs_agent`. Si `needs_agent` est vide, dis-le et arrête-toi.
 
 ## 2. Dans cet ordre
 
+0. **Scénariste** (`needs_agent` contient « scenariste ») → délègue à l'agent
+   `scenariste` : il lit le brainstorm collé par Michael et dépose ses propositions.
+   Puis continue (les propositions attendent Michael, rien d'autre ne dépend d'elles).
 1. **Étape `script`** (Michael a envoyé son dossier) → délègue à l'agent
    `script-doctor` (outil Agent) : lecture du dossier, découpage en blocs et plans,
    import, passage en `decoupage_review`. Puis arrête-toi : Michael valide.
@@ -27,7 +30,8 @@ et `needs_agent`. Si `needs_agent` est vide, dis-le et arrête-toi.
    (`riot review list --clip $ARGUMENTS`, tableau des routes dans CLAUDE.md),
    puis `riot review handle`. Les plans repartent à la bonne étape et sont traités
    aux étapes suivantes de ce même passage.
-5. **Plans `failed`** → lis `notes`. Erreur passagère : `riot shot retry <id>`.
+5. **Plans `failed`** → lis `historique` (`riot shot show`) : la dernière remarque
+   de la machine donne l'erreur ; `failed_step` dit l'étape qui a échoué. Erreur passagère : `riot shot retry <id>`.
    Vidéo HD / lip-sync : agent `finition`. Visuel ou vidéo refusé par le fournisseur
    (contenu, paramètre) : ajuste le prompt via l'agent concerné. Si tu es bloqué,
    `riot notify` à Michael avec le problème en une phrase.
@@ -35,8 +39,10 @@ et `needs_agent`. Si `needs_agent` est vide, dis-le et arrête-toi.
    du lot dans une seule délégation, en précisant le statut de chacun).
 7. **Plans `image_todo`** → agent `storyboard`, par lots de 6 plans maximum, un
    bloc après l'autre (plusieurs agents en parallèle si besoin). Donne-leur le slug
-   du clip, le nom du bloc et les ids.
-8. **Plans `prompt_todo`** → agent `routeur` sur tout le lot, puis agent
+   du clip, le nom du bloc et les ids. Lance d'abord le premier plan de chaque bloc :
+   une fois validé par Michael, son visuel sert de référence de lumière aux autres.
+8. **Plans `prompt_todo`** → agent `routeur` sur tout le lot (un plan dont
+   `route_reason` vaut « Choisi par Michael » garde son modèle), puis agent
    `prompteur` sur le même lot, puis `riot shot submit <id>` pour chaque plan qui a
    un modèle et un prompt vidéo. Le plan passe en `video_review` : Michael valide
    le prompt, le modèle et le coût. **Ne lance jamais `riot gen draft`** : le

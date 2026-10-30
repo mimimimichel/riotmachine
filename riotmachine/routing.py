@@ -200,13 +200,11 @@ def provider_has_key(key: str) -> bool:
 def providers() -> list[dict[str, Any]]:
     """État de chaque fournisseur : branché dans le code, clés présentes, utilisable.
 
-    Un fournisseur sans clé est simulé (images et vidéos factices). Dès qu'au moins
-    un fournisseur a sa clé, les fournisseurs simulés ne sont plus choisis par le
-    routage : on ne mélange pas du faux et du vrai dans un clip.
+    Un fournisseur sans clé n'est pas utilisable : aucun fichier factice n'est
+    produit. Seuls les tests automatiques simulent tout (RIOT_FAL_MOCK=1).
     """
     forced = _forced_simulation()
     keys = {k: provider_has_key(k) for k in (models_cfg().get("providers") or {})}
-    all_sim = forced or not any(keys[k] for k in keys if k in IMPLEMENTED_PROVIDERS)
     out = []
     for key, cfg in (models_cfg().get("providers") or {}).items():
         env_all = cfg.get("env") or []
@@ -218,7 +216,7 @@ def providers() -> list[dict[str, Any]]:
             "key": key, "label": cfg.get("label", key), "note": cfg.get("note", ""),
             "env": env_all + ([" ou ".join(env_any)] if env_any else []),
             "implemented": implemented, "has_key": has_key,
-            "usable": implemented and (has_key or all_sim), "simulated": not has_key,
+            "usable": implemented and (has_key or forced), "simulated": forced,
         })
     return out
 
@@ -237,6 +235,38 @@ def provider_usable(key: str) -> bool:
     return any(p["key"] == key and p["usable"] for p in providers())
 
 
+def default_video_model() -> str:
+    """Le modèle vidéo proposé par défaut pour un plan (models.yaml : video_default),
+    ou le premier de la liste dont le fournisseur est branché."""
+    choice = models_cfg().get("video_default")
+    choices = choice if isinstance(choice, list) else [choice] if choice else []
+    for key in choices:
+        if key in models_cfg()["models"] and provider_usable(models_cfg()["models"][key].get("provider", "fal")):
+            return key
+    return choices[0] if choices else tier_model_key(tier_order()[0])
+
+
+def duration_fit(cfg: dict[str, Any], seconds: float) -> dict[str, Any]:
+    """Écart entre la durée du plan et ce que le modèle sait générer.
+
+    level : ok, warn (on paie nettement plus que ce qu'on garde), bad (plan trop
+    long pour le modèle : à couper ou à confier à un autre modèle).
+    """
+    allowed = sorted(int(d) for d in cfg.get("durations", [5]))
+    gen = choose_duration(cfg, seconds)
+    waste = round(max(0.0, gen - seconds), 2)
+    label = cfg.get("label", cfg.get("key", ""))
+    allowed_txt = ", ".join(str(d) for d in allowed) if len(allowed) <= 4 else f"{allowed[0]} à {allowed[-1]}"
+    if seconds > allowed[-1] + 0.05:
+        return {"level": "bad", "generated": gen, "waste": 0.0,
+                "text": f"Trop long pour {label} ({allowed[-1]} s maximum) : à couper ou à confier à un autre modèle"}
+    if waste >= 1.5:
+        return {"level": "warn", "generated": gen, "waste": waste,
+                "text": f"{label} génère {gen} s pour {seconds:.1f} s gardées ({allowed_txt} s possibles) : "
+                        f"{waste:.1f} s payées pour rien"}
+    return {"level": "ok", "generated": gen, "waste": waste, "text": f"{label} génère {gen} s"}
+
+
 def video_models() -> list[dict[str, Any]]:
     tiers = {v["model"]: t for t, v in models_cfg()["tiers"].items()}
     out = []
@@ -248,6 +278,9 @@ def video_models() -> list[dict[str, Any]]:
                     "use_for": cfg.get("use_for", ""), "tier": tiers.get(key), "tiers": cfg.get("tiers") or [],
                     "aspects": cfg.get("aspects"), "to_test": bool(cfg.get("to_test")),
                     "max_seconds": max(int(d) for d in cfg.get("durations", [5])),
+                    "durations": [int(d) for d in cfg.get("durations", [5])],
+                    "lipsync": cfg.get("lipsync"), "multishot": bool(cfg.get("multishot")),
+                    "price_s": _price_for(cfg, "final") if "per_second" in (cfg.get("price") or {}) else None,
                     "usable": provider_usable(prov)})
     return out
 
@@ -342,8 +375,8 @@ def route_shot(shot: dict[str, Any], force_tier: str | None = None,
     else:
         final_cost = estimate_cost(cfg, duration, "final")
     lipsync_cost = 0.0
-    if shot.get("singing"):
-        lipsync_cost = estimate_cost(model(lipsync_model_key(seconds)), seconds, "final")
+    if shot.get("singing") and not native_lipsync(key):
+        lipsync_cost = estimate_cost(model(lipsync_model_key(seconds, shot.get("lipsync_key"))), seconds, "final")
     return {
         "tier": tier,
         "why": why,
@@ -360,14 +393,33 @@ def route_shot(shot: dict[str, Any], force_tier: str | None = None,
     }
 
 
-def lipsync_model_key(seconds: float) -> str:
-    """Le lip-sync par défaut s'il accepte cette durée, sinon celui de secours."""
+def lipsync_options() -> list[dict[str, Any]]:
     cfg = models_cfg()
-    key = cfg["lipsync"]
-    m = model(key)
-    if float(m.get("min_seconds", 0)) <= seconds <= float(m.get("max_seconds", 1e9)):
-        return key
-    return cfg.get("lipsync_fallback", key)
+    keys = cfg.get("lipsync_models") or [cfg["lipsync"], cfg.get("lipsync_fallback")]
+    out = []
+    for k in [k for k in keys if k]:
+        m = model(k)
+        out.append({"key": k, "label": m.get("label", k), "provider": m.get("provider", "fal"),
+                    "usable": provider_usable(m.get("provider", "fal")),
+                    "min_seconds": m.get("min_seconds"), "max_seconds": m.get("max_seconds")})
+    return out
+
+
+def native_lipsync(video_key: str | None) -> bool:
+    """Le modèle vidéo cale lui-même la bouche sur la voix (pas d'étape lip-sync)."""
+    return bool(video_key) and model(video_key).get("lipsync") == "native"
+
+
+def lipsync_model_key(seconds: float, chosen: str | None = None) -> str:
+    """Le lip-sync choisi par Michael, sinon le premier branché qui accepte cette durée."""
+    if chosen:
+        return chosen
+    opts = lipsync_options()
+    fits = [o for o in opts if float(o["min_seconds"] or 0) <= seconds <= float(o["max_seconds"] or 1e9)]
+    for o in fits + opts:
+        if o["usable"]:
+            return o["key"]
+    return (fits or opts)[0]["key"]
 
 
 def ceil_seconds(x: float) -> int:

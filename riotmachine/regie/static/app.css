@@ -615,3 +615,29 @@ textarea { overflow-y: hidden; }
 .elcard > summary::-webkit-details-marker { display: none; }
 .elthumb { width: 64px; height: 48px; object-fit: cover; border-radius: 8px; flex: none; display: grid; place-items: center; background: #07060c; color: var(--dim); }
 .elcard[open] > summary { margin-bottom: 12px; }
+
+/* ---- 30/10 : durée vs modèle, prompt détaillé, à faire, historique ---- */
+.fit { display: inline-block; font-size: 12px; padding: 2px 8px; border-radius: 8px; line-height: 1.4; }
+.fit.ok { color: var(--muted, #9a96b0); }
+.fit.warn { color: #1a1300; background: #ffb547; }
+.fit.bad { color: #fff; background: #ff4d66; }
+.dec-more { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.dec-more select, .shot-settings select { max-width: 100%; background: #14121d; color: inherit; border: 1px solid var(--line);
+  border-radius: 8px; padding: 6px 8px; font: inherit; font-size: 13px; }
+.dec-more .detail textarea { width: 100%; }
+.dec-summary .row { flex-wrap: wrap; }
+.shot-settings .field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.shot-settings .field > span { color: var(--muted, #9a96b0); }
+.todo { margin-bottom: 18px; border-color: #ffb54766; }
+.todo ul { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.todo a { color: inherit; text-decoration: none; display: flex; gap: 8px; align-items: center; }
+.todo a:hover { text-decoration: underline; }
+.pitch.folded { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; cursor: pointer; }
+.nav-n { color: #ffb547; font-weight: 600; }
+.sysstat a { color: inherit; text-decoration: none; }
+.tl-lyrics { position: relative; height: 16px; font-size: 10px; color: var(--muted, #9a96b0); overflow: hidden; }
+.tl-lyrics span { position: absolute; top: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  border-left: 1px solid #ffffff33; padding-left: 3px; }
+.scenario-part { border: 1px solid var(--line); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+.scenario-part.accepted { border-color: #3ddc9788; opacity: .75; }
+.scenario-part.rejected { opacity: .45; }

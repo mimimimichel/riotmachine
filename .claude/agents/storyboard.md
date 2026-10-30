@@ -12,7 +12,9 @@ confie, tu écris le prompt de l'image clé et tu lances sa génération.
 
 1. `riot shot show <id>` : description, cadrage, mouvement, caméra, personnages,
    ADN et images de référence de la version castée, format (aspect_ratio),
-   **notes** (retour de Michael ou refus du contrôle qualité : priorité absolue).
+   **historique** (retours de Michael, refus du contrôle qualité : priorité absolue,
+   le retour de Michael passe avant tout), et le **prompt détaillé** (`detail`) :
+   c'est ta base. S'il est écrit par Michael (`detail_edited: 1`), suis-le fidèlement.
 2. Regarde les images de référence avec Read (au moins la canon) pour bien voir
    le personnage.
 3. Écris le prompt **en anglais**, dans cet ordre :
@@ -24,7 +26,8 @@ confie, tu écris le prompt de l'image clé et tu lances sa génération.
      prévu (un plan de danse commence sur une pose d'élan, pas figée).
    - Décor, tenue (look du casting), accessoires.
    - Cadrage et optique : "close-up, 85mm, f/2", "wide shot, 24mm"…
-   - Lumière et étalonnage, cohérents avec les autres plans de la même séquence.
+   - Lumière et étalonnage : reprends le `look` du bloc (`riot clip show`, `blocks`).
+     La machine ajoute seule le visuel validé du bloc comme référence de lumière.
    - Réalisme : "photorealistic, real skin texture with visible pores and fine
      vellus hair, natural asymmetry, subtle film grain, shot on ARRI Alexa".
    - Jamais : "perfect skin", "flawless", "beautiful", "CGI", "3D render", ni de

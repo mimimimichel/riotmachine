@@ -165,10 +165,28 @@ def cmd_route(a) -> None:
     if not routing.provider_usable(prov):
         raise ValueError(f"Le fournisseur {prov} n'est pas branché : choisis un modèle d'un fournisseur disponible")
     if a.apply:
+        if shot.get("route_reason") == production.MICHAEL_CHOICE and res["model_key"] != shot.get("model_key"):
+            raise ValueError(f"Michael a choisi {shot['model_key']} pour ce plan : garde ce modèle "
+                             "(lance `riot route <id> --apply --model {shot['model_key']}`)")
         production.update_shot(conn, a.shot, tier=res["tier"], model_key=res["model_key"],
-                               route_reason=a.why or res["why"])
+                               route_reason=shot.get("route_reason") if shot.get("route_reason") == production.MICHAEL_CHOICE
+                               else (a.why or res["why"]))
         res["applied"] = True
     out(res)
+
+
+def cmd_scenario(a) -> None:
+    from . import scenario
+    conn = _conn()
+    if a.action == "propose":
+        out(scenario.propose(conn, a.clip, json.loads(Path(a.file).read_text(encoding="utf-8"))))
+    else:
+        out(scenario.state(conn, a.clip))
+
+
+def cmd_block_look(a) -> None:
+    production.set_block_look(_conn(), a.clip, a.num, a.text)
+    out({"ok": True})
 
 
 def cmd_rodage(a) -> None:
@@ -353,17 +371,6 @@ def cmd_backup(a) -> None:
     out({"sauvegarde": str(dest), "base": str(db_copy)})
 
 
-def cmd_demo(a) -> None:
-    from . import demo
-    conn = _conn()
-    if a.reset:
-        demo.reset(conn)
-        out({"demo": "supprimé"})
-        return
-    slug = demo.create(conn)
-    out({"demo": slug, "regie": notify.regie_link(f"#/clip/{slug}")})
-
-
 def cmd_worker(a) -> None:
     if a.once:
         with db.session() as conn:
@@ -441,7 +448,7 @@ def build_parser() -> argparse.ArgumentParser:
     sp.set_defaults(func=cmd_shot_show)
     sp = shot.add_parser("set", help="Modifie un plan")
     sp.add_argument("shot", type=int)
-    for f in ("section", "description", "camera", "image_prompt", "video_prompt", "negative_prompt", "notes",
+    for f in ("section", "description", "detail", "camera", "image_prompt", "video_prompt", "negative_prompt", "notes",
               "tier", "model_key"):
         sp.add_argument(f"--{f.replace('_', '-')}", dest=f)
     sp.add_argument("--model", dest="model_key")
@@ -466,6 +473,22 @@ def build_parser() -> argparse.ArgumentParser:
     sp = shot.add_parser("retry", help="Relance un plan en échec à l'étape qui a échoué")
     sp.add_argument("shot", type=int)
     sp.set_defaults(func=cmd_shot_retry)
+
+    sc = sub.add_parser("scenario", help="Propositions du scénariste").add_subparsers(dest="action", required=True)
+    sp = sc.add_parser("show", help="Brainstorm en attente et propositions")
+    sp.add_argument("clip")
+    sp.set_defaults(func=cmd_scenario)
+    sp = sc.add_parser("propose", help="Dépose les propositions (JSON) pour Michael")
+    sp.add_argument("clip")
+    sp.add_argument("file")
+    sp.set_defaults(func=cmd_scenario)
+
+    bl = sub.add_parser("block", help="Un bloc du découpage").add_subparsers(dest="action", required=True)
+    sp = bl.add_parser("look", help="Lumière et étalonnage communs aux plans du bloc")
+    sp.add_argument("clip")
+    sp.add_argument("num", type=int)
+    sp.add_argument("text")
+    sp.set_defaults(func=cmd_block_look)
 
     sp = sub.add_parser("route", help="Choisit palier et modèle d'un plan")
     sp.add_argument("shot", type=int)
@@ -571,9 +594,6 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("dest")
     sp.set_defaults(func=cmd_backup)
 
-    sp = sub.add_parser("demo", help="Crée un clip de démonstration simulé pour découvrir la régie")
-    sp.add_argument("--reset", action="store_true", help="Supprime le clip de démo")
-    sp.set_defaults(func=cmd_demo)
 
     sp = sub.add_parser("worker", help="Boucle de production (service)")
     sp.add_argument("--once", action="store_true", help="Un seul tour")

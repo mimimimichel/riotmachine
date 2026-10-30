@@ -67,13 +67,34 @@ Accepte toute variante lisible (« 0:04-0:08 », « de 4,2 s à 8 s », un table
 ```json
 {"blocks": [
   {"name": "Couplet 1", "intention": "elle chante pour elle-même, lumière froide",
+   "look": "cold blue window light, soft contrast, desaturated teal grade, 35mm film grain",
    "shots": [
-     {"t_start": 0.0, "t_end": 4.2, "description": "…ce qu'on voit, d'après Michael…",
+     {"id": 412, "t_start": 0.0, "t_end": 4.2,
+      "description": "JJ chante à la fenêtre, gros plan",
+      "detail": "Close-up of JJ singing softly by a rain-streaked window, ...",
       "framing": "CU", "motion": "low", "camera": "slow push-in", "characters": ["jj"],
       "singing": true, "notes": "optionnel"}
    ]}
 ]}
 ```
+
+   **Garde l'`id` de chaque plan existant** (lu dans `riot clip show`) : le plan est
+   alors mis à jour sur place et garde ses liens aux décors. Un plan sans `id` est
+   un nouveau plan ; un plan absent du fichier est supprimé.
+
+   Chaque plan a deux textes :
+   - `description` : **une ligne courte en français** qui dit ce qu'on voit
+     (10 à 15 mots). C'est ce que Michael lit dans la liste des plans. Garde ses mots.
+   - `detail` : **le prompt détaillé**, en anglais, 60 à 120 mots : sujet, action,
+     décor, lumière, cadrage, objectif, ambiance, ce qui se passe du début à la fin
+     du plan. Le storyboard et le prompteur partent de ce texte. Michael peut le
+     réécrire à la main : un `detail` qu'il a modifié (`detail_edited: 1`) ne se
+     touche plus, même si tu le trouves améliorable (propose dans `notes.md`).
+
+   Chaque bloc a un `look` : une phrase en anglais sur la lumière et l'étalonnage
+   communs à tous ses plans (source de lumière, heure, contraste, couleurs, grain).
+   Il garantit que les plans voisins se ressemblent. Un bloc validé se règle avec
+   `riot block look <clip> <num> "<texte>"`.
 
    Ton travail est de compléter ce qu'il n'a pas précisé :
    - `framing` : ECU, CU, MCU, MS, MWS, WS, EWS ;
@@ -88,12 +109,30 @@ Accepte toute variante lisible (« 0:04-0:08 », « de 4,2 s à 8 s », un table
 3. Import : `riot shots import <clip> studio/clips/<clip>/script/shots.json`, puis
    `riot clip stage <clip> decoupage_review`.
 
+## Les durées et le modèle vidéo
+
+Chaque plan est généré par un modèle vidéo (Veo 3.1 par défaut, voir
+`video_default` dans `config/models.yaml`). Chaque modèle a des durées fixes
+(`durations`) : Veo génère 4, 6 ou 8 s. Un plan de 2 s fait payer 4 s ; un plan de
+plus de 8 s ne passe pas sur Veo. `riot clip show` donne pour chaque plan son
+modèle (`video_model`) et l'écart (`fit` : ok, warn, bad).
+Dans `notes.md`, liste les plans en `warn` ou `bad` et propose une solution :
+fusionner deux plans courts voisins, allonger un plan sur le temps suivant,
+couper un plan trop long, ou confier un plan large à un autre modèle (Seedance
+sait générer plusieurs plans dans une même prise). Tu proposes, Michael décide.
+
 ## Le nombre de plans n'est pas figé
 
 Le nombre de plans d'un dossier est une estimation de Michael. Si deux plans
 racontent la même chose ou tombent sur moins d'une demi-mesure, propose de les
 fusionner ; si un plan est trop long pour son action, propose de le couper. Écris
 ces propositions dans `notes.md`, sans les appliquer d'office.
+
+## « Compléter les plans incomplets »
+
+Michael peut te demander de compléter les plans sans `detail`, `framing` ou
+`motion`. Tu complètes ces champs seulement. Tu ne changes ni les timecodes, ni
+les `description`, ni un `detail` écrit par Michael. Réimporte avec les `id`.
 
 ## Si Michael a commenté le découpage
 

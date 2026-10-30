@@ -10,8 +10,8 @@ Un adaptateur expose :
     result(job) -> dict (réponse brute du fournisseur, lue avec `output` du modèle)
     download(url, dest) -> Path
 
-En simulation (pas de clé fal, ou clip de démo), tout passe par le simulateur de
-fal : aucune requête payante, des images et vidéos factices.
+Un fournisseur sans clé refuse la génération : aucun fichier factice. Seuls les
+tests automatiques passent par le simulateur (RIOT_FAL_MOCK=1).
 """
 
 from __future__ import annotations
@@ -33,15 +33,21 @@ def _adapters() -> dict[str, Any]:
 
 
 def simulated(provider: str = "fal") -> bool:
-    """Fournisseur simulé : pas de clé dans .env (ou RIOT_FAL_MOCK=1 pour tout simuler)."""
+    """Simulation : seulement pour les tests automatiques (RIOT_FAL_MOCK=1)."""
     from .. import routing
-    return routing._forced_simulation() or not routing.provider_has_key(provider)
+    return routing._forced_simulation()
 
 
 def submit(model_cfg: dict, payload: dict, *, kind: str, label: str = "", seconds: float | None = None,
            force_mock: bool = False) -> dict[str, str]:
+    from .. import routing
     provider = model_cfg.get("provider", "fal")
-    if force_mock or simulated(provider):
+    if not simulated(provider) and not routing.provider_has_key(provider):
+        # plus de démo : jamais de fichier factice dans un vrai clip
+        cfg = (routing.models_cfg().get("providers") or {}).get(provider) or {}
+        raise ProviderError(f"{cfg.get('label', provider)} n'est pas branché (clé absente) : "
+                            f"impossible de lancer {model_cfg.get('label', model_cfg.get('key', ''))}")
+    if simulated(provider):
         sub = fal.submit(model_cfg.get("endpoint", ""), payload, kind=kind, label=label, seconds=seconds,
                          force_mock=True)
     else:

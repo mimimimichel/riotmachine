@@ -10,7 +10,7 @@ lancés automatiquement par le worker ; tu interviens quand ça coince.
 
 ## Diagnostiquer
 
-1. `riot shot show <id>` : notes (erreur ou retour de Michael), assets (final,
+1. `riot shot show <id>` : historique (erreur, retour de Michael) et `failed_step`, assets (final,
    lipsync, leur statut et leur `error`).
 2. Classe le problème :
    - **erreur passagère** de fal (timeout, runner indisponible) : `riot shot retry <id>` ;

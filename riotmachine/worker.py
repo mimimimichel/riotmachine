@@ -78,8 +78,11 @@ def run_automatic_steps(conn: sqlite3.Connection) -> int:
                 notify.send_once(conn, f"budget:{r['clip_slug']}:{status}",
                                  f"💸 {r['clip_slug']} : {exc}")
             except Exception as exc:
-                conn.execute("UPDATE shots SET status='failed', notes=?, updated_at=? WHERE id=?",
-                             (f"Échec du lancement ({status}) : {exc}"[:500], db.now(), r["id"]))
+                step = {"hd_todo": "image_hd", "draft_todo": "draft", "final_todo": "final",
+                        "lipsync_todo": "lipsync"}[status]
+                conn.execute("UPDATE shots SET status='failed', failed_step=?, updated_at=? WHERE id=?",
+                             (step, db.now(), r["id"]))
+                db.add_note(conn, r["id"], "machine", f"Échec du lancement ({status}) : {exc}"[:500])
                 db.log_event(conn, r["clip_slug"], "error", f"Plan {r['num']} : {exc}")
     return launched
 

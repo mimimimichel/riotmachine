@@ -330,6 +330,16 @@ CREATE TABLE IF NOT EXISTS spend_requests (
 );
 CREATE INDEX IF NOT EXISTS idx_spend_status ON spend_requests(status);
 
+-- Historique des remarques sur un plan : rien n'écrase le retour de Michael.
+CREATE TABLE IF NOT EXISTS shot_notes (
+    id INTEGER PRIMARY KEY,
+    shot_id INTEGER NOT NULL REFERENCES shots(id) ON DELETE CASCADE,
+    author TEXT NOT NULL,             -- michael | controleur | machine | orchestrateur
+    text TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_shot_notes ON shot_notes(shot_id, id);
+
 CREATE TABLE IF NOT EXISTS notifications (
     key TEXT PRIMARY KEY,
     sent_at TEXT NOT NULL
@@ -391,7 +401,14 @@ LATER_COLUMNS = {
     "jobs": [("provider", "TEXT NOT NULL DEFAULT 'fal'")],
     "assets": [("funding", "TEXT NOT NULL DEFAULT 'cash'")],
     "character_assets": [("funding", "TEXT NOT NULL DEFAULT 'cash'")],
-    "clips": [("decors_status", "TEXT NOT NULL DEFAULT 'todo'")],   # todo | requested | done
+    "clips": [("decors_status", "TEXT NOT NULL DEFAULT 'todo'"),   # todo | requested | done
+              ("scenario_status", "TEXT NOT NULL DEFAULT 'none'")],  # none | requested | proposed
+    # detail : le prompt détaillé du plan (description courte = `description`)
+    # detail_edited : 1 quand Michael l'a modifié à la main (les agents ne le réécrivent plus)
+    # failed_step : l'étape qui a échoué, pour relancer au bon endroit
+    "shots": [("detail", "TEXT"), ("detail_edited", "INTEGER NOT NULL DEFAULT 0"), ("failed_step", "TEXT"),
+              ("lipsync_key", "TEXT")],   # lip-sync choisi par Michael pour ce plan
+    "blocks": [("look", "TEXT")],   # lumière et étalonnage communs aux plans du bloc
 }
 
 
@@ -517,6 +534,18 @@ def log_event(conn: sqlite3.Connection, clip_slug: str | None, kind: str, messag
 
 
 # --- Accès courants --------------------------------------------------------
+
+def add_note(conn: sqlite3.Connection, shot_id: int, author: str, text: str) -> None:
+    """Ajoute une remarque à l'historique du plan (sans effacer les précédentes)."""
+    if text and text.strip():
+        conn.execute("INSERT INTO shot_notes (shot_id, author, text, created_at) VALUES (?,?,?,?)",
+                     (shot_id, author, text.strip()[:2000], now()))
+
+
+def shot_notes(conn: sqlite3.Connection, shot_id: int, limit: int = 20) -> list[dict[str, Any]]:
+    return rows(conn.execute("SELECT author, text, created_at FROM shot_notes WHERE shot_id=? ORDER BY id DESC LIMIT ?",
+                             (shot_id, limit)).fetchall())
+
 
 def get_clip(conn: sqlite3.Connection, slug: str) -> dict[str, Any]:
     clip = row(conn.execute("SELECT * FROM clips WHERE slug=?", (slug,)).fetchone())

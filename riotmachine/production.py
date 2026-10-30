@@ -286,9 +286,7 @@ def decide_spend(conn: sqlite3.Connection, ids: list[int], decision: str, note: 
                 conn.execute("UPDATE shots SET status='prompt_todo', updated_at=? WHERE id=? AND status='hd_todo'",
                              (db.now(), r["shot_id"]))
             if decision == "refuse" and r["action"] == "image" and r["shot_id"] and note:
-                old = conn.execute("SELECT notes FROM shots WHERE id=?", (r["shot_id"],)).fetchone()["notes"] or ""
-                conn.execute("UPDATE shots SET notes=? WHERE id=?",
-                             ((old + f"\nVisuel refusé avant génération : {note}").strip(), r["shot_id"]))
+                db.add_note(conn, r["shot_id"], "michael", f"Visuel refusé avant génération : {note}")
             n += 1
     return n
 
@@ -896,13 +894,13 @@ def set_stage(conn: sqlite3.Connection, slug: str, stage: str) -> None:
     db.log_event(conn, slug, "stage", f"Étape : {stage}")
 
 
-SHOT_FIELDS = {"num", "section", "t_start", "t_end", "description", "framing", "motion", "camera",
-               "characters", "singing", "notes", "id", "block"}
-BLOCK_FIELDS = {"name", "intention", "shots", "num", "id"}
+SHOT_FIELDS = {"num", "section", "t_start", "t_end", "description", "detail", "framing", "motion", "camera",
+               "characters", "singing", "notes", "id", "block", "model_key", "split_from"}
+BLOCK_FIELDS = {"name", "intention", "look", "shots", "num", "id"}
 
 
 def _flatten_decoupage(data: Any) -> list[tuple[dict, list[dict]]]:
-    """Accepte {"blocks": [{name, intention, shots: [...]}]}, {"shots": [...]} ou une liste de plans.
+    """Accepte {"blocks": [{name, intention, look, shots: [...]}]}, {"shots": [...]} ou une liste de plans.
 
     Sans blocs, les plans sont regroupés par « section » (une section = un bloc).
     """
@@ -914,25 +912,34 @@ def _flatten_decoupage(data: Any) -> list[tuple[dict, list[dict]]]:
                 raise ProductionError(f"Bloc {i} : champs inconnus {sorted(unknown)}")
             if not str(b.get("name") or "").strip():
                 raise ProductionError(f"Bloc {i} : il faut un nom (intro, couplet 1, refrain…)")
-            out.append(({"name": b["name"].strip(), "intention": b.get("intention")}, list(b.get("shots") or [])))
+            out.append(({"name": b["name"].strip(), "intention": b.get("intention"), "look": b.get("look")},
+                        list(b.get("shots") or [])))
         return out
     shots = data["shots"] if isinstance(data, dict) else data
     groups: list[tuple[dict, list[dict]]] = []
     for sh in sorted(shots, key=lambda x: float(x.get("t_start", 0))):
         name = (sh.get("section") or "Séquence").strip()
         if not groups or groups[-1][0]["name"] != name:
-            groups.append(({"name": name, "intention": None}, []))
+            groups.append(({"name": name, "intention": None, "look": None}, []))
         groups[-1][1].append(sh)
     return groups
 
 
-def import_shots(conn: sqlite3.Connection, slug: str, shots: Any) -> int:
-    """Remplace le découpage d'un clip (tant qu'il n'est pas validé). Retourne le nombre de plans."""
+def import_shots(conn: sqlite3.Connection, slug: str, shots: Any, by: str = "agent") -> int:
+    """Enregistre le découpage d'un clip (tant qu'il n'est pas validé). Retourne le nombre de plans.
+
+    Un plan qui porte son `id` est mis à jour sur place : il garde ses liens aux
+    décors, son historique et son prompt détaillé. Un plan coupé en deux
+    (`split_from`) reprend les décors du plan d'origine. Les plans absents sont supprimés.
+    `by` = "michael" quand le découpage vient de la régie : un prompt détaillé
+    qu'il a changé est alors marqué comme le sien.
+    """
     clip = db.get_clip(conn, slug)
     if clip["stage"] not in ("script", "decoupage_review"):
         raise ProductionError("Le découpage est déjà validé : modifie les plans un par un avec `riot shot set`")
     cast = {c["character_slug"] for c in db.casting_for_clip(conn, slug)}
     blocks = _flatten_decoupage(shots)
+    existing = {r["id"]: db.row(r) for r in conn.execute("SELECT * FROM shots WHERE clip_slug=?", (slug,)).fetchall()}
     n = 0
     for bi, (block, items) in enumerate(blocks, 1):
         for s in items:
@@ -950,27 +957,66 @@ def import_shots(conn: sqlite3.Connection, slug: str, shots: Any) -> int:
                 raise ProductionError(f"{where} : cadrage '{s['framing']}' invalide ({', '.join(db.FRAMINGS)})")
             if s.get("motion") and s["motion"] not in db.MOTIONS:
                 raise ProductionError(f"{where} : mouvement '{s['motion']}' invalide ({', '.join(db.MOTIONS)})")
+            if s.get("model_key"):
+                cfg = routing.model(s["model_key"])
+                if cfg.get("kind") != "video":
+                    raise ProductionError(f"{where} : {s['model_key']} n'est pas un modèle vidéo")
             missing = set(s.get("characters") or []) - cast
             if missing:
                 raise ProductionError(f"{where} : personnages non castés dans ce clip : {sorted(missing)}")
     with db.tx(conn):
-        conn.execute("DELETE FROM shots WHERE clip_slug=?", (slug,))
-        conn.execute("DELETE FROM blocks WHERE clip_slug=?", (slug,))
+        old_blocks = {r["num"]: r["id"] for r in conn.execute("SELECT id, num FROM blocks WHERE clip_slug=?", (slug,))}
+        conn.execute("UPDATE shots SET num=-id WHERE clip_slug=?", (slug,))   # libère les numéros
+        kept: set[int] = set()
         num = 0
         for bi, (block, items) in enumerate(blocks, 1):
-            cur = conn.execute("INSERT INTO blocks (clip_slug, num, name, intention) VALUES (?,?,?,?)",
-                               (slug, bi, block["name"], block.get("intention")))
-            bid = cur.lastrowid
+            if bi in old_blocks:
+                bid = old_blocks.pop(bi)
+                conn.execute("UPDATE blocks SET name=?, intention=?, look=COALESCE(?, look) WHERE id=?",
+                             (block["name"], block.get("intention"), block.get("look"), bid))
+            else:
+                bid = conn.execute("INSERT INTO blocks (clip_slug, num, name, intention, look) VALUES (?,?,?,?,?)",
+                                   (slug, bi, block["name"], block.get("intention"), block.get("look"))).lastrowid
             for s in sorted(items, key=lambda x: float(x["t_start"])):
                 num += 1
-                conn.execute(
-                    "INSERT INTO shots (clip_slug, num, block_id, section, t_start, t_end, description, framing, motion, "
-                    "camera, characters, singing, notes, status, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                    (slug, num, bid, block["name"], float(s["t_start"]), float(s["t_end"]), s["description"].strip(),
-                     s.get("framing") or None, s.get("motion") or None, s.get("camera") or None,
-                     json.dumps(s.get("characters") or []), 1 if s.get("singing") else 0, s.get("notes"),
-                     "image_todo", db.now()),
-                )
+                sid = int(s["id"]) if s.get("id") and int(s["id"]) in existing else None
+                old = existing.get(sid) if sid else None
+                detail = (s.get("detail") or "").strip() or None
+                if old is not None and ("detail" not in s or (by != "michael" and old.get("detail_edited"))):
+                    detail = old.get("detail")   # le texte de Michael n'est jamais réécrit par un agent
+                edited = old.get("detail_edited", 0) if old else 0
+                if by == "michael" and old is not None and detail != old.get("detail"):
+                    edited = 1
+                elif by == "michael" and old is None and detail:
+                    edited = 1
+                values = (num, bid, block["name"], float(s["t_start"]), float(s["t_end"]), s["description"].strip(),
+                          detail, edited, s.get("framing") or None, s.get("motion") or None, s.get("camera") or None,
+                          json.dumps(s.get("characters") or []), 1 if s.get("singing") else 0, s.get("notes"),
+                          s.get("model_key") or (old or {}).get("model_key"), db.now())
+                if old is not None:
+                    conn.execute(
+                        "UPDATE shots SET num=?, block_id=?, section=?, t_start=?, t_end=?, description=?, detail=?, "
+                        "detail_edited=?, framing=?, motion=?, camera=?, characters=?, singing=?, notes=?, model_key=?, "
+                        "updated_at=? WHERE id=?", (*values, sid))
+                    kept.add(sid)
+                else:
+                    new_id = conn.execute(
+                        "INSERT INTO shots (num, block_id, section, t_start, t_end, description, detail, detail_edited, "
+                        "framing, motion, camera, characters, singing, notes, model_key, updated_at, clip_slug, status) "
+                        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", (*values, slug, "image_todo")).lastrowid
+                    src = s.get("split_from")
+                    if src and int(src) in existing:
+                        conn.execute("INSERT OR IGNORE INTO shot_elements (shot_id, element_id, state) "
+                                     "SELECT ?, element_id, state FROM shot_elements WHERE shot_id=?", (new_id, int(src)))
+        gone = set(existing) - kept
+        for sid in gone:
+            conn.execute("DELETE FROM shot_notes WHERE shot_id=?", (sid,))
+            conn.execute("DELETE FROM shot_elements WHERE shot_id=?", (sid,))
+            conn.execute("UPDATE spend_requests SET status='refused', note='plan supprimé du découpage' "
+                         "WHERE shot_id=? AND status='pending'", (sid,))
+            conn.execute("DELETE FROM shots WHERE id=?", (sid,))
+        for bid in old_blocks.values():
+            conn.execute("DELETE FROM blocks WHERE id=?", (bid,))
         conn.execute("UPDATE clips SET updated_at=? WHERE slug=?", (db.now(), slug))
         db.log_event(conn, slug, "decoupage", f"Découpage enregistré : {len(blocks)} blocs, {num} plans")
     return num
@@ -994,7 +1040,7 @@ def decoupage(conn: sqlite3.Connection, slug: str) -> list[dict]:
     return blocks
 
 
-SETTABLE = {"section", "description", "framing", "motion", "camera", "characters", "singing", "tier",
+SETTABLE = {"section", "description", "detail", "framing", "motion", "camera", "characters", "singing", "tier",
             "model_key", "route_reason", "seed", "image_prompt", "video_prompt", "negative_prompt", "notes", "t_start", "t_end"}
 
 
@@ -1005,6 +1051,9 @@ def update_shot(conn: sqlite3.Connection, shot_id: int, **fields: Any) -> dict:
             continue
         if k not in SETTABLE:
             raise ProductionError(f"Champ non modifiable : {k}")
+        if k == "detail" and db.get_shot(conn, shot_id).get("detail_edited"):
+            raise ProductionError("Michael a écrit ce prompt détaillé lui-même : on ne le réécrit pas. "
+                                  "Écris tes compléments dans le prompt image ou vidéo.")
         if k == "framing" and v not in db.FRAMINGS:
             raise ProductionError(f"Cadrage invalide : {v}")
         if k == "motion" and v not in db.MOTIONS:
@@ -1022,6 +1071,58 @@ def update_shot(conn: sqlite3.Connection, shot_id: int, **fields: Any) -> dict:
     if sets:
         conn.execute(f"UPDATE shots SET {', '.join(sets)}, updated_at=? WHERE id=?", (*values, db.now(), shot_id))
     return db.get_shot(conn, shot_id)
+
+
+def set_detail(conn: sqlite3.Connection, shot_id: int, text: str) -> dict:
+    """Michael modifie à la main le prompt détaillé d'un plan : il devient le sien."""
+    shot = db.get_shot(conn, shot_id)
+    conn.execute("UPDATE shots SET detail=?, detail_edited=?, updated_at=? WHERE id=?",
+                 (text.strip() or None, 1 if text.strip() else 0, db.now(), shot_id))
+    db.log_event(conn, shot["clip_slug"], "decoupage", f"Plan {shot['num']} : prompt détaillé modifié par Michael")
+    return db.get_shot(conn, shot_id)
+
+
+def request_completion(conn: sqlite3.Connection, slug: str) -> None:
+    """Le découpage a des plans incomplets : le script doctor les complète (prompt détaillé,
+    cadrage, mouvement) sans toucher aux timecodes ni au texte écrit par Michael."""
+    clip = db.get_clip(conn, slug)
+    if clip["stage"] not in ("script", "decoupage_review"):
+        raise ProductionError("Le découpage est déjà validé")
+    conn.execute("INSERT INTO reviews (clip_slug, gate, decision, comment, handled, created_at) VALUES (?,?,?,?,?,?)",
+                 (slug, "decoupage", "change", "Compléter les plans incomplets : prompt détaillé, cadrage, mouvement, "
+                  "caméra. Ne change ni les timecodes, ni les descriptions courtes, ni les prompts écrits par Michael.",
+                  0, db.now()))
+    db.log_event(conn, slug, "decoupage", "Complétion des plans demandée au script doctor")
+
+
+def set_block_look(conn: sqlite3.Connection, slug: str, num: int, text: str) -> None:
+    """Lumière et étalonnage communs aux plans d'un bloc (continuité entre plans voisins)."""
+    cur = conn.execute("UPDATE blocks SET look=? WHERE clip_slug=? AND num=?", (text.strip() or None, slug, num))
+    if not cur.rowcount:
+        raise ProductionError(f"Bloc {num} inconnu dans {slug}")
+
+
+def block_reference(conn: sqlite3.Connection, shot: dict) -> tuple[Path | None, str]:
+    """Continuité dans un bloc : le premier visuel validé du bloc (autre que ce plan)
+    sert de référence de lumière et d'étalonnage, avec la phrase « look » du bloc."""
+    if not shot.get("block_id"):
+        return None, ""
+    b = conn.execute("SELECT look FROM blocks WHERE id=?", (shot["block_id"],)).fetchone()
+    look = (b["look"] or "").strip() if b else ""
+    r = conn.execute(
+        "SELECT a.path FROM assets a JOIN shots s ON s.id=a.shot_id WHERE s.block_id=? AND s.id!=? "
+        "AND a.kind='image' AND a.status='validated' ORDER BY s.num, a.version DESC LIMIT 1",
+        (shot["block_id"], shot["id"])).fetchone()
+    ref = absp(r["path"]) if r and r["path"] else None
+    if ref is not None and not ref.is_file():
+        ref = None
+    text = ""
+    if look:
+        text += f"\n\nLighting and color grade shared by the whole sequence: {look}"
+    if ref is not None:
+        text += ("\n\nThe last reference image is an approved frame from the same sequence: match its lighting, "
+                 "color grade, lens feel and set dressing. Do not copy its framing or pose.")
+    return ref, text
 
 
 def _check_budget(conn: sqlite3.Connection, slug: str, extra: float, force: bool,
@@ -1096,10 +1197,16 @@ def launch_image(conn: sqlite3.Connection, shot_id: int, force: bool = False, ap
         raise ProductionError(f"Plan {shot['num']} : pas encore d'image validée pour {', '.join(missing)}. "
                               "Le visuel attend que Michael garde une référence de ces éléments.")
     el_refs, el_text = elements.shot_context(conn, shot_id)
-    # ordre : une image par personnage, puis le décor et les objets, puis le reste du pack
+    block_ref, block_text = block_reference(conn, shot)
+    # ordre : une image par personnage, puis le décor et les objets, puis le reste du pack ;
+    # le visuel validé du même bloc ferme la liste (référence de lumière)
     max_refs = int(mcfg.get("max_refs", 6))
     firsts = refs[:1] if refs else []
-    refs = (firsts + el_refs + refs[1:])[:max_refs]
+    room = max_refs - (1 if block_ref else 0)
+    refs = (firsts + el_refs + refs[1:])[:room] + ([block_ref] if block_ref else [])
+    if not block_ref:
+        block_text = block_text.split("\n\nThe last reference")[0]
+    el_text += block_text
     image_urls = [fal.to_data_uri(p) for p in refs]
     cost = routing.estimate_cost(mcfg, mode="draft")
     _check_budget(conn, clip["slug"], cost, force, mcfg)
@@ -1109,8 +1216,7 @@ def launch_image(conn: sqlite3.Connection, shot_id: int, force: bool = False, ap
         return _ask_spend(conn, "image", {"shot_id": shot_id, "force": force},
                           _hash(shot_id, shot["image_prompt"], key), f"Plan {shot['num']} : visuel draft",
                           cost, mcfg, key, detail=shot["image_prompt"], clip_slug=clip["slug"], shot_id=shot_id)
-    sub = providers.submit(mcfg, payload, kind="image", label=f"plan {shot['num']} image",
-                     force_mock=is_demo(clip["slug"]))
+    sub = providers.submit(mcfg, payload, kind="image", label=f"plan {shot['num']} image")
     res = _create_asset(conn, shot, "image", "storyboard", ".png", shot["image_prompt"], key, None,
                         payload, cost, mcfg["endpoint"], sub)
     db.set_shot_status(conn, shot_id, "image_gen")
@@ -1144,8 +1250,7 @@ def launch_image_hd(conn: sqlite3.Connection, shot_id: int, force: bool = False,
                           _hash(shot_id, image["id"], model_key), f"Plan {shot['num']} : visuel HD",
                           cost, mcfg, model_key, detail="Agrandissement du visuel validé",
                           clip_slug=clip["slug"], shot_id=shot_id)
-    sub = providers.submit(mcfg, payload, kind="image", label=f"plan {shot['num']} HD",
-                     force_mock=is_demo(clip["slug"]))
+    sub = providers.submit(mcfg, payload, kind="image", label=f"plan {shot['num']} HD")
     params = {**payload, "from_image": image["id"]}
     res = _create_asset(conn, shot, "image_hd", "storyboard", ".png", None, model_key, None,
                         params, cost, mcfg["endpoint"], sub)
@@ -1181,21 +1286,44 @@ def submit_video_plan(conn: sqlite3.Connection, shot_id: int) -> dict:
     return est
 
 
+MICHAEL_CHOICE = "Choisi par Michael"
+# Le modèle vidéo d'un plan se change tant que la vidéo n'est pas partie.
+MODEL_OPEN_STATUSES = {"image_todo", "image_gen", "image_qc", "image_review", "hd_todo", "hd_gen", "hd_qc",
+                       "hd_review", "prompt_todo", "video_review", "change_requested", "failed"}
+
+
 def choose_model(conn: sqlite3.Connection, shot_id: int, model_key: str) -> dict:
-    """Michael change le modèle vidéo d'un plan avant de valider."""
+    """Michael choisit le modèle vidéo d'un plan, à tout moment avant le lancement de la vidéo."""
     shot = db.get_shot(conn, shot_id)
-    if shot["status"] != "video_review":
-        raise ProductionError("On ne change le modèle qu'au moment de valider le plan vidéo")
+    clip = db.get_clip(conn, shot["clip_slug"])
+    if clip["stage"] == "production" and shot["status"] not in MODEL_OPEN_STATUSES:
+        raise ProductionError("La vidéo de ce plan est déjà partie : demande une modif pour changer de modèle")
     cfg = routing.model(model_key)
     if cfg.get("kind") != "video":
         raise ProductionError(f"{model_key} n'est pas un modèle vidéo")
     if not routing.provider_usable(cfg.get("provider", "fal")):
         raise ProductionError(f"Le fournisseur {cfg.get('provider')} n'est pas branché")
-    est = routing.route_shot(shot, model_key=model_key)
+    est = routing.route_shot({**shot, "aspect_ratio": clip["aspect_ratio"]}, model_key=model_key)
     conn.execute("UPDATE shots SET model_key=?, tier=?, route_reason=?, updated_at=? WHERE id=?",
-                 (model_key, est["tier"], "Choisi par Michael", db.now(), shot_id))
-    db.log_event(conn, shot["clip_slug"], "videoplan", f"Plan {shot['num']} : modèle changé pour {est['model_label']}")
+                 (model_key, est["tier"], MICHAEL_CHOICE, db.now(), shot_id))
+    if shot["status"] == "video_review" and shot.get("model_key") != model_key:
+        db.add_note(conn, shot_id, "machine", f"Modèle changé pour {est['model_label']} : "
+                    "le prompt vidéo a été écrit pour l'ancien modèle, relis-le avant de valider.")
+    db.log_event(conn, shot["clip_slug"], "videoplan", f"Plan {shot['num']} : modèle choisi par Michael, {est['model_label']}")
     return est
+
+
+def choose_lipsync(conn: sqlite3.Connection, shot_id: int, model_key: str | None) -> dict:
+    """Michael choisit le lip-sync d'un plan chanté (vide = celui par défaut)."""
+    shot = db.get_shot(conn, shot_id)
+    if shot["status"] in ("lipsync_gen", "done"):
+        raise ProductionError("Le lip-sync de ce plan est déjà fait ou en cours")
+    if model_key:
+        cfg = routing.model(model_key)
+        if cfg.get("kind") != "lipsync":
+            raise ProductionError(f"{model_key} n'est pas un modèle de lip-sync")
+    conn.execute("UPDATE shots SET lipsync_key=?, updated_at=? WHERE id=?", (model_key or None, db.now(), shot_id))
+    return db.get_shot(conn, shot_id)
 
 
 def edit_video_prompt(conn: sqlite3.Connection, shot_id: int, prompt: str) -> None:
@@ -1232,7 +1360,7 @@ def launch_draft(conn: sqlite3.Connection, shot_id: int, force: bool = False) ->
         negative_prompt=shot.get("negative_prompt"), aspect_ratio=clip["aspect_ratio"], mode="draft",
     )
     sub = providers.submit(mcfg, payload, kind="video", label=f"plan {shot['num']} draft",
-                     seconds=duration, force_mock=is_demo(clip["slug"]))
+                     seconds=duration)
     res = _create_asset(conn, shot, "draft", "drafts", ".mp4", shot["video_prompt"], shot["model_key"], seed,
                         payload, cost, mcfg["endpoint"], sub)
     conn.execute("UPDATE shots SET seed=?, updated_at=? WHERE id=?", (seed, db.now(), shot_id))
@@ -1273,7 +1401,7 @@ def launch_final(conn: sqlite3.Connection, shot_id: int, force: bool = False) ->
     cost = routing.estimate_cost(mcfg, duration, "final")
     _check_budget(conn, clip["slug"], cost, force, mcfg)
     sub = providers.submit(mcfg, payload, kind="video", label=f"plan {shot['num']} final",
-                     seconds=duration, force_mock=is_demo(clip["slug"]))
+                     seconds=duration)
     res = _create_asset(conn, shot, "final", "finals", ".mp4", prompt, key, seed, payload, cost,
                         mcfg["endpoint"], sub)
     db.set_shot_status(conn, shot_id, "final_gen")
@@ -1288,7 +1416,7 @@ def _keep_draft_as_final(conn: sqlite3.Connection, shot: dict, draft: dict) -> d
     out = studio() / "clips" / shot["clip_slug"] / "finals" / f"plan-{shot['num']:03d}-v{version}{src.suffix}"
     out.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy(src, out)
-    next_status = "lipsync_todo" if shot["singing"] else "final_review"
+    next_status = "lipsync_todo" if shot["singing"] and not routing.native_lipsync(shot.get("model_key")) else "final_review"
     with db.tx(conn):
         cur = conn.execute(
             "INSERT INTO assets (shot_id, kind, version, path, remote_url, prompt, model_key, seed, params, "
@@ -1316,14 +1444,17 @@ def launch_lipsync(conn: sqlite3.Connection, shot_id: int, force: bool = False) 
         raise ProductionError("Ni piste voix ni morceau pour ce clip")
     slice_path = studio() / clip["dir"] / "work" / f"voix-plan-{shot['num']:03d}.mp3"
     media.cut_audio(absp(voice), float(shot["t_start"]), float(shot["t_end"]), slice_path)
-    key = routing.lipsync_model_key(routing.shot_seconds(shot))
+    key = routing.lipsync_model_key(routing.shot_seconds(shot), shot.get("lipsync_key"))
     mcfg = routing.model(key)
+    if not routing.provider_usable(mcfg.get("provider", "fal")):
+        raise ProductionError(f"Lip-sync impossible : {mcfg.get('label', key)} passe par {mcfg.get('provider')}, "
+                              "qui n'est pas branché. Choisis un autre lip-sync sur le plan, ou branche ce fournisseur.")
     video_ref = final["remote_url"] or fal.to_data_uri(absp(final["path"]))
     payload = routing.build_payload(mcfg, video_url=video_ref, audio_url=fal.to_data_uri(slice_path), mode="final")
     cost = routing.estimate_cost(mcfg, routing.shot_seconds(shot), "final")
     _check_budget(conn, clip["slug"], cost, force, mcfg)
     sub = providers.submit(mcfg, payload, kind="video", label=f"plan {shot['num']} lipsync",
-                     seconds=routing.shot_seconds(shot), force_mock=is_demo(clip["slug"]))
+                     seconds=routing.shot_seconds(shot))
     res = _create_asset(conn, shot, "lipsync", "finals", ".mp4", None, key, final["seed"], payload, cost,
                         mcfg["endpoint"], sub)
     db.set_shot_status(conn, shot_id, "lipsync_gen")
@@ -1372,7 +1503,7 @@ def on_job_done(conn: sqlite3.Connection, job: dict, result: dict) -> None:
         "image": "image_qc" if qc.get("images", True) else "image_review",
         "image_hd": "hd_qc" if qc.get("images_hd", True) else "prompt_todo",
         "draft": "draft_qc" if qc.get("drafts", False) else "draft_review",
-        "final": "lipsync_todo" if shot["singing"] else "final_review",
+        "final": "lipsync_todo" if shot["singing"] and not routing.native_lipsync(shot.get("model_key")) else "final_review",
         "lipsync": "final_review",
     }[asset["kind"]]
     with db.tx(conn):
@@ -1398,8 +1529,9 @@ def on_job_failed(conn: sqlite3.Connection, job: dict, error: str) -> None:
                      (error[:2000], job["target_id"]))
         asset = db.row(conn.execute("SELECT * FROM assets WHERE id=?", (job["target_id"],)).fetchone())
         shot = db.get_shot(conn, asset["shot_id"])
-        conn.execute("UPDATE shots SET status='failed', notes=?, updated_at=? WHERE id=?",
-                     (f"Échec {asset['kind']} v{asset['version']} : {error[:400]}", db.now(), shot["id"]))
+        conn.execute("UPDATE shots SET status='failed', failed_step=?, updated_at=? WHERE id=?",
+                     (asset["kind"], db.now(), shot["id"]))
+        db.add_note(conn, shot["id"], "machine", f"Échec {KIND_LABEL.get(asset['kind'], asset['kind'])} v{asset['version']} : {error[:400]}")
         db.log_event(conn, shot["clip_slug"], "error", f"Plan {shot['num']} : échec {asset['kind']} — {error[:200]}")
 
 
@@ -1425,15 +1557,15 @@ def qc_result(conn: sqlite3.Connection, shot_id: int, passed: bool, note: str = 
             conn.execute("UPDATE assets SET status='validated' WHERE id=?", (asset["id"],))
     elif shot["qc_retries"] < max_retries:
         status = retry_status
-        conn.execute("UPDATE shots SET qc_retries=qc_retries+1, notes=?, updated_at=? WHERE id=?",
-                     (f"Contrôle refusé : {note}", db.now(), shot_id))
+        conn.execute("UPDATE shots SET qc_retries=qc_retries+1, updated_at=? WHERE id=?", (db.now(), shot_id))
+        db.add_note(conn, shot_id, "controleur", f"Contrôle {KIND_LABEL[kind]} refusé : {note}")
         if asset:
             conn.execute("UPDATE assets SET status='rejected', error=? WHERE id=?", (f"QC : {note}", asset["id"]))
     else:
         # trop d'essais : Michael tranche avec la remarque de l'agent
         status = giveup_status
-        conn.execute("UPDATE shots SET qc_retries=0, notes=?, updated_at=? WHERE id=?",
-                     (f"À vérifier (contrôle auto non concluant) : {note}", db.now(), shot_id))
+        conn.execute("UPDATE shots SET qc_retries=0, updated_at=? WHERE id=?", (db.now(), shot_id))
+        db.add_note(conn, shot_id, "controleur", f"À vérifier (contrôle auto non concluant) : {note}")
         if kind == "image_hd" and asset and asset["status"] == "rejected":
             conn.execute("UPDATE assets SET status='ready' WHERE id=?", (asset["id"],))
     db.set_shot_status(conn, shot_id, status)
@@ -1502,6 +1634,8 @@ def review_shot(conn: sqlite3.Connection, shot_id: int, decision: str, comment: 
             (shot["clip_slug"], shot_id, asset["id"] if asset else None, gate,
              "change" if decision == "change" else "approve", comment, 0 if decision == "change" else 1, db.now()),
         )
+        if decision == "change":
+            db.add_note(conn, shot_id, "michael", comment)
         if decision == "use_work_image":
             if asset:
                 conn.execute("UPDATE assets SET status='rejected' WHERE id=?", (asset["id"],))
@@ -1575,10 +1709,9 @@ def handle_review(conn: sqlite3.Connection, review_id: int, route: str, note: st
                          (routing.upgrade_tier(shot.get("tier")), shot["id"]))
         if route in ("storyboard", "script"):
             conn.execute("UPDATE shots SET seed=NULL WHERE id=?", (shot["id"],))
-        conn.execute(
-            "UPDATE shots SET notes=?, qc_retries=0, updated_at=? WHERE id=?",
-            (f"Retour de Michael : {rv['comment']}" + (f" | Tri : {note}" if note else ""), db.now(), shot["id"]),
-        )
+        conn.execute("UPDATE shots SET qc_retries=0, updated_at=? WHERE id=?", (db.now(), shot["id"]))
+        if note:
+            db.add_note(conn, shot["id"], "orchestrateur", f"Retour envoyé vers {route} : {note}")
         db.set_shot_status(conn, shot["id"], status)
         conn.execute("UPDATE reviews SET handled=1, route=?, handled_note=? WHERE id=?", (route, note, review_id))
         db.log_event(conn, shot["clip_slug"], "retour", f"Plan {shot['num']} renvoyé vers {route}")
@@ -1592,18 +1725,37 @@ def _maybe_finish_clip(conn: sqlite3.Connection, slug: str) -> None:
         set_stage(conn, slug, "done")
 
 
+FAILED_STEP_STATUS = {"image": "image_todo", "image_hd": "hd_todo", "draft": "draft_todo", "final": "final_todo",
+                      "lipsync": "lipsync_todo"}
+
+
 def retry_failed(conn: sqlite3.Connection, shot_id: int) -> str:
     """Remet un plan en échec à l'étape qui a échoué."""
     shot = db.get_shot(conn, shot_id)
     if shot["status"] != "failed":
         raise ProductionError("Le plan n'est pas en échec")
-    last = db.row(conn.execute(
-        "SELECT * FROM assets WHERE shot_id=? AND status='failed' ORDER BY id DESC LIMIT 1", (shot_id,)
-    ).fetchone())
-    status = {"image": "image_todo", "image_hd": "hd_todo", "draft": "draft_todo", "final": "final_todo",
-              "lipsync": "lipsync_todo"}.get(last["kind"] if last else "image", "image_todo")
+    step = shot.get("failed_step")
+    if not step:
+        last = db.row(conn.execute(
+            "SELECT * FROM assets WHERE shot_id=? AND status='failed' ORDER BY id DESC LIMIT 1", (shot_id,)
+        ).fetchone())
+        step = last["kind"] if last else None
+    if not step:
+        # plan sans trace de l'étape : on repart de la dernière étape validée, pas du début
+        has = lambda k, st="validated": conn.execute(
+            "SELECT 1 FROM assets WHERE shot_id=? AND kind=? AND status=?", (shot_id, k, st)).fetchone()
+        if has("draft"):
+            step = "final"
+        elif has("image") and shot.get("video_prompt") and shot.get("model_key"):
+            step = "draft"
+        elif has("image"):
+            step = "image_hd"
+        else:
+            step = "image"
+    status = FAILED_STEP_STATUS.get(step, "image_todo")
     if status == "draft_todo" and not (shot.get("model_key") and shot.get("video_prompt")):
         status = "prompt_todo"
+    conn.execute("UPDATE shots SET failed_step=NULL WHERE id=?", (shot_id,))
     db.set_shot_status(conn, shot_id, status)
     return status
 
@@ -1666,7 +1818,43 @@ def shot_view(conn: sqlite3.Connection, shot: dict) -> dict:
             s["estimate"] = None
     if shot["status"] == "video_review":
         s["model_options"] = routing.model_options(shot)
+    s["historique"] = db.shot_notes(conn, shot["id"])
+    # modèle vidéo effectif (choisi, ou celui par défaut) et écart de durée
+    key = shot.get("model_key") or routing.default_video_model()
+    try:
+        cfg = routing.model(key)
+        s["video_model"] = {"key": key, "label": cfg.get("label", key), "chosen": bool(shot.get("model_key")),
+                            "by_michael": shot.get("route_reason") == MICHAEL_CHOICE}
+        s["fit"] = routing.duration_fit(cfg, routing.shot_seconds(shot))
+        if not shot.get("model_key") or shot["status"] not in ("video_review",):
+            s["video_cost"] = routing.route_shot(shot, model_key=key)["cost_total_usd"]
+    except routing.RoutingError:
+        s["video_model"], s["fit"] = None, None
+    s["waiting"] = shot_waiting(conn, shot)
+    if shot.get("singing"):
+        if routing.native_lipsync(key):
+            s["lipsync"] = {"native": True, "label": "Fait par le modèle vidéo"}
+        else:
+            lk = routing.lipsync_model_key(routing.shot_seconds(shot), shot.get("lipsync_key"))
+            lm = routing.model(lk)
+            s["lipsync"] = {"key": lk, "label": lm.get("label", lk), "chosen": bool(shot.get("lipsync_key")),
+                            "usable": routing.provider_usable(lm.get("provider", "fal"))}
     return s
+
+
+def shot_waiting(conn: sqlite3.Connection, shot: dict) -> str | None:
+    """Pourquoi un plan à faire n'avance pas : la machine attend Michael, pas un agent."""
+    if conn.execute("SELECT 1 FROM spend_requests WHERE shot_id=? AND status='pending'", (shot["id"],)).fetchone():
+        return "spend"
+    if shot["status"] == "image_todo":
+        clip = conn.execute("SELECT stage, decors_status FROM clips WHERE slug=?", (shot["clip_slug"],)).fetchone()
+        if clip and clip["stage"] == "production":
+            from . import elements
+            if clip["decors_status"] != "done":
+                return "decors_scan"
+            if elements.missing_refs(conn, shot["id"]):
+                return "decors"
+    return None
 
 
 def clip_snapshot(conn: sqlite3.Connection, slug: str, compact: bool = False) -> dict:
@@ -1695,6 +1883,14 @@ def clip_snapshot(conn: sqlite3.Connection, slug: str, compact: bool = False) ->
                       for b in decoupage(conn, slug)]
     clip["files"] = clip_files(conn, slug)
     clip["needs_agent"] = needs_agent(conn, slug)["reasons"]
+    if not compact:
+        clip["video_default"] = routing.default_video_model()
+        clip["video_models"] = routing.video_models()
+        clip["lipsync_models"] = routing.lipsync_options()
+        clip["video_cost_usd"] = round(sum(sh.get("video_cost") or (sh.get("estimate") or {}).get("cost_total_usd") or 0
+                                           for sh in clip["shots"]), 2)
+        clip["incomplete"] = [sh["num"] for sh in clip["shots"] if not (sh.get("framing") and sh.get("motion")
+                                                                         and sh.get("detail"))]
     return clip
 
 
@@ -1705,6 +1901,8 @@ def needs_agent(conn: sqlite3.Connection, slug: str) -> dict:
     n_shots = conn.execute("SELECT COUNT(*) FROM shots WHERE clip_slug=?", (slug,)).fetchone()[0]
     if is_demo(slug):
         return {"clip": slug, "reasons": [], "fingerprint": "demo", "retry_on_backoff": False}
+    if clip.get("scenario_status") == "requested":
+        reasons.append("scenariste: brainstorm à exploiter (propositions pour Michael)")
     if clip["stage"] == "script" and clip.get("brief_ready"):
         reasons.append("script_doctor: découpage à compléter" if n_shots else "script_doctor: découpage à extraire du dossier")
     pending_dec = conn.execute(

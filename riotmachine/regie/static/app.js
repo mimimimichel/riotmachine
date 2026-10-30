@@ -21,22 +21,22 @@ const STATUS = {
   image_todo: ["Storyboard en préparation", "work", "image"],
   image_gen: ["Visuel en génération", "work", "image"],
   image_qc: ["Contrôle du visuel", "work", "image"],
-  image_review: ["Visuel à valider", "review", "image"],
+  image_review: ["Visuel en attente de validation", "review", "image"],
   hd_todo: ["Passage en HD", "work", "hd"],
   hd_gen: ["Passage en HD", "work", "hd"],
   hd_qc: ["Contrôle de la HD", "work", "hd"],
-  hd_review: ["HD à vérifier", "review", "hd"],
+  hd_review: ["HD en attente de validation", "review", "hd"],
   prompt_todo: ["Prompt et modèle en préparation", "work", "plan"],
-  video_review: ["Plan vidéo à valider", "review", "plan"],
+  video_review: ["Plan vidéo en attente de validation", "review", "plan"],
   draft_todo: ["Vidéo draft lancée", "work", "draft"],
   draft_gen: ["Vidéo draft en génération", "work", "draft"],
   draft_qc: ["Contrôle de la vidéo", "work", "draft"],
-  draft_review: ["Vidéo draft à valider", "review", "draft"],
+  draft_review: ["Vidéo draft en attente de validation", "review", "draft"],
   final_todo: ["Vidéo HD lancée", "work", "final"],
   final_gen: ["Vidéo HD en génération", "work", "final"],
   lipsync_todo: ["Lip-sync lancé", "work", "lipsync"],
   lipsync_gen: ["Lip-sync en génération", "work", "lipsync"],
-  final_review: ["Final à valider", "review", "final"],
+  final_review: ["Final en attente de validation", "review", "final"],
   done: ["Terminé", "done", "final"],
   change_requested: ["Modif demandée", "change", null],
   failed: ["En échec", "failed", null],
@@ -45,7 +45,7 @@ const GATE_STEP = { images: "image", hd: "hd", videoplan: "plan", drafts: "draft
 const KIND_STEP = { image: "image", image_hd: "hd", draft: "draft", final: "final", lipsync: "lipsync" };
 const STAGE_LABEL = {
   script: ["Préparation", "wait"],
-  decoupage_review: ["Découpage à valider", "review"],
+  decoupage_review: ["Découpage en attente de validation", "review"],
   production: ["En production", "work"],
   done: ["Terminé", "done"],
 };
@@ -94,6 +94,32 @@ function durText(s) {
   const d = b - a;
   return d > 0 ? `${d.toFixed(1).replace(".", ",")} s` : "fin avant début";
 }
+
+/* modèle vidéo d'un plan et écart de durée (mêmes règles que routing.duration_fit) */
+function modelOf(clip, key) { return (clip.video_models || []).find((m) => m.key === (key || clip.video_default)); }
+function fitFor(clip, key, secs) {
+  const m = modelOf(clip, key);
+  if (!m || !(secs > 0)) return null;
+  const allowed = (m.durations || [5]).slice().sort((a, b) => a - b);
+  const max = allowed[allowed.length - 1];
+  const gen = allowed.find((d) => d + 1e-6 >= secs) ?? max;
+  const span = allowed.length <= 4 ? allowed.join(", ") : `${allowed[0]} à ${max}`;
+  if (secs > max + 0.05) return { level: "bad", text: `Trop long pour ${m.label} (${max} s max) : à couper ou à confier à un autre modèle` };
+  const waste = gen - secs;
+  if (waste >= 1.5) return { level: "warn", text: `${m.label} génère ${gen} s pour ${secs.toFixed(1)} s gardées (${span} s possibles) : ${waste.toFixed(1)} s payées pour rien` };
+  return { level: "ok", text: `${m.label} génère ${gen} s` };
+}
+function fitBadge(f) { return f ? `<span class="fit ${f.level}">${esc(f.text)}</span>` : ""; }
+function modelSelect(clip, current, attrs) {
+  const def = modelOf(clip, null);
+  const opt = (m) => `<option value="${m.key}" ${m.key === current ? "selected" : ""} ${m.usable ? "" : "disabled"}>${esc(m.label)}${m.multishot ? " · plusieurs plans par prise" : ""}${m.usable ? "" : " (non branché)"}</option>`;
+  const ms = clip.video_models || [];
+  return `<select ${attrs}>
+      <option value="" ${current ? "" : "selected"}>Par défaut : ${esc(def ? def.label : "?")}</option>
+      <optgroup label="Branchés">${ms.filter((m) => m.usable).map(opt).join("")}</optgroup>
+      <optgroup label="Non branchés">${ms.filter((m) => !m.usable).map(opt).join("")}</optgroup></select>`;
+}
+const NOTE_AUTHOR = { michael: "Toi", controleur: "Contrôleur", machine: "Machine", orchestrateur: "Orchestrateur" };
 
 function parseTc(v) {
   v = String(v ?? "").trim().replace(",", ".");
@@ -300,11 +326,13 @@ async function refreshSys() {
   try {
     const d = await api("/api/overview");
     state.overview = d;
-    const fal = d.providers.find((p) => p.key === "fal");
+    const live = d.providers.filter((p) => p.usable);
+    const navSpend = document.getElementById("nav-spend-n");
+    if (navSpend) navSpend.textContent = d.spend && d.spend.pending ? ` ${d.spend.pending}` : "";
     document.getElementById("sysstat").innerHTML = `
       <span title="Générations en cours chez les fournisseurs">${led(d.jobs_running ? "work" : "wait")}${d.jobs_running} génération${d.jobs_running > 1 ? "s" : ""}</span>
       <span title="Agents Claude au travail">${led(d.agents_running.length ? "work" : "wait")}<span class="long">Agents :</span> ${d.agents_running.length ? "au travail" : "en veille"}</span>
-      <span title="fal.ai">${led(fal && fal.simulated ? "review" : "done")}fal.ai ${fal && fal.simulated ? "simulation" : "réel"}</span>
+      <a href="#/fournisseurs" title="Fournisseurs branchés (les autres ne génèrent rien)">${led(live.length ? "done" : "failed")}${live.length ? live.map((p) => esc(p.label.replace(/ \(.*\)$/, ""))).join(", ") : "Aucun fournisseur branché"}</a>
       ${d.spend && d.spend.pending ? `<a class="spend-badge" href="#/depenses" title="Générations qui attendent ton accord">💳 ${d.spend.pending} à valider · ${money(d.spend.usd)}</a>` : ""}`;
     return d;
   } catch (e) { return null; }
@@ -333,7 +361,31 @@ function currentStep(shot) {
   return info[2];
 }
 
-function shotState(shot) { return (STATUS[shot.status] || ["", "wait"])[1]; }
+function preProduction() { return state.clip && (state.clip.stage === "script" || state.clip.stage === "decoupage_review"); }
+
+function shotState(shot) {
+  if (shot.id && preProduction()) return "wait";
+  if (shot.waiting === "spend") return "review";
+  if (shot.waiting === "decors" || shot.waiting === "decors_scan") return "wait";
+  return (STATUS[shot.status] || ["", "wait"])[1];
+}
+
+// ce qui bloque un plan quand ce n'est pas la machine qui travaille
+function waitingText(shot) {
+  return {
+    spend: "En attente de validation : la dépense de ce visuel est dans l'onglet Dépenses.",
+    decors_scan: "Attend le repérage des décors, objets et figurants.",
+    decors: "Attend une image de référence gardée pour ses décors (onglet Décors).",
+  }[shot.waiting] || "";
+}
+
+function statusLabel(shot) {
+  if (preProduction()) return state.clip.stage === "decoupage_review" ? "Attend la validation du découpage" : "Découpage en préparation";
+  if (shot.waiting === "spend") return "En attente de validation (dépense)";
+  if (shot.waiting === "decors_scan") return "Attend le repérage des décors";
+  if (shot.waiting === "decors") return "Attend les références de décor";
+  return (STATUS[shot.status] || [shot.status])[0];
+}
 
 function stepStates(shot) {
   const cur = currentStep(shot);
@@ -344,7 +396,7 @@ function stepStates(shot) {
     if (shot.status === "done") return { ...s, state: "done", text: "Validé" };
     if (i < curIdx) return { ...s, state: "done", text: "Validé" };
     if (i === curIdx) {
-      return { ...s, state: st, text: (STATUS[shot.status] || [shot.status])[0] };
+      return { ...s, state: st, text: statusLabel(shot) };
     }
     if (shot.status === "final_review" && s.key === "final" && shot.singing) return { ...s, state: "done", text: "Prête" };
     return { ...s, state: "wait", text: "À venir" };
@@ -393,20 +445,23 @@ async function showStudio() {
       <div class="body">
         <div class="row"><span class="title">${esc(c.title)}</span><span class="spacer"></span>${pill(stLabel, stCls)}</div>
         ${c.pitch ? `<p class="pitch">${esc(c.pitch)}</p>` : ""}
-        ${c.shots ? `<div class="pipebar">${bar}</div>` : ""}
+        ${c.shots && c.stage !== "script" && c.stage !== "decoupage_review" ? `<div class="pipebar">${bar}</div>` : ""}
         <div class="row hint"><span>${c.shots} plan${c.shots > 1 ? "s" : ""}</span><span class="spacer"></span>
           <span class="mono">${money(c.cost_usd)}${c.budget_usd ? ` / ${c.budget_usd.toFixed(0)} $` : ""}</span></div>
       </div></a>`;
   }).join("");
+  const todo = (d.todo || []).length ? `<section class="panel todo"><h2>À faire maintenant</h2>
+      <ul>${d.todo.map((x) => `<li><a href="${x.href}">${led("review")}${esc(x.label)}</a></li>`).join("")}</ul></section>` : "";
   $view.innerHTML = `
+    ${todo}
     <div class="pagehead"><h1>Studio</h1>
-      <span class="sub">${pending ? `<span class="pill review">${led("review")}${pending} validation${pending > 1 ? "s t'attendent" : " t'attend"}</span>` : "Rien ne t'attend pour l'instant"}</span>
+      <span class="sub">${pending ? `<span class="pill review">${led("review")}${pending} en attente de validation</span>` : "Rien en attente de validation"}</span>
       <span class="spacer"></span><a class="btn go" href="#/nouveau">＋ Nouveau clip</a></div>
     <div class="clips">${cards}
       <a class="newcard" href="#/nouveau"><span class="plus">＋</span><b>Nouveau clip</b><span class="hint">Morceau, dossier de réalisation, paroles</span></a>
     </div>
     <div class="legend" style="margin-top:22px">
-      <span>${led("review")}t'attend</span><span>${led("work")}la machine travaille</span>
+      <span>${led("review")}en attente de validation</span><span>${led("work")}la machine travaille</span>
       <span>${led("done")}validé</span><span>${led("change")}modif demandée</span><span>${led("failed")}échec</span></div>`;
   every(20000, () => { if (!isBusy()) showStudio(); });
 }
@@ -472,7 +527,7 @@ function renderClip() {
   let html = `<div class="cliphead">
       <div class="crumbs"><a href="#/">Studio</a> / ${esc(clip.title)}</div>
       <div class="row"><h1>${esc(clip.title)}</h1>${pill(stLabel, stCls)}</div>
-      ${clip.pitch ? `<p class="pitch">${esc(clip.pitch)}</p>` : ""}
+      ${clip.pitch ? `<p class="pitch folded" data-unfold title="Toucher pour tout lire">${esc(clip.pitch)}</p>` : ""}
       <div class="meta"><span>${clip.shots.length} plans · ${clip.blocks.length} blocs</span>
         <span>${esc(clip.aspect_ratio)}</span>${casting ? `<span>${casting}</span>` : ""}
         <span class="mono">${money(clip.cost_usd)}${clip.budget_usd ? ` / ${clip.budget_usd.toFixed(0)} $` : ""}</span></div>
@@ -490,6 +545,59 @@ function renderClip() {
   $view.innerHTML = html;
   bindClip();
   if (state.tab === "decors") loadDecors(clip);
+  if (state.tab === "dossier") loadScenario(clip);
+}
+
+/* ----- scénariste : brainstorm brut -> propositions à accepter partie par partie ----- */
+
+async function loadScenario(clip) {
+  const box = document.getElementById("scenario-box");
+  if (!box) return;
+  let sc;
+  try { sc = await api(`/api/clips/${encodeURIComponent(clip.slug)}/scenario`); } catch (e) { box.innerHTML = ""; return; }
+  const prop = sc.proposal;
+  const open = prop ? prop.parts.filter((x) => x.status === "proposed") : [];
+  const parts = prop ? prop.parts.map((x) => `<div class="scenario-part ${x.status}">
+      <div class="row"><b>${esc(x.title)}</b><span class="hint">${esc(sc.kinds[x.kind] || x.kind)}</span><span class="spacer"></span>
+        ${x.status === "accepted" ? pill("Acceptée", "done") : x.status === "rejected" ? pill("Écartée", "wait") : ""}</div>
+      ${x.why ? `<p class="hint">${esc(x.why)}</p>` : ""}
+      ${x.status === "proposed" ? `<textarea rows="4" data-sctext="${esc(x.key)}">${esc(x.text)}</textarea>
+        <div class="row"><button class="btn small ok" data-scpick="${esc(x.key)}:accept">Accepter${x.kind === "pitch" || x.kind === "concept" ? ` (remplace ton ${x.kind})` : " (ajouté au dossier)"}</button>
+          <button class="btn small ghost" data-scpick="${esc(x.key)}:reject">Écarter</button></div>`
+        : `<pre class="text">${esc(x.text)}</pre>`}</div>`).join("") : "";
+  box.innerHTML = `<div class="panel-head"><h2>Scénariste</h2>
+      <span class="hint">Colle un brainstorm brut (conversation, notes). Le scénariste en tire un pitch, un concept,
+        des blocs et des idées de plans, en évitant les clichés. Tu acceptes ou écartes chaque partie.</span></div>
+    ${sc.status === "requested" ? `<div class="agentbar">${led("work")}Le scénariste lit ton brainstorm. Ses propositions arrivent ici.</div>` : ""}
+    ${prop ? `${prop.resume ? `<p>${esc(prop.resume)}</p>` : ""}${open.length ? `<p class="hint">${open.length} partie${open.length > 1 ? "s" : ""} en attente de validation.</p>` : ""}
+      <div class="stack" style="gap:10px">${parts}</div>` : ""}
+    <details class="fold" ${prop ? "" : "open"}><summary>Coller un brainstorm</summary><div class="stack" style="gap:6px">
+      <textarea id="brainstorm" rows="8" placeholder="Colle ici la conversation ou tes notes, telles quelles"></textarea>
+      <div class="row"><button class="btn go" data-brainstorm>Envoyer au scénariste</button></div></div></details>`;
+  fitAll(box);
+  box.onclick = async (ev) => {
+    const t = ev.target.closest("button");
+    if (!t) return;
+    try {
+      if (t.dataset.brainstorm !== undefined) {
+        const text = document.getElementById("brainstorm").value.trim();
+        if (!text) { toast("Colle d'abord ton brainstorm", "err"); return; }
+        t.disabled = true;
+        await api(`/api/clips/${encodeURIComponent(clip.slug)}/brainstorm`, { json: { text } });
+        toast("Brainstorm envoyé au scénariste");
+        return loadScenario(clip);
+      }
+      if (t.dataset.scpick) {
+        const i = t.dataset.scpick.lastIndexOf(":");
+        const key = t.dataset.scpick.slice(0, i), decision = t.dataset.scpick.slice(i + 1);
+        const ta = box.querySelector(`[data-sctext="${CSS.escape(key)}"]`);
+        t.disabled = true;
+        await api(`/api/clips/${encodeURIComponent(clip.slug)}/scenario`, { json: { key, decision, text: ta ? ta.value : null } });
+        toast(decision === "accept" ? "Partie acceptée" : "Partie écartée");
+        return showClip(clip.slug, "dossier", false);
+      }
+    } catch (e) { t.disabled = false; toast(e.message, "err"); }
+  };
 }
 
 /* ----- console : transport + timeline ----- */
@@ -511,7 +619,7 @@ function renderConsole(clip) {
   }).join("");
   const pre = clip.stage === "script" || clip.stage === "decoupage_review";
   const shots = clip.shots.map((s) => `<span class="tl-shot c-${pre ? "wait" : shotState(s)} ${s.id === state.shotId ? "sel" : ""}" data-openshot="${s.id}"
-      style="left:${pct(s.t_start)}%;width:${pct(s.t_end - s.t_start)}%" title="Plan ${s.num} · ${esc((STATUS[s.status] || [s.status])[0])}"></span>`).join("");
+      style="left:${pct(s.t_start)}%;width:${pct(s.t_end - s.t_start)}%" title="Plan ${s.num} · ${esc(statusLabel(s))}"></span>`).join("");
   return `<section class="console" id="console">
       <div class="transport">
         <button class="playbtn" data-play aria-label="Lecture">${song.paused ? "▶" : "❚❚"}</button>
@@ -523,6 +631,8 @@ function renderConsole(clip) {
         <div class="tl-wave" id="wave"><canvas id="wave-base"></canvas>
           <div id="wave-played" style="position:absolute;inset:0;width:0;overflow:hidden"><canvas id="wave-top"></canvas></div></div>
         <div class="tl-shots">${shots}</div>
+        ${(clip.lyrics_lines || []).length ? `<div class="tl-lyrics">${clip.lyrics_lines.map((l) =>
+          `<span style="left:${pct(l.start)}%;width:${pct(l.end - l.start)}%" title="${tc(l.start)} : ${esc(l.text)}">${esc(l.text)}</span>`).join("")}</div>` : ""}
         <span class="tl-head" id="tlhead"></span>
       </div>
     </section>`;
@@ -620,7 +730,7 @@ function stageSummary(clip) {
   const labels = { image: "Visuel draft", hd: "Visuel HD", plan: "Plan vidéo", draft: "Vidéo draft", final: "Vidéo HD + lip-sync" };
   const cards = keys.map((k) => `<button class="stage ${state.stepFilter === k ? "on" : ""}" data-stepfilter="${k}">
       <span class="name">${labels[k]}</span>
-      <span class="nums"><span class="r" title="t'attendent">● ${sums[k].r}</span><span class="w" title="en cours">● ${sums[k].w}</span><span class="d" title="validés">● ${sums[k].d}</span></span>
+      <span class="nums"><span class="r" title="en attente de validation">● ${sums[k].r}</span><span class="w" title="en cours">● ${sums[k].w}</span><span class="d" title="validés">● ${sums[k].d}</span></span>
     </button>`).join("");
   const done = clip.shots.filter((s) => s.status === "done").length;
   return `<div class="stages">${cards}<div class="stage" style="cursor:default"><span class="name">Terminés</span>
@@ -664,7 +774,7 @@ function renderTile(s, clip) {
       </div>
       <div class="info">
         <p class="desc">${esc(s.description)}</p>
-        <div class="foot">${clip.stage === "production" ? `${led(st)}<span>${esc((STATUS[s.status] || [s.status])[0])}</span>`
+        <div class="foot">${clip.stage === "production" ? `${led(st)}<span>${esc(statusLabel(s))}</span>`
           : `${led("wait")}<span>${clip.stage === "decoupage_review" ? "Attend la validation du découpage" : "Découpage en préparation"}</span>`}</div>
         <div class="foot"><span class="mono" style="font-size:11px">${tc(s.t_start)} → ${tc(s.t_end)}</span>
           <span class="steps-mini">${steps}</span></div>
@@ -695,7 +805,7 @@ function renderPlans(clip) {
     const toReview = shots.filter((s) => shotState(s) === "review");
     const gates = {};
     toReview.forEach((s) => { const g = gateOf(s); gates[g] = (gates[g] || 0) + 1; });
-    const leds = shots.map((s) => `<span class="led ${shotState(s)}" title="Plan ${s.num} · ${esc((STATUS[s.status] || [s.status])[0])}"></span>`).join("");
+    const leds = shots.map((s) => `<span class="led ${shotState(s)}" title="Plan ${s.num} · ${esc(statusLabel(s))}"></span>`).join("");
     const a = shots.length ? shots[0].t_start : 0; const z = shots.length ? shots[shots.length - 1].t_end : 0;
     const bulk = Object.entries(gates).filter(([g]) => g !== "hd").map(([g, n]) => {
       const cost = g === "videoplan" ? shots.filter((s) => s.status === "video_review").reduce((t, s) => t + ((s.estimate || {}).cost_total_usd || 0), 0) : 0;
@@ -729,7 +839,7 @@ function renderPlans(clip) {
     </div>
     ${blocks || `<p class="empty">Aucun plan dans ce filtre.</p>`}
     <div class="legend" style="margin-top:16px">
-      <span>${led("review")}t'attend</span><span>${led("work")}la machine travaille</span>
+      <span>${led("review")}en attente de validation</span><span>${led("work")}la machine travaille</span>
       <span>${led("done")}validé</span><span>${led("change")}modif demandée</span><span>${led("failed")}échec</span><span>${led("wait")}à venir</span></div>`;
 }
 
@@ -772,10 +882,37 @@ function renderDrawer() {
       <span class="lbl">${esc(s.label)}</span><span class="st">${led(s.state === "off" ? "wait" : s.state)}${esc(s.text)}</span></button>`).join("");
 
   const notes = [];
-  if (shot.notes) {
-    const cls = shot.notes.startsWith("Retour de Michael") ? "michael" : shot.notes.includes("ontrôle") ? "qc" : "";
-    notes.push(`<p class="note ${cls}">${esc(shot.notes)}</p>`);
+  if (shot.notes) notes.push(`<p class="note">${esc(shot.notes)}</p>`);
+  const hist = shot.historique || [];
+  if (hist.length) {
+    const last = hist[0];
+    notes.push(`<p class="note ${last.author === "michael" ? "michael" : last.author === "controleur" ? "qc" : ""}">
+      <b>${esc(NOTE_AUTHOR[last.author] || last.author)} :</b> ${esc(last.text)}</p>`);
+    if (hist.length > 1) {
+      notes.push(`<details class="fold"><summary>Historique des remarques (${hist.length})</summary><div class="journal">${hist.map((n) =>
+        `<div><span class="t">${esc(n.created_at.replace("T", " ").slice(5, 16))}</span><span><b>${esc(NOTE_AUTHOR[n.author] || n.author)}</b> : ${esc(n.text)}</span></div>`).join("")}</div></details>`);
+    }
   }
+  const wait = waitingText(shot);
+  if (wait) notes.unshift(`<p class="note michael">${esc(wait)}</p>`);
+  const locked = !["image_todo", "image_gen", "image_qc", "image_review", "hd_todo", "hd_gen", "hd_qc", "hd_review",
+    "prompt_todo", "video_review", "change_requested", "failed"].includes(shot.status) && clip.stage === "production";
+  const settings = `<div class="shot-settings stack" style="gap:8px">
+      <label class="field"><span>Modèle vidéo</span>
+        ${locked ? `<b>${esc((shot.video_model || {}).label || "")}</b>` : modelSelect(clip, shot.model_key || "", `data-shotmodel="${shot.id}"`)}</label>
+      ${fitBadge(shot.fit)}
+      ${shot.lipsync && !shot.lipsync.native ? `<label class="field"><span>Lip-sync</span>
+        <select data-shotlipsync="${shot.id}">
+          <option value="">Par défaut</option>
+          ${(clip.lipsync_models || []).map((m) => `<option value="${m.key}" ${shot.lipsync.chosen && m.key === shot.lipsync.key ? "selected" : ""} ${m.usable ? "" : "disabled"}>${esc(m.label)}${m.usable ? "" : " (non branché)"}</option>`).join("")}
+        </select></label>
+        ${shot.lipsync.usable ? "" : `<p class="hint" style="color:#ffb547">Aucun lip-sync branché pour l'instant : ce plan s'arrêtera à cette étape.</p>`}` : ""}
+      ${shot.lipsync && shot.lipsync.native ? `<p class="hint">Lip-sync fait par le modèle vidéo.</p>` : ""}
+    </div>`;
+  const detailBox = `<details class="fold" ${shot.detail ? "" : "open"}><summary>Prompt détaillé${shot.detail_edited ? " · écrit par toi" : ""}</summary><div class="stack" style="gap:6px">
+      <textarea id="dt-${shot.id}" rows="4" placeholder="Le plan en détail : sujet, action, décor, lumière, cadrage">${esc(shot.detail || "")}</textarea>
+      <div class="row"><button class="btn small" data-savedetail="${shot.id}">Enregistrer</button>
+        <span class="hint">${(shot.assets || []).some((a) => a.kind === "image") ? "Le visuel déjà fait ne change pas tout seul : demande une modif pour le refaire." : "Le storyboard part de ce texte."}</span></div></div></details>`;
 
   if (!document.querySelector(".drawer-backdrop")) {
     const bd = document.createElement("div");
@@ -796,11 +933,13 @@ function renderDrawer() {
     </div>
     <div class="drawer-body">
       <div class="stack" style="gap:8px">
-        <div class="row">${pill((STATUS[shot.status] || [shot.status])[0], st)}
+        <div class="row">${pill(statusLabel(shot), st)}
           <span class="spacer"></span><button class="btn small ghost" data-playshot="${shot.id}">▶ Lire dans le morceau</button></div>
         <p>${esc(shot.description)}</p>
         <div class="row" style="gap:6px">${tags.map((t) => `<span class="tag">${esc(t)}</span>`).join("")}</div>
       </div>
+      ${detailBox}
+      ${settings}
       <div class="pipeline">${pipeline}</div>
       ${notes.join("")}
       ${renderStepPanel(shot, step)}
@@ -812,6 +951,21 @@ function renderDrawer() {
   if (sameShot) $drawer.querySelector(".drawer-body").scrollTop = scroll;
   bindCompare($drawer);
   $drawer.onclick = drawerClick;
+  $drawer.onchange = async (ev) => {
+    const t = ev.target;
+    const reload = () => showClip(clip.slug, state.tab, false);
+    try {
+      if (t.dataset.shotmodel) {
+        if (!t.value) { toast("Choisis un modèle dans la liste", "err"); return; }
+        await api(`/api/shots/${t.dataset.shotmodel}/model`, { json: { model_key: t.value } });
+        toast("Modèle changé"); return reload();
+      }
+      if (t.dataset.shotlipsync) {
+        await api(`/api/shots/${t.dataset.shotlipsync}/lipsync`, { json: { model_key: t.value || null } });
+        toast("Lip-sync changé"); return reload();
+      }
+    } catch (e) { toast(e.message, "err"); reload(); }
+  };
 }
 
 function viewerFor(shot, kinds, clip, emptyText) {
@@ -958,6 +1112,7 @@ function renderPlanVideo(shot, isGate) {
 
 async function drawerClick(ev) {
   const t = ev.target.closest("button, [data-zoom], input[data-model]");
+  if (ev.target.matches && ev.target.matches("select")) return;
   if (!t) return;
   const d = t.dataset;
   const clip = state.clip;
@@ -980,6 +1135,12 @@ async function drawerClick(ev) {
     if (d.model) {
       await api(`/api/shots/${d.model}/model`, { json: { model_key: t.value } });
       toast("Modèle changé");
+      return reload();
+    }
+    if (d.savedetail) {
+      const text = document.getElementById("dt-" + d.savedetail).value;
+      await api(`/api/shots/${d.savedetail}/detail`, { json: { text } });
+      toast("Prompt détaillé enregistré");
       return reload();
     }
     if (d.saveprompt) {
@@ -1038,9 +1199,10 @@ async function drawerClick(ev) {
 function editorFromClip(clip) {
   const shotById = Object.fromEntries(clip.shots.map((s) => [s.id, s]));
   const blocks = clip.blocks.map((b) => ({
-    name: b.name, intention: b.intention || "",
+    name: b.name, intention: b.intention || "", look: b.look || "",
     shots: b.shot_ids.map((id) => shotById[id]).filter(Boolean).map((s) => ({
-      t_start: tc(s.t_start), t_end: tc(s.t_end), description: s.description, singing: !!s.singing,
+      id: s.id, t_start: tc(s.t_start), t_end: tc(s.t_end), description: s.description, detail: s.detail || "",
+      detail_edited: !!s.detail_edited, model_key: s.model_key || "", singing: !!s.singing,
       framing: s.framing, motion: s.motion, camera: s.camera, characters: s.characters, notes: s.notes,
     })),
   }));
@@ -1055,10 +1217,28 @@ function renderDecoupageTab(clip) {
   if (!editable) return renderDecoupageRead(clip);
   if (!state.editor || !state.editorDirty) state.editor = editorFromClip(clip);
   let head = "";
+  const allShots = state.editor.flatMap((b) => b.shots);
+  const fits = allShots.map((s) => fitFor(clip, s.model_key, parseTc(s.t_end) - parseTc(s.t_start)));
+  const nWarn = fits.filter((f) => f && f.level === "warn").length;
+  const nBad = fits.filter((f) => f && f.level === "bad").length;
+  const incomplete = (clip.incomplete || []).length;
+  const summary = clip.shots.length ? `<div class="panel dec-summary" style="margin-bottom:16px">
+      <div class="row" style="gap:14px">
+        <span>${incomplete ? `${pill(`${incomplete} plan${incomplete > 1 ? "s" : ""} incomplet${incomplete > 1 ? "s" : ""}`, "review")}` : pill("Tous les plans sont complets", "done")}</span>
+        ${incomplete ? `<button class="btn small" data-complete>Faire compléter par le script doctor</button>` : ""}
+        <span class="spacer"></span>
+        <span class="mono">Vidéo estimée : ~${money(clip.video_cost_usd)}</span>
+      </div>
+      <p class="hint" style="margin-top:6px">Un plan complet a sa ligne courte, son prompt détaillé, son cadrage et son mouvement.
+        ${nWarn ? `<b>${nWarn}</b> plan${nWarn > 1 ? "s" : ""} plus court${nWarn > 1 ? "s" : ""} que ce que le modèle génère (payé${nWarn > 1 ? "s" : ""} en trop).` : ""}
+        ${nBad ? `<b style="color:var(--red)">${nBad}</b> plan${nBad > 1 ? "s" : ""} trop long${nBad > 1 ? "s" : ""} pour son modèle.` : ""}
+        Veo ne sait pas faire plusieurs plans dans une même prise : fusionner deux plans courts voisins coûte moins cher.</p>
+    </div>` : "";
   if (clip.stage === "decoupage_review") {
     head = `<div class="actionbox" style="margin-bottom:16px"><h3>Découpage à valider</h3>
-      <p class="hint">Le script doctor a complété chaque plan : cadrage, mouvement, caméra, plan chanté ou non.
-        Tu peux corriger directement ci-dessous, puis valider pour lancer le storyboard.</p>
+      <p class="hint">Relis chaque plan : sa ligne courte, son prompt détaillé, son modèle vidéo. Corrige directement
+        ci-dessous, enregistre, puis valide pour lancer le storyboard. Les plans incomplets et les durées mal adaptées
+        au modèle sont signalés.</p>
       ${clip.script_notes ? `<details class="fold"><summary>Notes de relecture du script doctor</summary><div><pre class="text">${esc(clip.script_notes)}</pre></div></details>` : ""}
       <div class="row"><button class="btn ok" data-cut="approve">Valider le découpage</button>
         <button class="btn ghost" data-cut="open">Demander des changements</button></div>
@@ -1080,6 +1260,7 @@ function renderDecoupageTab(clip) {
       <div class="dec-block-head">
         <input type="text" value="${esc(b.name)}" data-bf="${bi}:name" placeholder="Nom du bloc (couplet 1…)">
         <textarea rows="1" data-bf="${bi}:intention" placeholder="Intention du bloc (facultatif)">${esc(b.intention)}</textarea>
+        <textarea rows="1" data-bf="${bi}:look" placeholder="Lumière et étalonnage communs au bloc (en anglais, facultatif)" title="Les plans du bloc partagent cette lumière. Le premier visuel validé du bloc sert de référence aux autres.">${esc(b.look || "")}</textarea>
         <button class="iconbtn" data-delblock="${bi}" title="Supprimer le bloc">✕</button>
       </div>
       <div class="colhead"><span>#</span><span>Début</span><span>Fin</span><span>Durée</span><span>Ce qu'on voit</span><span></span></div>
@@ -1091,7 +1272,7 @@ function renderDecoupageTab(clip) {
           <input class="tc" type="text" inputmode="decimal" value="${esc(s.t_start)}" data-sf="${bi}:${si}:t_start" placeholder="0:00.0">
           <input class="tc" type="text" inputmode="decimal" value="${esc(s.t_end)}" data-sf="${bi}:${si}:t_end" placeholder="0:04.0">
           <span class="dur" data-dur="${bi}:${si}">${durText(s)}</span>
-          <textarea rows="1" data-sf="${bi}:${si}:description" placeholder="Ce qu'on voit dans ce plan">${esc(s.description)}</textarea>
+          <textarea rows="1" data-sf="${bi}:${si}:description" placeholder="Ce qu'on voit, en une ligne">${esc(s.description)}</textarea>
           <span class="shot-acts">
             <label class="sing" title="Plan chanté face caméra : lip-sync"><input type="checkbox" ${s.singing ? "checked" : ""} data-sf="${bi}:${si}:singing"> ♪ chanté</label>
             ${si < b.shots.length - 1 ? `<button class="btn small ghost" data-mergeshot="${bi}:${si}" title="Fusionner avec le plan suivant">Fusionner avec le suivant</button>` : ""}
@@ -1099,11 +1280,17 @@ function renderDecoupageTab(clip) {
             <button class="iconbtn" data-delshot="${bi}:${si}" title="Supprimer le plan">✕</button>
           </span>
           ${tech ? `<span class="tech">${esc(tech)}</span>` : ""}
+          <div class="dec-more">
+            <div class="row" style="gap:8px">${modelSelect(clip, s.model_key, `data-sf="${bi}:${si}:model_key" aria-label="Modèle vidéo"`)}
+              <span data-fit="${bi}:${si}">${fitBadge(fitFor(clip, s.model_key, parseTc(s.t_end) - parseTc(s.t_start)))}</span></div>
+            <details class="fold detail" ${s.detail ? "" : "open"}><summary>Prompt détaillé${s.detail_edited ? " · écrit par toi" : s.detail ? "" : " · à écrire"}</summary>
+              <textarea rows="3" data-sf="${bi}:${si}:detail" placeholder="Le plan en détail : sujet, action, décor, lumière, cadrage. Le script doctor le remplit, tu peux le réécrire.">${esc(s.detail || "")}</textarea></details>
+          </div>
         </div>`;
       }).join("")}
       <div class="row" style="margin-top:8px"><button class="btn small" data-addshot="${bi}">＋ Plan</button></div>
     </div>`).join("");
-  return `${head}${blocks}
+  return `${head}${summary}${blocks}
     <div class="row" style="position:sticky;bottom:12px;z-index:5;background:#0a0911ee;padding:10px;border-radius:12px;border:1px solid var(--line)">
       <button class="btn" data-addblock>＋ Bloc</button><span class="spacer"></span>
       <span class="hint" id="dec-status">${state.editorDirty ? "Modifications non enregistrées" : `${n} plans`}</span>
@@ -1117,22 +1304,25 @@ function renderDecoupageRead(clip) {
     const shots = b.shot_ids.map((id) => shotById[id]).filter(Boolean);
     return `<div class="dec-block"><div class="row" style="margin-bottom:8px"><h2>${esc(b.name)}</h2>
         <span class="hint">${esc(b.intention || "")}</span></div>
+      ${b.look ? `<p class="hint" style="margin-bottom:8px">Lumière du bloc : ${esc(b.look)}</p>` : ""}
       ${shots.map((s) => `<div class="dec-shot" style="grid-template-columns:34px 170px 1fr auto">
-        <span class="n">${s.num}</span><span class="mono" style="padding-top:2px">${tc(s.t_start)} → ${tc(s.t_end)}</span>
-        <span><a href="${shotHref(s.id)}">${esc(s.description)}</a><br><span class="hint">${esc([s.framing, s.motion, s.camera].filter(Boolean).join(" · "))}</span></span>
+        <span class="n">${s.num}</span><span class="mono" style="padding-top:2px">${tc(s.t_start)} → ${tc(s.t_end)} · ${durText({ t_start: s.t_start, t_end: s.t_end })}</span>
+        <span><a href="${shotHref(s.id)}">${esc(s.description)}</a><br><span class="hint">${esc([s.framing, s.motion, s.camera].filter(Boolean).join(" · "))}</span>
+          <br>${fitBadge(s.fit)}</span>
         <span>${s.singing ? "♪" : ""}</span></div>`).join("")}</div>`;
   }).join("") + `<p class="hint">Le découpage est validé : pour changer un plan, ouvre-le et demande une modif.</p>`;
 }
 
 function collectEditor() {
   const blocks = state.editor.map((b, bi) => ({
-    name: b.name.trim(), intention: b.intention.trim() || null,
+    name: b.name.trim(), intention: b.intention.trim() || null, look: (b.look || "").trim() || null,
     shots: b.shots.map((s, si) => {
       const a = parseTc(s.t_start); const z = parseTc(s.t_end);
       if (a == null || isNaN(a)) throw new Error(`Bloc « ${b.name || bi + 1} », plan ${si + 1} : début illisible`);
       if (z == null || isNaN(z)) throw new Error(`Bloc « ${b.name || bi + 1} », plan ${si + 1} : fin illisible`);
-      const out = { t_start: a, t_end: z, description: s.description.trim(), singing: !!s.singing };
-      ["framing", "motion", "camera", "notes"].forEach((k) => { if (s[k]) out[k] = s[k]; });
+      const out = { t_start: a, t_end: z, description: s.description.trim(), singing: !!s.singing,
+        detail: (s.detail || "").trim() };
+      ["id", "framing", "motion", "camera", "notes", "model_key", "split_from"].forEach((k) => { if (s[k]) out[k] = s[k]; });
       out.characters = s.characters || [];
       return out;
     }),
@@ -1179,6 +1369,7 @@ function renderDossier(clip) {
   const formats = [["16:9", "Horizontal", "YouTube, écran", 48, 27], ["9:16", "Vertical", "Reels, TikTok, Shorts", 22, 39], ["1:1", "Carré", "Posts", 34, 34]];
   const formatLocked = clip.stage !== "script" && clip.stage !== "decoupage_review";
   return `${cta}
+    <div id="scenario-box" class="panel stack" style="margin-bottom:16px"><p class="loading">Chargement…</p></div>
     <div class="two-col">
       <div class="panel stack">
         <div class="panel-head"><h2>Concept</h2></div>
@@ -1291,9 +1482,12 @@ function bindClip() {
     if (t.dataset.sf) {
       const [bi, si, f] = t.dataset.sf.split(":");
       state.editor[+bi].shots[+si][f] = t.type === "checkbox" ? t.checked : t.value;
-      if (f === "t_start" || f === "t_end") {
+      if (f === "t_start" || f === "t_end" || f === "model_key") {
+        const sh = state.editor[+bi].shots[+si];
         const el = $view.querySelector(`[data-dur="${bi}:${si}"]`);
-        if (el) el.textContent = durText(state.editor[+bi].shots[+si]);
+        if (el) el.textContent = durText(sh);
+        const fe = $view.querySelector(`[data-fit="${bi}:${si}"]`);
+        if (fe) fe.innerHTML = fitBadge(fitFor(clip, sh.model_key, parseTc(sh.t_end) - parseTc(sh.t_start)));
       }
       markDirty();
     } else if (t.dataset.bf) {
@@ -1303,12 +1497,13 @@ function bindClip() {
     }
   };
   $view.onclick = async (ev) => {
-    const t = ev.target.closest("button, [data-openshot], [data-goblock], [data-toggleblock], [data-zoom]");
+    const t = ev.target.closest("button, [data-openshot], [data-goblock], [data-toggleblock], [data-zoom], [data-unfold]");
     if (!t) return;
     const d = t.dataset;
     const reload = (tab = state.tab) => showClip(clip.slug, tab, false);
     try {
       if (d.zoom) return lightbox(d.zoom);
+      if (d.unfold !== undefined) { t.classList.toggle("folded"); return; }
       if (d.play !== undefined) { if (song.paused) song.play().catch(() => {}); else song.pause(); return; }
       if (d.openshot) {
         const shot = clip.shots.find((s) => s.id === +d.openshot);
@@ -1379,6 +1574,7 @@ function bindClip() {
         const shots = state.editor[bi].shots, a = shots[si], b = shots[si + 1];
         a.t_end = b.t_end;
         a.description = `${a.description.trim()} Puis : ${b.description.trim()}`;
+        if (b.detail) a.detail = [a.detail, b.detail].filter(Boolean).join(" Then: ");
         a.singing = a.singing || b.singing;
         a.characters = [...new Set([...(a.characters || []), ...(b.characters || [])])];
         shots.splice(si + 1, 1);
@@ -1390,7 +1586,7 @@ function bindClip() {
         const t0 = parseTc(a.t_start), t1 = parseTc(a.t_end);
         if (t0 == null || t1 == null || isNaN(t0) || isNaN(t1) || t1 - t0 < 1) { toast("Plan trop court pour être coupé", "err"); return; }
         const mid = tc(t0 + (t1 - t0) / 2);
-        shots.splice(si + 1, 0, { ...a, t_start: mid, description: "" });
+        shots.splice(si + 1, 0, { ...a, id: null, split_from: a.id || null, t_start: mid, description: "", detail: a.detail, detail_edited: false });
         a.t_end = mid;
         markDirty(); return renderClip();
       }
@@ -1403,6 +1599,13 @@ function bindClip() {
         if (needsConfirm(t, "delblock" + d.delblock)) return;
         state.editor.splice(+d.delblock, 1);
         markDirty(); return renderClip();
+      }
+      if (d.complete !== undefined) {
+        if (state.editorDirty) { toast("Enregistre d'abord tes modifications du découpage", "err"); return; }
+        t.disabled = true;
+        await api(`/api/clips/${encodeURIComponent(clip.slug)}/complete`, { method: "POST" });
+        toast("Le script doctor complète les plans");
+        return reload("decoupage");
       }
       if (d.savedec !== undefined) {
         const blocks = collectEditor();

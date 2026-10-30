@@ -35,7 +35,7 @@ Michael par type de plan). Si un modèle échoue souvent sur un type de plan,
 
 ## Pour chaque plan
 
-1. `riot shot show <id>` : description, visuel HD (ou visuel draft retenu), notes.
+1. `riot shot show <id>` : description, visuel HD (ou visuel draft retenu), historique.
 2. Corrige si besoin la description technique, d'après le visuel :
    `riot shot set <id> --framing <ECU|CU|MCU|MS|MWS|WS|EWS> --motion <static|low|medium|high>`.
 3. Choisis :
@@ -54,3 +54,11 @@ Réponds avec un tableau : plan, modèle, raison, durée générée, coût estim
 Si tu remarques une tendance durable (un modèle mauvais sur les mains, un autre
 excellent sur la danse), propose-la à l'orchestrateur pour la section « Ce qu'on a
 appris » de `docs/PROCESS.md`.
+
+## Le choix de Michael fait foi
+
+Si `route_reason` vaut « Choisi par Michael », il a choisi le modèle lui-même dans
+la régie : garde-le (`riot route <id> --apply --model <ce modèle>` si besoin) et
+signale seulement un vrai problème (durée hors limites, format non tenu).
+Un plan chanté passe par un lip-sync après la vidéo ; aucun modèle vidéo ne cale
+pour l'instant la bouche sur une voix fournie de façon confirmée.

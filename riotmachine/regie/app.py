@@ -90,11 +90,41 @@ def overview() -> dict[str, Any]:
         c["to_review"] += 0
     jobs = conn.execute("SELECT COUNT(*) FROM jobs WHERE status IN ('queued','running')").fetchone()[0]
     agents = conn.execute("SELECT clip_slug FROM agent_runs WHERE ended_at IS NULL").fetchall()
-    s = get_settings()
     return {"clips": clips, "characters": characters, "jobs_running": jobs,
             "agents_running": [r["clip_slug"] for r in agents],
-            "fal_mode": "simulation" if s.fal_mock else "réel", "providers": routing.providers(),
-            "spend": _spend_summary(conn)}
+            "providers": routing.providers(), "spend": _spend_summary(conn), "todo": _todo(conn, clips, characters)}
+
+
+def _todo(conn, clips: list[dict], characters: list[dict]) -> list[dict[str, Any]]:
+    """Ce qui attend une validation, tous clips confondus, du plus urgent au moins urgent."""
+    out: list[dict[str, Any]] = []
+    sp = _spend_summary(conn)
+    if sp["pending"]:
+        out.append({"label": f"{sp['pending']} dépense{'s' if sp['pending'] > 1 else ''} en attente de validation "
+                             f"(~{sp['usd']:.2f} $)", "href": "#/depenses"})
+    gate_label = {"image_review": "visuel", "hd_review": "visuel HD", "video_review": "plan vidéo",
+                  "draft_review": "vidéo draft", "final_review": "final"}
+    for c in clips:
+        base = f"#/clip/{c['slug']}"
+        if c["stage"] == "decoupage_review":
+            out.append({"label": f"{c['title']} : découpage en attente de validation", "href": base + "/decoupage"})
+        if c.get("scenario_status") == "proposed":
+            out.append({"label": f"{c['title']} : propositions du scénariste à relire", "href": base + "/dossier"})
+        for st, lab in gate_label.items():
+            n = c["status_counts"].get(st, 0)
+            if n:
+                out.append({"label": f"{c['title']} : {n} {lab}{'s' if n > 1 else ''} en attente de validation",
+                            "href": base + "/plans"})
+        n_prop = conn.execute("SELECT COUNT(*) FROM element_images i JOIN elements e ON e.id=i.element_id "
+                              "WHERE e.clip_slug=? AND i.status='proposed'", (c["slug"],)).fetchone()[0]
+        if n_prop:
+            out.append({"label": f"{c['title']} : {n_prop} image{'s' if n_prop > 1 else ''} de décor à garder ou écarter",
+                        "href": base + "/decors"})
+    for ch in characters:
+        if ch.get("to_review"):
+            out.append({"label": f"{ch['name']} : {ch['to_review']} image{'s' if ch['to_review'] > 1 else ''} "
+                                 "en attente de validation", "href": f"#/personnages/{ch['slug']}"})
+    return out
 
 
 def _spend_summary(conn) -> dict[str, Any]:
@@ -183,6 +213,12 @@ def clip(slug: str) -> dict[str, Any]:
     snap["agent_running"] = bool(conn.execute(
         "SELECT 1 FROM agent_runs WHERE clip_slug=? AND ended_at IS NULL", (slug,)).fetchone())
     snap["providers"] = routing.providers()
+    ana = production.absp(f"{snap['dir']}/work/analyse.json")
+    try:
+        lines = json.loads(ana.read_text(encoding="utf-8")).get("lines", []) if ana and ana.is_file() else []
+    except (OSError, ValueError):
+        lines = []
+    snap["lyrics_lines"] = [{"start": l["start"], "end": l["end"], "text": l["text"]} for l in lines]
     snap["characters_available"] = db.rows(conn.execute(
         "SELECT slug, name, canon_version FROM characters WHERE canon_version IS NOT NULL ORDER BY slug").fetchall())
     return snap
@@ -388,7 +424,7 @@ class DecoupageEdit(BaseModel):
 @app.post("/api/clips/{slug}/decoupage-edit")
 def edit_decoupage(slug: str, body: DecoupageEdit) -> dict[str, Any]:
     try:
-        n = production.import_shots(_conn(), slug, {"blocks": body.blocks})
+        n = production.import_shots(_conn(), slug, {"blocks": body.blocks}, by="michael")
     except (production.ProductionError, LookupError, ValueError, TypeError) as exc:
         raise _error(exc)
     return {"ok": True, "shots": n}
@@ -414,6 +450,87 @@ def choose_model(shot_id: int, body: ModelChoice) -> dict[str, Any]:
     except (production.ProductionError, LookupError, routing.RoutingError) as exc:
         raise _error(exc)
     return {"ok": True, "estimate": est}
+
+
+@app.post("/api/shots/{shot_id}/detail")
+def shot_detail(shot_id: int, body: ScriptText) -> dict[str, Any]:
+    try:
+        production.set_detail(_conn(), shot_id, body.text)
+    except (production.ProductionError, LookupError) as exc:
+        raise _error(exc)
+    return {"ok": True}
+
+
+class BlockLook(BaseModel):
+    text: str
+
+
+@app.post("/api/clips/{slug}/blocks/{num}/look")
+def block_look(slug: str, num: int, body: BlockLook) -> dict[str, Any]:
+    try:
+        production.set_block_look(_conn(), slug, num, body.text)
+    except (production.ProductionError, LookupError) as exc:
+        raise _error(exc)
+    return {"ok": True}
+
+
+@app.post("/api/clips/{slug}/complete")
+def complete_decoupage(slug: str) -> dict[str, Any]:
+    """Michael demande au script doctor de compléter les plans incomplets."""
+    try:
+        production.request_completion(_conn(), slug)
+    except (production.ProductionError, LookupError) as exc:
+        raise _error(exc)
+    return {"ok": True}
+
+
+# --- scénariste ------------------------------------------------------------------------
+
+@app.post("/api/clips/{slug}/brainstorm")
+def brainstorm(slug: str, body: ScriptText) -> dict[str, Any]:
+    from .. import scenario
+    try:
+        path = scenario.submit_brainstorm(_conn(), slug, body.text)
+    except (production.ProductionError, LookupError) as exc:
+        raise _error(exc)
+    return {"ok": True, "path": path}
+
+
+@app.get("/api/clips/{slug}/scenario")
+def scenario_get(slug: str) -> dict[str, Any]:
+    from .. import scenario
+    try:
+        return scenario.state(_conn(), slug)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+
+class ScenarioPick(BaseModel):
+    key: str
+    decision: str          # accept | reject
+    text: str | None = None
+
+
+@app.post("/api/clips/{slug}/scenario")
+def scenario_pick(slug: str, body: ScenarioPick) -> dict[str, Any]:
+    from .. import scenario
+    try:
+        return scenario.decide(_conn(), slug, body.key, body.decision, body.text)
+    except (production.ProductionError, LookupError) as exc:
+        raise _error(exc)
+
+
+class LipsyncChoice(BaseModel):
+    model_key: str | None = None
+
+
+@app.post("/api/shots/{shot_id}/lipsync")
+def choose_lipsync(shot_id: int, body: LipsyncChoice) -> dict[str, Any]:
+    try:
+        production.choose_lipsync(_conn(), shot_id, body.model_key)
+    except (production.ProductionError, LookupError, routing.RoutingError) as exc:
+        raise _error(exc)
+    return {"ok": True}
 
 
 @app.post("/api/shots/{shot_id}/video-prompt")

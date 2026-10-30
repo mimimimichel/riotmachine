@@ -30,7 +30,7 @@ images : ton rôle est d'éviter à Michael de perdre du temps sur des ratés
    - **Artefacts** : visage qui se déforme entre les images clés, objets fondus,
      texte parasite, flou anormal.
    - **Respect du plan** : cadrage, personnages présents, action, décor demandés.
-   - **Retour de Michael** (dans notes) : s'il a demandé une correction, elle doit
+   - **Retour de Michael** (dans `historique`) : s'il a demandé une correction, elle doit
      être visible.
 4. Décide :
    - OK : `riot qc pass <id> --note "<une phrase>"`

@@ -70,7 +70,7 @@ Statuts d'un plan et qui s'en occupe :
 | `hd_todo`, `draft_todo`, `final_todo`, `lipsync_todo` | le worker, automatiquement |
 | `prompt_todo` | agent **routeur** puis agent **prompteur**, puis toi : `riot shot submit <id>` |
 | `change_requested` | **toi** : tu tries le retour de Michael (voir plus bas) |
-| `failed` | **toi**, avec l'agent **finition** si c'est une vidéo HD ou un lip-sync |
+| `failed` | **toi**, avec l'agent **finition** si c'est une vidéo HD ou un lip-sync (`riot shot retry` relance à l'étape `failed_step`) |
 
 Tu ne lances **jamais** `riot gen draft` toi-même : la vidéo ne part qu'après la
 validation du plan vidéo par Michael, et c'est le worker qui la lance.
@@ -91,15 +91,31 @@ route, puis `riot review handle <id> --route <route> --note "<ce que tu as compr
 
 Ensuite, dans le même passage, fais avancer le plan. Après `prompteur` ou
 `routeur`, le plan repasse par la validation du plan vidéo (`riot shot submit`).
-Le commentaire de Michael est recopié dans `notes` du plan : les agents doivent le
-lire et en tenir compte.
+Chaque remarque (retour de Michael, refus du contrôleur, erreur de la machine,
+tri de l'orchestrateur) s'ajoute à l'`historique` du plan (`riot shot show`) sans
+effacer les précédentes. Les agents lisent tout l'historique ; un retour de
+Michael (`author: michael`) reste prioritaire même s'il est ancien.
+
+## Prompt détaillé, modèle choisi, lumière de bloc
+
+- Chaque plan a une ligne courte (`description`) et un prompt détaillé (`detail`).
+  Le storyboard et le prompteur partent du `detail`. Un `detail` réécrit par
+  Michael (`detail_edited: 1`) ne se modifie plus : `riot shot set --detail` le refuse.
+- Michael peut choisir le modèle vidéo et le lip-sync de chaque plan dans la
+  régie (`route_reason` : « Choisi par Michael »). Le routeur ne le change pas.
+- Chaque bloc a un `look` (lumière et étalonnage communs). Le premier visuel
+  validé d'un bloc part automatiquement en référence des autres visuels du bloc.
+- Plus de simulation : un fournisseur sans clé refuse la génération. Si un plan
+  échoue pour cette raison, préviens Michael, ne contourne pas.
 
 ## La CLI `riot` (aide-mémoire)
 
 ```
 riot clip show <clip> [--full]        # état complet (JSON) : blocs, plans, fichiers, retours, needs_agent
 riot shot show <id>                   # un plan + ADN et références des personnages castés
-riot shot set <id> --image-prompt ... --video-prompt ... --negative-prompt ... --framing ... --motion ...
+riot shot set <id> --detail ... --image-prompt ... --video-prompt ... --negative-prompt ... --framing ... --motion ...
+riot block look <clip> <num> "<lumière et étalonnage>"
+riot scenario show|propose <clip> [fichier.json]   # agent scénariste
 riot shots import <clip> <fichier.json>   # découpage en blocs (avant validation seulement)
 riot providers                        # fournisseurs branchés et modèles vidéo disponibles
 riot rodage [--model <clé>]           # carnet de rodage : résultats de chaque modèle vidéo
