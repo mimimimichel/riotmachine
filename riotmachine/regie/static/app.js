@@ -2754,6 +2754,7 @@ async function loadDecors(clip, keep = false) {
   const ready = d.elements.filter((e) => e.step === "hd_todo" && e.prompt_status !== "requested");
   const cost = (n) => money(n * d.hd_cost);
 
+  elImagePaths = Object.fromEntries(d.elements.flatMap((x) => x.images).filter((i) => i.path).map((i) => [i.id, i.path]));
   const card = (e) => {
     const drafts = e.images.filter((i) => i.role === "draft" && i.status === "kept");
     const draftProp = e.images.filter((i) => i.role === "draft" && i.status !== "kept");
@@ -2796,7 +2797,7 @@ async function loadDecors(clip, keep = false) {
           ${draftProp.length ? `<p class="hint">Garde le brouillon qui te plaît, écarte les autres.</p>${elGrid(draftProp, "choose")}` : ""}
           <div class="row" style="gap:8px">
             <button class="btn ${drafts.length ? "" : "go"}" data-eldrafts="${e.id}" ${d.drafts_usable ? "" : "disabled"}>${draftProp.length || drafts.length ? "Créer 2 autres brouillons" : "Créer 2 brouillons"} · gratuit</button>
-            <span class="hint">${d.drafts_usable ? "Gratuit. De quelques secondes à deux minutes." : "Aucune option gratuite branchée (page Fournisseurs)."}</span></div>
+            <span class="hint">${d.drafts_usable ? `Gratuit, à partir ${inspi.length ? `de tes ${Math.min(inspi.length, 4)} image${inspi.length > 1 ? "s" : ""} de l'étape 1` : "de ton instruction seule"}. De quelques secondes à deux minutes.` : "Aucune option gratuite branchée (page Fournisseurs)."}</span></div>
           <details class="fold"><summary>Ou dépose ton propre brouillon</summary><div class="stack" style="gap:6px">
             ${dropZone(`el:${e.id}:draft`, "Déposer ton brouillon", "png, jpg ou webp", "image/*", false)}</div></details>
         </div>
@@ -2974,11 +2975,22 @@ async function loadDecors(clip, keep = false) {
   };
 }
 
+/* sous un brouillon : les images de Michael qui ont servi à le créer */
+let elImagePaths = {};
+function fromStrip(img) {
+  let ids = [];
+  try { ids = JSON.parse(img.from_ids || "[]"); } catch (e) { ids = []; }
+  if (!ids.length) return `<p class="hint fromstrip">créé d'après ton instruction seule</p>`;
+  return `<div class="fromstrip"><span class="hint">d'après :</span>${ids.map((id) => elImagePaths[id]
+    ? `<img src="${media(elImagePaths[id])}" alt="" title="image utilisée">` : `<span class="hint">(image retirée depuis)</span>`).join("")}</div>`;
+}
+
 function elGrid(list, mode) {
   return `<div class="packgrid elgrid">${list.map((i) => `<div class="packitem ${mode === "kept" ? "kept" : ""}">
       ${i.status === "generating" ? `<div class="none" style="aspect-ratio:4/3;display:grid;place-items:center">${led("work")} en cours</div>`
         : i.status === "failed" ? `<div class="none" style="aspect-ratio:4/3;display:grid;place-items:center;padding:8px;font-size:12px;text-align:center">Échec : ${esc((i.error || "").slice(0, 160))}</div>`
         : `<img src="${media(i.path)}" data-zoom="${media(i.path)}" alt="">`}
+      ${i.from_ids && mode === "choose" ? fromStrip(i) : ""}
       <div class="pi"><span class="hint">${i.role === "inspi" ? "inspiration" : i.role === "draft" ? (i.source === "gen" ? esc(i.label || "brouillon") : "ton image") : i.source === "michael" ? "ton image HD" : "image HD"}</span>
         ${i.status === "failed" ? `<button class="btn small ghost" data-elpick="${i.id}:reject">Retirer</button>` : ""}
         ${mode === "choose" && i.status === "proposed" ? `<div class="row" style="gap:6px"><button class="btn small ok" data-elpick="${i.id}:keep">Garder</button>

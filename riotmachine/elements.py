@@ -124,7 +124,7 @@ def add_image(conn: sqlite3.Connection, element_id: int, src: str | Path, state:
     if src.suffix.lower() not in IMAGE_EXT:
         raise ProductionError("Une image est attendue (png, jpg, webp)")
     folder = {"draft": "depart", "inspi": "inspiration"}.get(role, "sources")
-    dest = _free_name(absp(e["dir"]) / folder / f"{slugify(src.stem) or 'image'}{src.suffix.lower()}")
+    dest = _free_name(absp(e["dir"]) / folder / f"{slugify(src.stem)[:60] or 'image'}-{db.now()[11:19].replace(':', '')}{src.suffix.lower()}")
     dest.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy(src, dest)
     cur = conn.execute(
@@ -321,7 +321,7 @@ def _run_drafts(element_id: int, ids: list[int], text: str, inspi: list[Path], w
     dead: set[tuple] = set()
     made, errors = 0, []
     for image_id in ids:
-        out = _free_name(absp(e["dir"]) / "brouillons" / f"brouillon-{db.now()[:10]}.png")
+        out = absp(e["dir"]) / "brouillons" / f"brouillon-{db.now()[:19].replace(':', '').replace('-', '')}-{image_id}.png"
         done = False
         for b in draft_backends():
             if b in dead:
@@ -357,9 +357,12 @@ def launch_drafts(conn: sqlite3.Connection, element_id: int, brief: str | None =
         e = _element(conn, element_id)
     if not draft_backends():
         raise ProductionError("Aucune option gratuite de brouillon n'est branchée (page Fournisseurs)")
-    inspi = [p for p in (absp(r["path"]) for r in conn.execute(
-        "SELECT path FROM element_images WHERE element_id=? AND role='inspi' AND status='kept' AND path IS NOT NULL "
-        "ORDER BY id", (element_id,)).fetchall()) if p and p.is_file()][:4]
+    rows = [r for r in conn.execute(
+        "SELECT id, path FROM element_images WHERE element_id=? AND role='inspi' AND status='kept' AND path IS NOT NULL "
+        "ORDER BY id DESC", (element_id,)).fetchall() if absp(r["path"]) and absp(r["path"]).is_file()][:4]
+    rows.reverse()   # les 4 plus récentes, dans l'ordre où Michael les a déposées
+    inspi = [absp(r["path"]) for r in rows]
+    used = json.dumps([r["id"] for r in rows])
     if not inspi and not (e.get("brief") or "").strip():
         raise ProductionError("Ajoute des images ou écris ton instruction")
     text = draft_prompt(e, e.get("brief") or "", len(inspi))
@@ -369,8 +372,8 @@ def launch_drafts(conn: sqlite3.Connection, element_id: int, brief: str | None =
         for _ in range(max(1, min(n, 4))):
             cur = conn.execute(
                 "INSERT INTO element_images (element_id, source, label, prompt, model_key, cost_usd, funding, status, "
-                "role, created_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
-                (element_id, "gen", "brouillon", text, "gratuit", 0, "free", "generating", "draft", db.now()))
+                "role, created_at, from_ids) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                (element_id, "gen", "brouillon", text, "gratuit", 0, "free", "generating", "draft", db.now(), used))
             ids.append(cur.lastrowid)
     if background:
         import threading
@@ -482,7 +485,7 @@ def clip_elements(conn: sqlite3.Connection, clip_slug: str) -> list[dict]:
         e = dict(r)
         e["states"] = json.loads(e["states"] or "[]")
         e["images"] = db.rows(conn.execute(
-            "SELECT id, state, source, role, path, label, status, cost_usd, model_key, error FROM element_images "
+            "SELECT id, state, source, role, path, label, status, cost_usd, model_key, error, from_ids FROM element_images "
             "WHERE element_id=? AND status IN ('generating','proposed','kept','failed') ORDER BY id", (e["id"],)).fetchall())
         e["shots"] = [x["num"] for x in conn.execute(
             "SELECT s.num FROM shot_elements se JOIN shots s ON s.id=se.shot_id WHERE se.element_id=? ORDER BY s.num",

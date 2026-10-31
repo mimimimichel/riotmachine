@@ -423,7 +423,8 @@ LATER_COLUMNS = {
                  ("brief", "TEXT")],
     # role : inspi = image d'inspiration (trouvée par Michael), draft = image de départ (déposée, ou brouillon
     # généré puis gardé), hd = référence des visuels de plan
-    "element_images": [("role", "TEXT NOT NULL DEFAULT 'hd'")],
+    "element_images": [("role", "TEXT NOT NULL DEFAULT 'hd'"),
+                       ("from_ids", "TEXT")],   # brouillon : ids (JSON) des images de Michael qui ont servi
 }
 
 
