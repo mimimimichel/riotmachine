@@ -508,20 +508,82 @@ def save_adn(conn: sqlite3.Connection, slug: str, version: int, text: str) -> No
     db.log_event(conn, None, "casting", f"{slug} v{version} : fiche mise à jour")
 
 
-def create_look(conn: sqlite3.Connection, slug: str, name: str, description: str = "") -> dict:
-    """Une tenue du personnage : un nom, une description, des photos de référence."""
+def create_look(conn: sqlite3.Connection, slug: str, name: str, description: str = "",
+                clip_slug: str | None = None) -> dict:
+    """Une tenue : qui la porte (slug du personnage), un nom, une description, des photos.
+
+    Créée pour un clip (clip_slug) ou tenue signature du personnage (sans clip). Elle se cite
+    partout avec @personnage-tenue, y compris dans un autre clip, sans rien rattacher."""
     if not conn.execute("SELECT 1 FROM characters WHERE slug=?", (slug,)).fetchone():
         raise ProductionError(f"Personnage inconnu : {slug}")
     lslug = slugify(name)
     if not lslug:
         raise ProductionError("Donne un nom à la tenue")
+    if conn.execute("SELECT 1 FROM looks WHERE character_slug=? AND slug=?", (slug, lslug)).fetchone():
+        raise ProductionError(f"@{look_key(slug, lslug)} existe déjà : réutilise-la, ou donne un autre nom "
+                              f"(ex. {lslug}-hiver)")
     ldir = studio() / "characters" / slug / "looks" / lslug
     ldir.mkdir(parents=True, exist_ok=True)
     (ldir / "look.md").write_text(f"# {name}\n\n{description.strip()}\n", encoding="utf-8")
-    conn.execute("INSERT INTO looks (character_slug, slug, description, dir) VALUES (?,?,?,?) "
-                 "ON CONFLICT(character_slug, slug) DO UPDATE SET description=excluded.description",
-                 (slug, lslug, description.strip() or name, rel(ldir)))
-    return {"slug": lslug, "dir": rel(ldir)}
+    conn.execute("INSERT INTO looks (character_slug, slug, description, dir, clip_slug, name) VALUES (?,?,?,?,?,?)",
+                 (slug, lslug, description.strip() or name, rel(ldir), clip_slug, name.strip()))
+    db.log_event(conn, clip_slug, "casting", f"Tenue @{look_key(slug, lslug)} créée")
+    return {"slug": lslug, "key": look_key(slug, lslug), "dir": rel(ldir)}
+
+
+def move_look(conn: sqlite3.Connection, slug: str, look: str, new_slug: str) -> str:
+    """Change le porteur d'une tenue : la référence @ change, et chaque plan qui la citait est réécrit."""
+    lk = conn.execute("SELECT * FROM looks WHERE character_slug=? AND slug=?", (slug, look)).fetchone()
+    if lk is None:
+        raise ProductionError(f"Tenue inconnue : {look}")
+    if new_slug == slug:
+        return look_key(slug, look)
+    if not conn.execute("SELECT 1 FROM characters WHERE slug=?", (new_slug,)).fetchone():
+        raise ProductionError(f"Personnage inconnu : {new_slug}")
+    if conn.execute("SELECT 1 FROM looks WHERE character_slug=? AND slug=?", (new_slug, look)).fetchone():
+        raise ProductionError(f"@{look_key(new_slug, look)} existe déjà")
+    old_key, new_key = look_key(slug, look), look_key(new_slug, look)
+    old_dir = absp(lk["dir"])
+    new_dir = studio() / "characters" / new_slug / "looks" / look
+    new_dir.parent.mkdir(parents=True, exist_ok=True)
+    with db.tx(conn):
+        if old_dir and old_dir.is_dir() and not new_dir.exists():
+            old_dir.rename(new_dir)
+        conn.execute("UPDATE looks SET character_slug=?, dir=? WHERE id=?", (new_slug, rel(new_dir), lk["id"]))
+        n = 0
+        for sh in conn.execute("SELECT id, description, detail, looks FROM shots WHERE description LIKE ? OR detail LIKE ? "
+                               "OR looks LIKE ?", (f"%@{old_key}%", f"%@{old_key}%", f'%"{look}"%')).fetchall():
+            looks = json.loads(sh["looks"] or "{}")
+            if looks.get(slug) == look:
+                looks.pop(slug); looks[new_slug] = look
+            conn.execute("UPDATE shots SET description=?, detail=?, looks=? WHERE id=?",
+                         ((sh["description"] or "").replace(f"@{old_key}", f"@{new_key}"),
+                          (sh["detail"] or "").replace(f"@{old_key}", f"@{new_key}"),
+                          json.dumps(looks) if looks else None, sh["id"]))
+            n += 1
+        conn.execute("UPDATE castings SET look_slug=NULL WHERE character_slug=? AND look_slug=?", (slug, look))
+        db.log_event(conn, lk["clip_slug"], "casting", f"Tenue @{old_key} portée désormais par {new_slug} : @{new_key} ({n} plan(s) réécrit(s))")
+    from . import elements
+    for (sid,) in conn.execute("SELECT id FROM shots WHERE description LIKE ? OR detail LIKE ?",
+                               (f"%@{new_key}%", f"%@{new_key}%")).fetchall():
+        elements.link_mentions(conn, sid)   # le nouveau porteur joue dans ces plans
+    return new_key
+
+
+def clip_looks(conn: sqlite3.Connection, clip_slug: str) -> list[dict]:
+    """Les tenues d'un clip : créées pour lui, ou citées dans ses plans (même venues d'un autre clip)."""
+    text = " ".join(f"{r['description'] or ''} {r['detail'] or ''}".lower() for r in
+                    conn.execute("SELECT description, detail FROM shots WHERE clip_slug=?", (clip_slug,)).fetchall())
+    used = set()
+    for r in conn.execute("SELECT looks FROM shots WHERE clip_slug=? AND looks IS NOT NULL", (clip_slug,)).fetchall():
+        for c, l in json.loads(r["looks"]).items():
+            used.add(look_key(c, l))
+    out = []
+    for lk in studio_looks(conn):
+        cited = f"@{lk['slug']}" in text or lk["slug"] in used
+        if lk["clip"] == clip_slug or cited:
+            out.append({**lk, "cited": cited, "here": lk["clip"] == clip_slug})
+    return out
 
 
 def update_look(conn: sqlite3.Connection, slug: str, look: str, description: str) -> None:
@@ -547,7 +609,8 @@ def studio_looks(conn: sqlite3.Connection) -> list[dict]:
         ldir = absp(lk["dir"])
         imgs = sorted(p for p in ldir.glob("*") if p.suffix.lower() in IMAGE_EXT) if ldir and ldir.is_dir() else []
         out.append({"slug": look_key(lk["character_slug"], lk["slug"]), "character": lk["character_slug"],
-                    "look": lk["slug"], "name": f"{lk['cname']} · {lk['slug'].replace('-', ' ')}",
+                    "character_name": lk["cname"], "clip": lk["clip_slug"],
+                    "look": lk["slug"], "name": f"{lk['cname']} · {(lk['name'] or lk['slug'].replace('-', ' '))}",
                     "description": lk["description"] or "", "images": [rel(p) for p in imgs],
                     "thumb": rel(imgs[0]) if imgs else None, "sent": "tenue" if imgs else None})
     return out

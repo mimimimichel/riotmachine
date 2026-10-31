@@ -417,6 +417,8 @@ LATER_COLUMNS = {
               ("cut_ok", "INTEGER NOT NULL DEFAULT 0"),   # plan validé par Michael dans le découpage
               ("looks", "TEXT"),    # tenue de chaque personnage dans ce plan (JSON {personnage: tenue}), par @
               ("refs_ok", "INTEGER NOT NULL DEFAULT 0")],   # Michael confirme : pas de référence @ voulue
+    # looks : clip_slug = le clip pour lequel la tenue a été créée (vide : tenue signature du personnage)
+    "looks": [("clip_slug", "TEXT"), ("name", "TEXT")],
     "blocks": [("look", "TEXT"),   # lumière et étalonnage communs aux plans du bloc
                ("validated", "INTEGER NOT NULL DEFAULT 0")],   # bloc validé par Michael : ses plans sont en production
     # prompt : le prompt de l'image HD, réécrit par Michael (NULL = prompt par défaut)

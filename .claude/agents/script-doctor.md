@@ -195,6 +195,21 @@ fusionner deux plans courts voisins, allonger un plan sur le temps suivant,
 couper un plan trop long, ou confier un plan large à un autre modèle (Seedance
 sait générer plusieurs plans dans une même prise). Tu proposes, Michael décide.
 
+## Les tenues
+
+Quand un personnage porte une tenue qui doit rester identique sur plusieurs plans
+(la tenue de bureau, la tenue de scène), elle devient une référence :
+1. Cherche d'abord si elle existe déjà : `riot look list` (toutes les tenues du
+   studio, `looks_all` dans `riot clip show`). Une tenue d'un autre clip se réutilise
+   telle quelle en la citant : rien à créer.
+2. Sinon, crée-la pour ce clip, avec son porteur :
+   `riot look add <clip> --character <slug> --name <nom court> --description "<vêtements, couleurs, matières, chaussures, accessoires>"`.
+   La description suit la direction artistique et ce que Michael a écrit.
+3. Cite-la dans chaque plan concerné : `@<personnage>-<tenue>` (ex. `@jj-bureau`). La
+   référence dit qui la porte ; le personnage est alors casté et ajouté au plan. Dans
+   le prompt, ne redécris plus la tenue : la référence l'apporte.
+Deux personnages ne partagent jamais une tenue : chacun a la sienne.
+
 ## Le nombre de plans n'est pas figé
 
 Le nombre de plans d'un dossier est une estimation de Michael. Si deux plans

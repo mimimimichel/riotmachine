@@ -876,8 +876,10 @@ def clip_elements(slug: str) -> dict[str, Any]:
             "spend": spend, "shots": shots, "hd_cost": round(cost, 3), "hd_model": mcfg.get("label", key),
             "hd_usable": routing.provider_usable(mcfg.get("provider", "fal")) and mcfg.get("provider") != "vertex",
             "hd_provider": (routing.models_cfg().get("providers") or {}).get(mcfg.get("provider", "fal"), {}).get("label"),
-            "looks": [lk for lk in production.studio_looks(conn) if lk["character"] in
-                      {c["character_slug"] for c in db.casting_for_clip(conn, slug)}],
+            "looks": production.clip_looks(conn, slug),
+            "other_looks": [lk for lk in production.studio_looks(conn)
+                            if lk["slug"] not in {x["slug"] for x in production.clip_looks(conn, slug)}],
+            "characters": [{"slug": c["slug"], "name": c["name"]} for c in production.studio_characters(conn)],
             "cast": [{"slug": c["character_slug"], "name": c["name"]} for c in db.casting_for_clip(conn, slug)],
             "drafts_usable": bool(elements.draft_backends()),
             "draft_models": [{"key": f"{b[0]}:{b[1]}", "label": b[2]} for b in elements.draft_backends()]}
@@ -1026,27 +1028,32 @@ def save_adn(slug: str, version: int, body: ScriptText) -> dict[str, Any]:
 class LookIn(BaseModel):
     name: str
     description: str = ""
+    clip_slug: str | None = None
 
 
 @app.post("/api/characters/{slug}/looks")
 def new_look(slug: str, body: LookIn) -> dict[str, Any]:
     try:
-        return production.create_look(_conn(), slug, body.name, body.description)
+        return production.create_look(_conn(), slug, body.name, body.description, clip_slug=body.clip_slug)
     except production.ProductionError as exc:
         raise _error(exc)
 
 
 class LookEdit(BaseModel):
-    description: str = ""
+    description: str | None = None
+    wearer: str | None = None   # nouveau porteur : la référence @ et les plans suivent
 
 
 @app.post("/api/characters/{slug}/looks/{look}")
 def edit_look(slug: str, look: str, body: LookEdit) -> dict[str, Any]:
     try:
-        production.update_look(_conn(), slug, look, body.description)
+        conn = _conn()
+        if body.description is not None:
+            production.update_look(conn, slug, look, body.description)
+        key = production.move_look(conn, slug, look, body.wearer) if body.wearer else None
     except production.ProductionError as exc:
         raise _error(exc)
-    return {"ok": True}
+    return {"ok": True, "key": key}
 
 
 @app.post("/api/characters/{slug}/looks/{look}/images")

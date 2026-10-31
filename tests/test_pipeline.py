@@ -535,3 +535,22 @@ def test_validate_block_by_block(studio):
     production.set_cut_ok(conn, s2, True)
     assert production.validate_block(conn, b2)["clip_in_production"] is True
     assert db.get_clip(conn, "blocs")["stage"] == "production"
+
+
+def test_looks_reusable_and_wearer(studio):
+    """Une tenue se cite partout ; changer son porteur réécrit les plans qui la citent."""
+    run("init")
+    conn = db.connect()
+    production.new_character(conn, "Max")
+    production.create_clip(conn, "Un", song=studio["song"], characters=["jj"])
+    production.create_look(conn, "jj", "Tailleur test", "blazer bleu", clip_slug="un")
+    with pytest.raises(production.ProductionError):
+        production.create_look(conn, "jj", "tailleur test")                 # pas de doublon pour un même porteur
+    production.create_clip(conn, "Deux", song=studio["song"], characters=["jj"])
+    production.import_shots(conn, "deux", [{"t_start": 0, "t_end": 4, "description": "elle entre en @jj-tailleur-test", "characters": []}])
+    sh = conn.execute("SELECT * FROM shots WHERE clip_slug='deux'").fetchone()
+    assert json.loads(sh["looks"]) == {"jj": "tailleur-test"} and "jj" in json.loads(sh["characters"])
+    assert [l["slug"] for l in production.clip_looks(conn, "deux")] == ["jj-tailleur-test"]   # reprise sans rien rattacher
+    assert production.move_look(conn, "jj", "tailleur-test", "max") == "max-tailleur-test"
+    sh = conn.execute("SELECT * FROM shots WHERE clip_slug='deux'").fetchone()
+    assert "@max-tailleur-test" in sh["description"] and json.loads(sh["looks"]) == {"max": "tailleur-test"}

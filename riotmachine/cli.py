@@ -258,6 +258,21 @@ def cmd_element(a) -> None:
         out({"clip": a.clip, "decors": "done"})
 
 
+def cmd_look(a) -> None:
+    conn = _conn()
+    if a.action == "list":
+        out(production.clip_looks(conn, a.clip) if a.clip else production.studio_looks(conn))
+    elif a.action == "add":
+        if not (a.character and a.name):
+            raise SystemExit("--character et --name sont obligatoires")
+        out(production.create_look(conn, a.character, a.name, a.description or "", clip_slug=a.clip))
+    elif a.action == "set":
+        production.update_look(conn, a.character, production.slugify(a.name), a.description or "")
+        out({"ok": True})
+    elif a.action == "move":
+        out({"key": production.move_look(conn, a.character, production.slugify(a.name), a.to)})
+
+
 def cmd_analyse(a) -> None:
     from . import analyse
     out(analyse.analyse_song(_conn(), a.clip, a.model))
@@ -589,6 +604,15 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--state", help="état de l'élément dans ces plans, ou de l'image à générer")
     sp.add_argument("--prompt", help="describe : prompt HD qui décrit l'image de départ (anglais)")
     sp.set_defaults(func=cmd_element)
+
+    sp = sub.add_parser("look", help="Tenues : citables partout avec @personnage-tenue")
+    sp.add_argument("action", choices=["list", "add", "set", "move"])
+    sp.add_argument("clip", nargs="?", help="clip pour lequel la tenue est créée (add), ou dont on liste les tenues")
+    sp.add_argument("--character", help="qui la porte (slug du personnage)")
+    sp.add_argument("--name", help="nom de la tenue (ex. bureau)")
+    sp.add_argument("--description", help="vêtements, couleurs, matières, chaussures, accessoires")
+    sp.add_argument("--to", help="move : nouveau porteur")
+    sp.set_defaults(func=cmd_look)
 
     sp = sub.add_parser("analyse", help="Analyse le morceau (tempo, temps, position des paroles) pour caler le découpage")
     sp.add_argument("clip")

@@ -2510,7 +2510,7 @@ function looksSection(ch) {
   const looks = ch.looks.map((lk) => `<div class="lookcard">
       <div class="row"><b>${esc(lk.slug)}</b><span class="spacer"></span>
         <span class="hint">${lk.clips.length ? "Dans : " + lk.clips.map(esc).join(", ") : "Dans aucun clip pour l'instant"}</span></div>
-      <p class="hint mono">Dans un plan : @${esc(ch.slug)}-${esc(lk.slug)}</p>
+      <p class="hint mono">Dans un plan : @${esc(ch.slug)}-${esc(lk.slug)} · ${lk.clip_slug ? `créée pour « ${esc(lk.clip_slug)} »` : "tenue signature"}</p>
       <textarea rows="3" data-lookdesc="${esc(lk.slug)}" placeholder="Description : vêtements, couleurs, matières, chaussures, accessoires">${esc(lk.description || "")}</textarea>
       <div class="row"><button class="btn small" data-looksave="${esc(lk.slug)}">Enregistrer la description</button></div>
       ${lk.images.length ? mediaGrid(lk.images.map((p) => ({ path: p, type: "image" }))) : ""}
@@ -3015,21 +3015,31 @@ async function loadDecors(clip, keep = false) {
     </section>
     ${sections}
     <section class="elsection k-tenue" style="margin-top:18px"><div class="elsection-h"><h2>Tenues</h2>
-        <span class="hint">Les tenues des personnages du clip. Cite-les dans un plan avec @personnage-tenue : le personnage joue dans cette tenue, la même d'un plan à l'autre.</span></div>
+        <span class="hint">Les tenues de ce clip : créées pour lui, ou reprises d'un autre clip en les citant. Une tenue se cite partout avec
+          @personnage-tenue, qui dit aussi qui la porte. Le scénariste les crée en écrivant les plans.</span></div>
       ${(d.looks || []).map((lk) => `<div class="panel stack lookcard" style="margin-top:10px">
-          <div class="row"><b>${esc(lk.name)}</b><span class="mono hint">@${esc(lk.slug)}</span></div>
+          <div class="row" style="gap:8px"><b>${esc(lk.name)}</b><span class="mono hint">@${esc(lk.slug)}</span><span class="spacer"></span>
+            ${lk.here ? "" : `<span class="pill wait">reprise ${lk.clip ? `de « ${esc(lk.clip)} »` : "(tenue signature)"}</span>`}
+            ${lk.cited ? "" : `<span class="pill wait">pas encore citée dans un plan</span>`}</div>
+          <label class="field"><span>Portée par</span><select data-lookwearer="${esc(lk.character)}:${esc(lk.look)}">
+            ${(d.characters || []).map((c) => `<option value="${esc(c.slug)}" ${c.slug === lk.character ? "selected" : ""}>${esc(c.name)}</option>`).join("")}</select></label>
           ${lk.images.length ? `<div class="packgrid">${lk.images.map((p) => `<div class="packitem"><img src="${media(p)}" data-zoom="${media(p)}" alt=""></div>`).join("")}</div>`
             : `<p class="hint">Pas encore de photo : la description seule part au modèle.</p>`}
           ${dropZone(`look:${lk.character}:${lk.look}`, "Ajouter des photos de la tenue", "png, jpg ou webp", "image/*", true)}
           <label class="field"><span>Description (ce qui doit rester identique)</span>
             <textarea rows="3" data-lookdesc="${esc(lk.character)}:${esc(lk.look)}">${esc(lk.description)}</textarea></label>
           <div class="row"><button class="btn small" data-looksave="${esc(lk.character)}:${esc(lk.look)}">Enregistrer</button></div>
-        </div>`).join("") || `<p class="hint">Aucune tenue pour l'instant.</p>`}
-      ${(d.cast || []).length ? `<div class="panel stack" style="margin-top:10px"><b>Nouvelle tenue</b>
-        <div class="row" style="gap:8px"><select id="look-char">${d.cast.map((c) => `<option value="${esc(c.slug)}">${esc(c.name)}</option>`).join("")}</select>
-          <input type="text" id="look-new-name" placeholder="Nom (ex. bureau, soirée, sport)" style="flex:1;min-width:160px"></div>
+        </div>`).join("") || `<p class="hint">Aucune tenue pour ce clip pour l'instant.</p>`}
+      ${(d.other_looks || []).length ? `<details class="fold" style="margin-top:10px"><summary>Tenues des autres clips (${d.other_looks.length}) : cite-les avec @ pour les reprendre</summary>
+        <div class="stack" style="gap:6px">${d.other_looks.map((lk) => `<div class="row" style="gap:8px">
+          ${lk.thumb ? `<img src="${media(lk.thumb)}" alt="" style="width:44px;height:32px;object-fit:cover;border-radius:5px">` : ""}
+          <b>${esc(lk.name)}</b><span class="mono hint">@${esc(lk.slug)}</span><span class="hint">${lk.clip ? `créée pour « ${esc(lk.clip)} »` : "tenue signature"}</span></div>`).join("")}</div></details>` : ""}
+      <div class="panel stack" style="margin-top:10px"><b>Nouvelle tenue pour ce clip</b>
+        <div class="row" style="gap:8px"><label class="field" style="min-width:160px"><span>Portée par</span><select id="look-char">
+          ${(d.characters || []).map((c) => `<option value="${esc(c.slug)}" ${(d.cast || []).length === 1 && d.cast[0].slug === c.slug ? "selected" : ""}>${esc(c.name)}</option>`).join("")}</select></label>
+          <label class="field" style="flex:1;min-width:160px"><span>Nom</span><input type="text" id="look-new-name" placeholder="ex. bureau, soirée, sport"></label></div>
         <textarea id="look-new-desc" rows="3" placeholder="Description : vêtements, couleurs, matières, chaussures, accessoires"></textarea>
-        <div class="row"><button class="btn go" data-looknew>Créer la tenue</button></div></div>` : ""}
+        <div class="row"><button class="btn go" data-looknew>Créer la tenue</button></div></div>
     </section>
     <section class="panel stack" style="margin-top:18px"><h2>Ajouter un élément</h2>
       <div class="row" style="gap:8px"><select id="el-kind"><option value="decor">Décor</option><option value="objet">Objet clé</option><option value="figurant">Figurant</option></select>
@@ -3067,6 +3077,14 @@ async function loadDecors(clip, keep = false) {
   });
   box.onchange = async (ev) => {
     const t = ev.target;
+    if (t.dataset && t.dataset.lookwearer) {
+      const [ch, lk] = t.dataset.lookwearer.split(":");
+      try {
+        const r = await api(`/api/characters/${encodeURIComponent(ch)}/looks/${encodeURIComponent(lk)}`, { json: { wearer: t.value } });
+        toast(`Portée par ${t.options[t.selectedIndex].text} : devient @${r.key}, les plans sont mis à jour`); loadDecors(clip);
+      } catch (e) { toast(e.message, "err"); }
+      return;
+    }
     if (!t.dataset || !t.dataset.elbrief) return;
     try { await api(`/api/elements/${t.dataset.elbrief}/brief`, { json: { text: t.value } }); toast("Instruction enregistrée"); }
     catch (e) { toast(e.message, "err"); }
@@ -3117,7 +3135,7 @@ async function loadDecors(clip, keep = false) {
         const name = document.getElementById("look-new-name").value.trim();
         if (!name) { toast("Donne un nom à la tenue", "err"); return; }
         const ch = document.getElementById("look-char").value;
-        const r = await api(`/api/characters/${encodeURIComponent(ch)}/looks`, { json: { name, description: document.getElementById("look-new-desc").value } });
+        const r = await api(`/api/characters/${encodeURIComponent(ch)}/looks`, { json: { name, description: document.getElementById("look-new-desc").value, clip_slug: clip.slug } });
         toast(`Tenue créée : cite-la avec @${ch}-${r.slug}`); return reload();
       }
       if (dd.eldrafts) {
