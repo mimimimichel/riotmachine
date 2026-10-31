@@ -1232,6 +1232,12 @@ def import_shots(conn: sqlite3.Connection, slug: str, shots: Any, by: str = "age
     cast = {c["character_slug"] for c in db.casting_for_clip(conn, slug)}
     blocks = _flatten_decoupage(shots)
     existing = {r["id"]: db.row(r) for r in conn.execute("SELECT * FROM shots WHERE clip_slug=?", (slug,)).fetchall()}
+    locked = {r["id"] for r in conn.execute(
+        "SELECT s.id FROM shots s JOIN blocks b ON b.id=s.block_id WHERE s.clip_slug=? AND b.validated=1", (slug,))}
+    sent_ids = {int(s["id"]) for _, items in _flatten_decoupage(shots) for s in items if s.get("id")}
+    if locked - sent_ids:
+        raise ProductionError("Un bloc validé ne se modifie plus : garde tous ses plans tels quels dans le découpage "
+                              f"(plans manquants : {sorted(existing[i]['num'] for i in locked - sent_ids)})")
     n = 0
     for bi, (block, items) in enumerate(blocks, 1):
         for s in items:
@@ -1264,7 +1270,7 @@ def import_shots(conn: sqlite3.Connection, slug: str, shots: Any, by: str = "age
         for bi, (block, items) in enumerate(blocks, 1):
             if bi in old_blocks:
                 bid = old_blocks.pop(bi)
-                conn.execute("UPDATE blocks SET name=?, intention=?, look=COALESCE(?, look) WHERE id=?",
+                conn.execute("UPDATE blocks SET name=?, intention=?, look=COALESCE(?, look) WHERE id=? AND validated=0",
                              (block["name"], block.get("intention"), block.get("look"), bid))
             else:
                 bid = conn.execute("INSERT INTO blocks (clip_slug, num, name, intention, look) VALUES (?,?,?,?,?)",
@@ -1281,6 +1287,10 @@ def import_shots(conn: sqlite3.Connection, slug: str, shots: Any, by: str = "age
                     edited = 1
                 elif by == "michael" and old is None and detail:
                     edited = 1
+                if sid in locked:   # plan d'un bloc validé : rien ne change, seul son numéro suit l'ordre
+                    conn.execute("UPDATE shots SET num=? WHERE id=?", (num, sid))
+                    kept.add(sid)
+                    continue
                 values = (num, bid, block["name"], float(s["t_start"]), float(s["t_end"]), s["description"].strip(),
                           detail, edited, s.get("framing") or None, s.get("motion") or None, s.get("camera") or None,
                           json.dumps(s.get("characters") or []), 1 if s.get("singing") else 0, s.get("notes"),
@@ -1314,7 +1324,7 @@ def import_shots(conn: sqlite3.Connection, slug: str, shots: Any, by: str = "age
                          "WHERE shot_id=? AND status='pending'", (sid,))
             conn.execute("DELETE FROM shots WHERE id=?", (sid,))
         for bid in old_blocks.values():
-            conn.execute("DELETE FROM blocks WHERE id=?", (bid,))
+            conn.execute("DELETE FROM blocks WHERE id=? AND validated=0", (bid,))
         conn.execute("UPDATE clips SET updated_at=? WHERE slug=?", (db.now(), slug))
         db.log_event(conn, slug, "decoupage", f"Découpage enregistré : {len(blocks)} blocs, {num} plans")
     from . import elements
@@ -1386,6 +1396,45 @@ def set_detail(conn: sqlite3.Connection, shot_id: int, text: str) -> dict:
     from . import elements
     elements.link_mentions(conn, shot_id)
     return db.get_shot(conn, shot_id)
+
+
+def validate_block(conn: sqlite3.Connection, block_id: int) -> dict:
+    """Michael valide un bloc du découpage : ses plans partent en production, sans attendre les autres blocs.
+    Quand tous les blocs sont validés, le clip entier passe en production."""
+    b = db.row(conn.execute("SELECT * FROM blocks WHERE id=?", (block_id,)).fetchone())
+    if b is None:
+        raise ProductionError("Bloc inconnu")
+    if b["validated"]:
+        return {"block": b["num"], "already": True}
+    shots = db.rows(conn.execute("SELECT * FROM shots WHERE block_id=? ORDER BY num", (block_id,)).fetchall())
+    if not shots:
+        raise ProductionError("Ce bloc n'a aucun plan")
+    todo = [s["num"] for s in shots if not s.get("cut_ok")]
+    if todo:
+        raise ProductionError(f"Valide d'abord tous les plans du bloc (reste : {', '.join(map(str, todo))})")
+    pend = conn.execute("SELECT COUNT(*) FROM reviews WHERE gate='decoupage' AND handled=0 AND shot_id IN "
+                        f"({','.join('?' * len(shots))})", [s["id"] for s in shots]).fetchone()[0]
+    if pend:
+        raise ProductionError("Une modif demandée au scénariste est encore en cours dans ce bloc")
+    with db.tx(conn):
+        conn.execute("UPDATE blocks SET validated=1 WHERE id=?", (block_id,))
+        conn.execute("UPDATE shots SET status='image_todo', updated_at=? WHERE block_id=? AND status='image_todo'",
+                     (db.now(), block_id))
+        db.log_event(conn, b["clip_slug"], "decoupage", f"Bloc « {b['name']} » validé : ses {len(shots)} plans partent en production")
+        left = conn.execute("SELECT COUNT(*) FROM blocks WHERE clip_slug=? AND validated=0", (b["clip_slug"],)).fetchone()[0]
+        if not left:
+            conn.execute("INSERT INTO reviews (clip_slug, gate, decision, comment, handled, created_at) VALUES (?,?,?,?,?,?)",
+                         (b["clip_slug"], "decoupage", "approve", "tous les blocs validés", 1, db.now()))
+            set_stage(conn, b["clip_slug"], "production")
+    return {"block": b["num"], "clip_in_production": not left}
+
+
+def shot_in_production(conn: sqlite3.Connection, shot: dict) -> bool:
+    """Un plan est en production quand le clip l'est, ou quand son bloc a été validé."""
+    if db.get_clip(conn, shot["clip_slug"])["stage"] == "production":
+        return True
+    r = conn.execute("SELECT validated FROM blocks WHERE id=?", (shot.get("block_id"),)).fetchone()
+    return bool(r and r["validated"])
 
 
 def set_cut_ok(conn: sqlite3.Connection, shot_id: int, ok: bool) -> None:
@@ -1508,6 +1557,8 @@ def _create_asset(conn: sqlite3.Connection, shot: dict, kind: str, out_dir: str,
 
 def launch_image(conn: sqlite3.Connection, shot_id: int, force: bool = False, approved: bool = False) -> dict:
     shot = db.get_shot(conn, shot_id)
+    if not shot_in_production(conn, shot):
+        raise ProductionError(f"Plan {shot['num']} : son bloc n'est pas encore validé par Michael")
     if not shot.get("image_prompt"):
         raise ProductionError("Le plan n'a pas encore de prompt image (riot shot set --image-prompt)")
     clip = db.get_clip(conn, shot["clip_slug"])
@@ -1679,7 +1730,7 @@ def choose_model(conn: sqlite3.Connection, shot_id: int, model_key: str) -> dict
     """Michael choisit le modèle vidéo d'un plan, à tout moment avant le lancement de la vidéo."""
     shot = db.get_shot(conn, shot_id)
     clip = db.get_clip(conn, shot["clip_slug"])
-    if clip["stage"] == "production" and shot["status"] not in MODEL_OPEN_STATUSES:
+    if shot_in_production(conn, shot) and shot["status"] not in MODEL_OPEN_STATUSES:
         raise ProductionError("La vidéo de ce plan est déjà partie : demande une modif pour changer de modèle")
     cfg = routing.model(model_key)
     if cfg.get("kind") != "video":
@@ -1979,6 +2030,7 @@ def review_decoupage(conn: sqlite3.Connection, slug: str, decision: str, comment
         )
         if decision == "approve":
             set_stage(conn, slug, "production")
+            conn.execute("UPDATE blocks SET validated=1 WHERE clip_slug=?", (slug,))
             conn.execute("UPDATE shots SET status='image_todo', updated_at=? WHERE clip_slug=?", (db.now(), slug))
 
 
@@ -2271,6 +2323,9 @@ def clip_snapshot(conn: sqlite3.Connection, slug: str, compact: bool = False) ->
         f["size"] = p.stat().st_size if p and p.is_file() else None
     clip["memoire_path"] = rel(memoire_file(clip))
     clip["sources_unread"] = [f["id"] for f in sources_unread(conn, slug)]
+    validated_blocks = {r["id"] for r in conn.execute("SELECT id FROM blocks WHERE clip_slug=? AND validated=1", (slug,))}
+    for sh in clip["shots"]:   # en production : clip en production, ou bloc validé par Michael
+        sh["en_production"] = clip["stage"] == "production" or sh.get("block_id") in validated_blocks
     clip["needs_agent"] = needs_agent(conn, slug)["reasons"]
     clip["characters_all"] = studio_characters(conn)   # citables avec @slug dans les plans
     if not compact:
@@ -2319,12 +2374,17 @@ def needs_agent(conn: sqlite3.Connection, slug: str) -> dict:
         if clip.get("decors_status") == "requested" or (clip.get("decors_status", "todo") == "todo" and not n_el
                                                         and not n_bare):
             reasons.append("decorateur: décors, objets et figurants à repérer (plans complets)")
-    if clip["stage"] == "production" and n_shots:
+    n_prod = n_shots if clip["stage"] == "production" else conn.execute(
+        "SELECT COUNT(*) FROM shots s JOIN blocks b ON b.id=s.block_id WHERE s.clip_slug=? AND b.validated=1",
+        (slug,)).fetchone()[0]
+    if n_prod:
+        prod_filter = "" if clip["stage"] == "production" else \
+            " AND block_id IN (SELECT id FROM blocks WHERE clip_slug=s.clip_slug AND validated=1)"
         for status in db.AGENT_STATUSES:
             # rien n'attend les décors : un plan part avec les références qui existent (HD, sinon brouillon)
-            n = conn.execute("SELECT COUNT(*) FROM shots WHERE clip_slug=? AND status=? AND id NOT IN "
+            n = conn.execute("SELECT COUNT(*) FROM shots s WHERE clip_slug=? AND status=? AND id NOT IN "
                              "(SELECT shot_id FROM spend_requests WHERE shot_id IS NOT NULL "
-                             "AND status IN ('pending','approved'))", (slug, status)).fetchone()[0]
+                             "AND status IN ('pending','approved'))" + prod_filter, (slug, status)).fetchone()[0]
             if n:
                 reasons.append(f"{status}: {n} plan(s)")
     brief_sig = None

@@ -239,6 +239,7 @@ def test_budget_blocks(studio, tmp_path, monkeypatch):
     production.create_clip(conn, "Petit budget", song=studio["song"], characters=["jj"], budget_usd=0.01)
     production.import_shots(conn, "petit-budget", [
         {"t_start": 0, "t_end": 4, "description": "x", "characters": ["jj"]}])
+    conn.execute("UPDATE blocks SET validated=1 WHERE clip_slug=?", ("petit-budget",))   # bloc validé : en production
     sid = conn.execute("SELECT id FROM shots").fetchone()["id"]
     production.update_shot(conn, sid, image_prompt="x")
     with pytest.raises(production.BudgetError):
@@ -340,6 +341,7 @@ def test_spend_needs_approval(studio, monkeypatch):
     conn = db.connect()
     production.create_clip(conn, "Accord", song=studio["song"], characters=["jj"])
     production.import_shots(conn, "accord", [{"t_start": 0, "t_end": 4, "description": "x", "characters": ["jj"]}])
+    conn.execute("UPDATE blocks SET validated=1 WHERE clip_slug=?", ("accord",))   # bloc validé : en production
     sid = conn.execute("SELECT id FROM shots").fetchone()["id"]
     production.update_shot(conn, sid, image_prompt="x")
     monkeypatch.setattr(prov, "simulated", lambda provider="fal": False)
@@ -366,6 +368,7 @@ def test_elements_flow(studio, tmp_path):
     production.create_clip(conn, "Decors", song=studio["song"], characters=["jj"])
     production.import_shots(conn, "decors", [{"t_start": 0, "t_end": 4, "description": "x", "characters": ["jj"]},
                                              {"t_start": 4, "t_end": 8, "description": "y", "characters": []}])
+    conn.execute("UPDATE blocks SET validated=1 WHERE clip_slug=?", ("decors",))   # bloc validé : en production
     ids = [r["id"] for r in conn.execute("SELECT id FROM shots ORDER BY num")]
     e = elements.create(conn, "decors", "decor", "Jardin de JJ", "Terrasse en dalles", ["vide au retour"])
     elements.link(conn, ids, e["id"], "vide au retour")
@@ -502,3 +505,33 @@ def test_character_pack_and_mention(studio, tmp_path):
     assert "rex" in json.loads(sh["characters"])
     assert any(c["character_slug"] == "rex" for c in db.casting_for_clip(conn, "chien"))
     assert any(c["slug"] == "rex" for c in production.clip_snapshot(conn, "chien")["characters_all"])
+
+
+def test_validate_block_by_block(studio):
+    """Un bloc validé part en production sans attendre les autres, et ne se modifie plus."""
+    run("init")
+    conn = db.connect()
+    production.create_clip(conn, "Blocs", song=studio["song"], characters=["jj"])
+    production.import_shots(conn, "blocs", {"blocks": [
+        {"name": "Intro", "shots": [{"t_start": 0, "t_end": 4, "description": "a", "characters": []}]},
+        {"name": "Couplet", "shots": [{"t_start": 4, "t_end": 8, "description": "b", "characters": []}]}]})
+    production.set_stage(conn, "blocs", "decoupage_review")
+    b1, b2 = [r["id"] for r in conn.execute("SELECT id FROM blocks WHERE clip_slug='blocs' ORDER BY num")]
+    s1, s2 = [r["id"] for r in conn.execute("SELECT id FROM shots WHERE clip_slug='blocs' ORDER BY num")]
+    with pytest.raises(production.ProductionError):
+        production.validate_block(conn, b1)                 # le plan n'est pas encore validé
+    production.set_cut_ok(conn, s1, True)
+    assert production.validate_block(conn, b1)["clip_in_production"] is False
+    snap = production.clip_snapshot(conn, "blocs", compact=True)
+    assert [s["en_production"] for s in snap["shots"]] == [True, False]
+    assert db.get_clip(conn, "blocs")["stage"] == "decoupage_review"
+    with pytest.raises(production.ProductionError):     # un bloc validé ne disparaît pas du découpage
+        production.import_shots(conn, "blocs", {"blocks": [
+            {"name": "Couplet", "shots": [{"id": s2, "t_start": 4, "t_end": 8, "description": "b2", "characters": []}]}]})
+    production.import_shots(conn, "blocs", {"blocks": [
+        {"name": "Intro", "shots": [{"id": s1, "t_start": 0, "t_end": 4, "description": "changé", "characters": []}]},
+        {"name": "Couplet", "shots": [{"id": s2, "t_start": 4, "t_end": 8, "description": "b2", "characters": []}]}]})
+    assert db.get_shot(conn, s1)["description"] == "a"     # le plan du bloc validé n'a pas bougé
+    production.set_cut_ok(conn, s2, True)
+    assert production.validate_block(conn, b2)["clip_in_production"] is True
+    assert db.get_clip(conn, "blocs")["stage"] == "production"

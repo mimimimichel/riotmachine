@@ -801,3 +801,6 @@ details.sources-box > div { padding: 10px 0 0; }
 .refchip .warn { color: var(--amber); }
 .refchip .bad, .refchip.bad { color: var(--red); }
 .refchip.bad { border-color: var(--red); background: #ff4d4d14; padding-left: 8px; }
+.dblock.locked { border-left-color: var(--led); opacity: .92; }
+.dblock.locked textarea, .dblock.locked input, .dblock.locked select { pointer-events: none; opacity: .7; }
+.dblock.locked .dshot-acts, .dblock.locked .dshot-main, .dblock.locked [data-addshot], .dblock.locked .dblock-set { display: none; }

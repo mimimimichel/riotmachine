@@ -537,6 +537,14 @@ def edit_decoupage(slug: str, body: DecoupageEdit) -> dict[str, Any]:
     return {"ok": True, "shots": n}
 
 
+@app.post("/api/blocks/{block_id}/validate")
+def block_validate(block_id: int) -> dict[str, Any]:
+    try:
+        return production.validate_block(_conn(), block_id)
+    except (production.ProductionError, LookupError) as exc:
+        raise _error(exc)
+
+
 class CutOk(BaseModel):
     ok: bool = True
 

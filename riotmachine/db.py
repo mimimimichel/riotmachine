@@ -415,7 +415,8 @@ LATER_COLUMNS = {
     "shots": [("detail", "TEXT"), ("detail_edited", "INTEGER NOT NULL DEFAULT 0"), ("failed_step", "TEXT"),
               ("lipsync_key", "TEXT"),    # lip-sync choisi par Michael pour ce plan
               ("cut_ok", "INTEGER NOT NULL DEFAULT 0")],   # plan validé par Michael dans le découpage
-    "blocks": [("look", "TEXT")],   # lumière et étalonnage communs aux plans du bloc
+    "blocks": [("look", "TEXT"),   # lumière et étalonnage communs aux plans du bloc
+               ("validated", "INTEGER NOT NULL DEFAULT 0")],   # bloc validé par Michael : ses plans sont en production
     # prompt : le prompt de l'image HD, réécrit par Michael (NULL = prompt par défaut)
     # prompt_agent : le prompt écrit par le décorateur d'après l'image de départ de Michael
     # prompt_status : requested quand une image de départ attend d'être regardée par le décorateur

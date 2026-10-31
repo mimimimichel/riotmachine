@@ -380,7 +380,7 @@ function currentStep(shot) {
 function preProduction() { return state.clip && (state.clip.stage === "script" || state.clip.stage === "decoupage_review"); }
 
 function shotState(shot) {
-  if (shot.id && preProduction()) return "wait";
+  if (shot.id && !shot.en_production) return "wait";
   if (shot.waiting === "spend") return "review";
   if (shot.waiting === "decors" || shot.waiting === "decors_scan") return "wait";
   return (STATUS[shot.status] || ["", "wait"])[1];
@@ -396,7 +396,7 @@ function waitingText(shot) {
 }
 
 function statusLabel(shot) {
-  if (preProduction()) return state.clip.stage === "decoupage_review" ? "Attend la validation du découpage" : "Découpage en préparation";
+  if (shot.id && !shot.en_production) return state.clip.stage === "decoupage_review" ? "Attend la validation de son bloc" : "Découpage en préparation";
   if (shot.waiting === "spend") return "En attente de validation (dépense)";
   if (shot.waiting === "decors_scan") return "Attend le repérage des décors";
   if (shot.waiting === "decors") return "Attend les références de décor";
@@ -906,7 +906,7 @@ function renderTile(s, clip) {
       </div>
       <div class="info">
         <p class="desc">${mentionHtml(s.description)}</p>
-        <div class="foot">${clip.stage === "production" ? `${led(st)}<span>${esc(statusLabel(s))}</span>`
+        <div class="foot">${s.en_production ? `${led(st)}<span>${esc(statusLabel(s))}</span>`
           : `${led("wait")}<span>${clip.stage === "decoupage_review" ? "Attend la validation du découpage" : "Découpage en préparation"}</span>`}</div>
         <div class="foot"><span class="mono" style="font-size:11px">${tc(s.t_start)} → ${tc(s.t_end)}</span>
           <span class="steps-mini">${steps}</span></div>
@@ -920,8 +920,8 @@ function renderPlans(clip) {
       Les plans apparaissent ici une fois le découpage validé. Commence par l'onglet
       <a href="#/clip/${encodeURIComponent(clip.slug)}/decoupage">Découpage</a>.</p></div>`;
   }
-  const preBanner = preProduction() ? `<div class="actionbox" style="margin-bottom:16px"><h3>Les plans ne sont pas encore en production</h3>
-      <p class="hint">Ici, tu suivras chaque plan de son visuel à sa vidéo finale, avec ses boutons de validation. Ils démarrent quand tu valides le découpage.
+  const preBanner = !clip.shots.some((x) => x.en_production) ? `<div class="actionbox" style="margin-bottom:16px"><h3>Les plans ne sont pas encore en production</h3>
+      <p class="hint">Ici, tu suivras chaque plan de son visuel à sa vidéo finale, avec ses boutons de validation. Les plans d'un bloc démarrent dès que tu valides ce bloc dans le Découpage.
         Pour l'instant, relis, modifie et valide les plans dans l'onglet Découpage.</p>
       <div class="row"><a class="btn go" href="#/clip/${encodeURIComponent(clip.slug)}/decoupage">Aller au découpage</a></div></div>` : "";
   const c = clipCounts(clip);
@@ -1387,6 +1387,7 @@ async function drawerClick(ev) {
 function editorFromClip(clip) {
   const shotById = Object.fromEntries(clip.shots.map((s) => [s.id, s]));
   const blocks = clip.blocks.map((b) => ({
+    id: b.id, validated: !!b.validated,
     name: b.name, intention: b.intention || "", look: b.look || "",
     shots: b.shot_ids.map((id) => shotById[id]).filter(Boolean).map((s) => ({
       id: s.id, t_start: tc(s.t_start), t_end: tc(s.t_end), description: s.description, detail: s.detail || "",
@@ -1450,7 +1451,7 @@ function renderDecoupageTab(clip) {
   let n = 0;
   const nOpen = state.editor.filter((b) => b._open).length;
   const tools = `<div class="dec-tools">
-      <span class="hint">${state.editor.length} blocs · ${allShots.length} plans · <b>${allShots.filter((x) => x.cut_ok).length} validés</b>${(() => {
+      <span class="hint">${state.editor.length} blocs · ${allShots.length} plans · <b id="dec-okcount">${allShots.filter((x) => x.cut_ok).length} validés</b>${(() => {
         const known = new Set(mentionables().map((e) => e.slug));
         const bad = allShots.filter((x) => ((`${x.description}\n${x.detail}`).toLowerCase().match(/@([a-z0-9][a-z0-9-]*[a-z0-9]|[a-z0-9])/g) || []).some((m) => !known.has(m.slice(1))));
         return bad.length ? ` · <b style="color:var(--red)">${bad.length} plan${bad.length > 1 ? "s" : ""} avec un @ introuvable</b>` : " · tous les @ sont reconnus";
@@ -1519,7 +1520,7 @@ function renderDecoupageTab(clip) {
         </div>
       </div>`;
     }).join("");
-    return `<section class="dblock ${b._open ? "open" : ""} ${bi % 2 ? "alt" : ""}" id="decblock-${bi}">
+    return `<section class="dblock ${b._open ? "open" : ""} ${bi % 2 ? "alt" : ""} ${b.validated ? "locked" : ""}" id="decblock-${bi}">
       <div class="dblock-head" data-toggledec="${bi}">
         <span class="chev">›</span>
         <span class="dblock-num">Bloc ${bi + 1}</span>
@@ -1529,11 +1530,15 @@ function renderDecoupageTab(clip) {
           ${b.intention ? `<span class="dblock-int">${esc(b.intention)}</span>` : ""}
         </span>
         ${(() => { const okN = b.shots.filter((x) => x.cut_ok).length;
-          return b.shots.length && okN === b.shots.length ? `<span class="pill done">${okN}/${b.shots.length} validés</span>`
-            : `<span class="pill ${okN ? "work" : "wait"}">${okN}/${b.shots.length} validés</span>`; })()}
-        ${todo ? `<span class="pill review">${todo} à compléter</span>` : ""}
+          return `<span class="pill dblock-count ${b.shots.length && okN === b.shots.length ? "done" : okN ? "work" : "wait"}">${okN}/${b.shots.length} validés</span>`; })()}
+        ${todo && !b.validated ? `<span class="pill review">${todo} à compléter</span>` : ""}
+        ${b.validated ? `<span class="pill done">Validé · en production</span>` : ""}
       </div>
       <div class="dblock-body">
+        ${b.validated ? `<p class="hint" style="margin:10px 0">Bloc validé : ses plans sont en production, suis-les dans l'onglet
+            <a href="#/clip/${encodeURIComponent(clip.slug)}/plans">Plans</a>. Il ne se modifie plus ici.</p>`
+          : b.id ? `<div class="row" style="margin:10px 0;gap:8px"><button class="btn small ok" data-validateblock="${b.id}" ${b.shots.length && b.shots.every((x) => x.cut_ok) ? "" : "disabled"}>Valider ce bloc et lancer sa production</button>
+            <span class="hint">Possible quand tous ses plans sont validés. Les autres blocs n'attendent pas.</span></div>` : ""}
         <details class="fold dblock-set"><summary>Nom, intention et lumière du bloc</summary><div class="stack" style="gap:8px">
           <label class="field"><span>Nom</span><input type="text" value="${esc(b.name)}" data-bf="${bi}:name" placeholder="Nom du bloc (couplet 1…)"></label>
           <label class="field"><span>Intention</span><textarea rows="2" data-bf="${bi}:intention" placeholder="Ce que raconte ce bloc">${esc(b.intention)}</textarea></label>
@@ -1556,6 +1561,19 @@ function renderDecoupageTab(clip) {
 const FRAMING_FR = { ECU: "très gros plan", CU: "gros plan", MCU: "plan rapproché", MS: "plan taille", MWS: "plan américain",
   WS: "plan large", EWS: "plan très large" };
 const MOTION_FR = { static: "aucun", low: "faible", medium: "moyen", high: "fort" };
+
+/* compteurs « N/M validés » du bloc et du haut, mis à jour sans redessiner la page */
+function refreshDecCounts(bi) {
+  const b = state.editor[bi];
+  const okN = b.shots.filter((x) => x.cut_ok).length;
+  const pill = document.querySelector(`#decblock-${bi} .dblock-count`);
+  if (pill) { pill.textContent = `${okN}/${b.shots.length} validés`; pill.className = `pill dblock-count ${okN === b.shots.length ? "done" : okN ? "work" : "wait"}`; }
+  const btn = document.querySelector(`#decblock-${bi} [data-validateblock]`);
+  if (btn) btn.disabled = okN !== b.shots.length;
+  const all = state.editor.flatMap((x) => x.shots);
+  const top = document.getElementById("dec-okcount");
+  if (top) top.textContent = `${all.filter((x) => x.cut_ok).length} validés`;
+}
 
 function decIndexOf(shotId) {
   for (let bi = 0; bi < (state.editor || []).length; bi++) {
@@ -1990,16 +2008,36 @@ function bindClip() {
         if (sh._open) fitAll(document.getElementById(`dshot-${bi}:${si}`));
         return;
       }
+      if (d.validateblock) {
+        if (state.editorDirty) { toast("Enregistre d'abord tes modifications du découpage", "err"); return; }
+        if (needsConfirm(t, "vb" + d.validateblock)) return;
+        const r = await api(`/api/blocks/${d.validateblock}/validate`, { method: "POST" });
+        toast(r.clip_in_production ? "Dernier bloc validé : tout le clip est en production" : "Bloc validé : ses plans partent en production");
+        const y = window.scrollY; await reload("decoupage"); window.scrollTo(0, y); return;
+      }
       if (d.cutok) {
         if (state.editorDirty) { toast("Enregistre d'abord tes modifications", "err"); return; }
         const [sid, on] = d.cutok.split(":");
         await api(`/api/shots/${sid}/cut-ok`, { json: { ok: on === "1" } });
-        // pas de rechargement : la page reste où elle est, pour valider les plans à la suite
-        const y = window.scrollY;
-        const sh = clip.shots.find((x) => x.id === +sid); if (sh) sh.cut_ok = on === "1" ? 1 : 0;
-        const at = decIndexOf(+sid); if (at) state.editor[at[0]].shots[at[1]].cut_ok = on === "1";
-        renderClip(); window.scrollTo(0, y);
-        toast(on === "1" ? "Plan validé" : "Validation retirée"); return;
+        // aucun redessin de la page : seule la carte change, la position reste où elle est
+        const ok = on === "1";
+        const sh = clip.shots.find((x) => x.id === +sid); if (sh) sh.cut_ok = ok ? 1 : 0;
+        state.clipJson = JSON.stringify(clip);
+        const at = decIndexOf(+sid);
+        if (at) {
+          const [bi, si] = at;
+          state.editor[bi].shots[si].cut_ok = ok;
+          const card = document.getElementById(`dshot-${bi}:${si}`);
+          card?.classList.toggle("ok", ok);
+          const head = card?.querySelector(".dshot-head .dshot-n");
+          head?.parentNode.querySelector(".pill.done")?.remove();
+          if (ok && head) head.insertAdjacentHTML("afterend", `<span class="pill done">validé</span>`);
+          t.dataset.cutok = `${sid}:${ok ? "0" : "1"}`;
+          t.textContent = ok ? "Retirer la validation" : "Valider ce plan";
+          t.classList.toggle("ok", !ok); t.classList.toggle("ghost", ok);
+          refreshDecCounts(bi);
+        }
+        toast(ok ? "Plan validé" : "Validation retirée"); return;
       }
       if (d.cutask) {
         const fb = document.getElementById("cutask-" + d.cutask); fb.hidden = !fb.hidden;

@@ -25,7 +25,12 @@ et `needs_agent`. Si `needs_agent` est vide, dis-le et arrête-toi.
    `script-doctor` (outil Agent) : lecture du dossier, découpage en blocs et plans,
    import, passage en `decoupage_review`. Puis arrête-toi : Michael valide.
 2. **Retours sur le découpage** (`pending_reviews` de gate `decoupage`) → agent
-   `script-doctor` pour corriger. Puis arrête-toi.
+   `script-doctor` pour corriger. Puis continue avec les blocs déjà validés.
+
+**Production bloc par bloc.** Michael valide le découpage bloc par bloc. Un plan est
+en production quand `en_production` vaut `true` dans `riot clip show` : seuls ces
+plans passent par les étapes 4 à 8, même si le clip est encore à l'étape
+`decoupage_review`. Ne touche jamais aux plans des autres blocs.
 3. **Décors** (`needs_agent` contient « decorateur ») → délègue à l'agent
    `decorateur` : repérage des décors, objets et figurants, fiches, liens avec les
    plans (un élément = une image, pas d'états). Il ne lance aucune image. Les visuels des plans ne partent qu'une
