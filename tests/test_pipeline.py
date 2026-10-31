@@ -328,7 +328,7 @@ def test_use_draft_as_canon(studio, tmp_path):
     worker.tick(conn, wake=False)
     hd = conn.execute("SELECT * FROM character_assets WHERE kind='canon' AND status='proposed'").fetchone()
     production.review_canon_hd(conn, hd["id"], "use_draft")
-    canon = conn.execute("SELECT * FROM character_assets WHERE kind='canon' AND status='kept'").fetchone()
+    canon = conn.execute("SELECT * FROM character_assets WHERE kind='canon' AND status='kept' AND path LIKE 'characters/kai/%'").fetchone()
     assert canon["path"].endswith("canon.jpg")
 
 

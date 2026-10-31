@@ -670,6 +670,29 @@ async def pack_upload(slug: str, version: int, kind: str = Form(...),
     return {"ok": True, "added": len(added)}
 
 
+@app.post("/api/characters/{slug}/versions/{version}/canon-hd")
+def canon_hd_now(slug: str, version: int) -> dict[str, Any]:
+    try:
+        return production.canon_hd_from_canon(_conn(), slug, version)
+    except (production.ProductionError, LookupError) as exc:
+        raise _error(exc)
+    except Exception as exc:   # fournisseur non branché, refus du fournisseur
+        raise HTTPException(400, str(exc))
+
+
+class AssetKind(BaseModel):
+    kind: str
+
+
+@app.post("/api/character-assets/{asset_id}/kind")
+def asset_kind(asset_id: int, body: AssetKind) -> dict[str, Any]:
+    try:
+        production.set_asset_kind(_conn(), asset_id, body.kind)
+    except (production.ProductionError, LookupError) as exc:
+        raise _error(exc)
+    return {"ok": True}
+
+
 class DraftTo(BaseModel):
     asset_id: int
     kind: str

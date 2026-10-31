@@ -2167,6 +2167,12 @@ async function showCharacter(slug, keep = false) {
     } catch (e) { toast(e.message, "err"); }
   });
   $view.onclick = (e) => characterClick(e, ch, v);
+  $view.onchange = async (e) => {
+    const t = e.target;
+    if (!t.dataset || !t.dataset.assetkind) return;
+    try { await api(`/api/character-assets/${t.dataset.assetkind}/kind`, { json: { kind: t.value } }); toast("Catégorie changée"); }
+    catch (err) { toast(err.message, "err"); }
+  };
   every(10000, () => showCharacter(slug, true));
 }
 
@@ -2238,35 +2244,10 @@ function renderVersion(ch, v) {
     ? `<p class="hint">Version ${v.version} en préparation. Tant qu'elle n'est pas validée, les clips utilisent la version ${ch.canon_version || "validée"}.</p>`
     : `<p class="hint">Version ${v.version}, validée${v.version === ch.canon_version ? " : c'est la référence actuelle de " + esc(ch.name) : ""}. Elle ne se modifie plus ; pour faire évoluer le personnage, crée une nouvelle version.</p>`;
 
-  const canonBody = `<div class="two-col">
-      <div>${canon ? `<img class="canonbig" src="${media(canon.path)}" data-zoom="${media(canon.path)}" alt="Canon">` : `<p class="empty">Pas encore de canon.</p>`}</div>
-      <div class="stack">${editable ? `<h3>Candidates</h3>
-        ${candidates.length ? `<div class="packgrid">${candidates.map((a) => `<div class="packitem">
-          ${a.status === "generating" ? `<div class="none" style="aspect-ratio:3/4;display:grid;place-items:center">${led("work")} en cours</div>` : `<img src="${media(a.path)}" data-zoom="${media(a.path)}" alt="">`}
-          <div class="pi"><span>${esc(a.label || "")}</span>
-            ${a.status === "proposed" ? `<div class="row" style="gap:6px"><button class="btn small ok" data-pickasset="${a.id}:canon">Choisir comme canon</button>
-              <button class="btn small" data-pickasset="${a.id}:reject">Écarter</button></div>` : ""}</div></div>`).join("")}</div>`
-          : `<p class="hint">Aucune candidate en attente.</p>`}` : ""}</div></div>`;
-
-  const draftBody = `${spendRows(spendHd)}
-    <div class="two-col">
-      <div>${draft ? `<p class="hint">Dernier brouillon déposé :</p><img class="canonthumb" src="${media(draft.path)}" data-zoom="${media(draft.path)}" alt="">
-        <div class="row" style="gap:6px;margin-top:8px">
-          <button class="btn small" data-draftto="${draft.id}:canon">Le prendre tel quel comme canon</button>
-          <button class="btn small" data-draftto="${draft.id}:sheet">Le ranger dans le pack (feuille de personnage)</button></div>
-        <p class="hint">Tel quel : pas de passage en HD, rien n'est payé.</p>` : ""}</div>
-      <div>${dropZone("canon", "Déposer un brouillon", "png, jpg ou webp", "image/*", false)}</div></div>`;
-  const PACK_DROP = [["sheet", "Feuille de personnage"], ["canon", "Canon (photo de référence)"], ["turnaround", "Angles"],
-    ["fullbody", "Silhouette en pied"], ["expressions", "Expressions"], ["lighting", "Lumières"], ["details", "Détails"]];
-  const ownPack = editable ? `<div class="elsub"><b>Tes propres images</b>
-      <span class="hint">Une feuille de personnage, des angles, des expressions que tu as faits toi-même : choisis la catégorie et dépose-les.
-        Elles entrent dans le pack telles quelles et servent de référence dans les clips.</span>
-      <label class="field"><span>Catégorie</span><select id="pack-kind">${PACK_DROP.map(([k, l]) => `<option value="${k}">${l}</option>`).join("")}</select></label>
-      ${dropZone("pack", "Déposer mes images", "png, jpg ou webp, plusieurs à la fois", "image/*", true)}</div>` : "";
-
   const nWords = (t) => (t || "").trim().split(/\s+/).filter(Boolean).length;
   const adnBody = editable
-    ? `<textarea id="adn" rows="14">${esc(v.adn || "")}</textarea>
+    ? `<details class="fold" ${v.adn ? "" : "open"}><summary>${v.adn ? `Lire et modifier la fiche (${nWords(v.adn)} mots)` : "Écrire la fiche"}</summary><div class="stack" style="gap:8px">
+       <textarea id="adn" rows="14">${esc(v.adn || "")}</textarea>
        <div class="row"><button class="btn" data-saveadn>Enregistrer la fiche</button>
          <span class="hint">${nWords(v.adn)} mots · idéal : 300 à 600${nWords(v.adn) > 700 ? " (au-delà, les redites et les détails secondaires brouillent les agents)" : ""}</span></div>
        <details class="fold"><summary>Comment écrire une bonne fiche</summary><div><p class="hint">
@@ -2276,37 +2257,69 @@ function renderVersion(ch, v) {
          <b>5. Façon de bouger</b> · <b>6. Toujours / Jamais</b> (5 à 8 règles en tout).
          Évite les comportements qui, sortis du contexte, donnent une image fausse (« montre les dents » peut produire un chien agressif) :
          dis plutôt dans quelle situation ils arrivent. Le résumé visuel, lui, fait 60 à 120 mots en anglais.</p></div></details>
+       </div></details>
        <h3 style="margin-top:8px">Résumé visuel</h3>
        <p class="hint">Le seul texte envoyé tel quel aux modèles d'image, en anglais, 60 à 120 mots : ce qui se voit et doit toujours être identique.
          La fiche complète, elle, est lue par les agents, qui en tirent ce qu'il faut pour chaque plan.</p>
        <textarea id="resume" rows="5">${esc(v.resume || "")}</textarea>
        <div class="row"><button class="btn" data-saveresume>Enregistrer le résumé</button><span class="hint">${nWords(v.resume)} mots</span></div>`
-    : (v.adn ? `<pre class="text">${esc(v.adn)}</pre>${v.resume ? `<h3>Résumé visuel</h3><pre class="text">${esc(v.resume)}</pre>` : ""}` : `<p class="hint">Pas de fiche écrite pour cette version.</p>`);
+    : (v.adn ? `<details class="fold"><summary>Lire la fiche (${nWords(v.adn)} mots)</summary><div><pre class="text">${esc(v.adn)}</pre></div></details>${v.resume ? `<h3>Résumé visuel</h3><pre class="text">${esc(v.resume)}</pre>` : ""}` : `<p class="hint">Pas de fiche écrite pour cette version.</p>`);
 
   const packHtml = packSection(v, editable);
-  const packBody = editable ? `
-      <textarea id="instructions" rows="7" placeholder="Ex. :&#10;- vues de face, trois quarts et profil, fond neutre, même lumière douce&#10;- 2 plans en pied&#10;- expressions : rire, colère, concentration, chant (bouche ouverte)&#10;- lumières : néon violet, plein soleil, contre-jour">${esc(v.instructions || "")}</textarea>
+  const KLABEL = { canon: "canon", sheet: "référence (feuille, photo)", turnaround: "angle", fullbody: "en pied",
+    expressions: "expression", lighting: "lumière", details: "détail", canon_draft: "à classer" };
+  const mine = v.assets.filter((a) => a.status === "kept" && a.path && a.kind !== "canon"
+    && (a.comment === "image de Michael" || a.kind === "canon_draft"));
+  const refsBody = `<div class="two-col">
+      <div>${canon ? `<img class="canonbig" src="${media(canon.path)}" data-zoom="${media(canon.path)}" alt="Canon">
+          <p class="hint">La canon : l'image principale, envoyée en premier à chaque génération.</p>
+          ${editable ? `<div class="row" style="gap:8px"><button class="btn small" data-canonhd ${ch.canon_hd.usable ? "" : "disabled"}>Générer une version HD réaliste · ${money(ch.canon_hd.cost_usd)}</button>
+            <span class="hint">${ch.canon_hd.usable ? "Elle arrive dans les candidates : tu choisis ensuite laquelle est la canon." : `Pas encore branché : ${esc(ch.canon_hd.model)} demande une clé fal (page Fournisseurs).`}</span></div>` : ""}`
+        : `<p class="empty">Pas encore de canon : choisis-la parmi tes images (bouton « En faire la canon »).</p>`}</div>
+      <div class="stack">
+        ${mine.length ? `<div class="packgrid">${mine.map((a) => `<div class="packitem kept">
+            <img src="${media(a.path)}" data-zoom="${media(a.path)}" alt="">
+            <div class="pi">${editable && a.kind !== "canon_draft" ? `<select data-assetkind="${a.id}" aria-label="Catégorie">${["sheet", "turnaround", "fullbody", "expressions", "lighting", "details"]
+                .map((k) => `<option value="${k}" ${k === a.kind ? "selected" : ""}>${esc(KLABEL[k])}</option>`).join("")}</select>`
+                : `<span class="hint">${esc(KLABEL[a.kind] || a.kind)}</span>`}
+              ${editable ? `<div class="row" style="gap:6px"><button class="btn small" data-draftto="${a.id}:canon">En faire la canon</button>
+                ${a.kind === "canon_draft" ? `<button class="btn small" data-draftto="${a.id}:sheet">Garder comme référence</button>` : ""}
+                <button class="btn small ghost" data-pickasset="${a.id}:reject">Retirer</button></div>` : ""}</div></div>`).join("")}</div>`
+          : `<p class="hint">Aucune image déposée pour l'instant.</p>`}
+        ${candidates.length ? `<h3>Candidates générées</h3><div class="packgrid">${candidates.map((a) => `<div class="packitem">
+          ${a.status === "generating" ? `<div class="none" style="aspect-ratio:3/4;display:grid;place-items:center">${led("work")} en cours</div>` : `<img src="${media(a.path)}" data-zoom="${media(a.path)}" alt="">`}
+          <div class="pi">${a.status === "proposed" ? `<div class="row" style="gap:6px"><button class="btn small ok" data-pickasset="${a.id}:canon">Choisir comme canon</button>
+            <button class="btn small" data-pickasset="${a.id}:reject">Écarter</button></div>` : ""}</div></div>`).join("")}</div>` : ""}
+        ${editable ? `<label class="field"><span>Ce que tu déposes</span><select id="pack-kind">
+            <option value="sheet">Image de référence (feuille, photo, vues…)</option><option value="canon">La canon (image principale)</option>
+            <option value="turnaround">Angles</option><option value="fullbody">En pied</option><option value="expressions">Expressions</option>
+            <option value="lighting">Lumières</option><option value="details">Détails</option></select></label>
+          ${dropZone("pack", "Déposer tes images", "png, jpg ou webp, plusieurs à la fois", "image/*", true)}` : ""}
+      </div></div>`;
+
+  const genBody = editable ? `
+      <p class="hint">Facultatif. Si ton pack ne suffit pas, l'agent de casting peut générer des images en plus à partir de la canon (payant, avec ton accord).</p>
+      <textarea id="instructions" rows="5" placeholder="Ex. : 2 plans en pied supplémentaires, expressions rire et colère">${esc(v.instructions || "")}</textarea>
       <div class="row"><button class="btn" data-saveinstr>Enregistrer</button>
-        <button class="btn" data-pack ${canon ? "" : "disabled"}>Faire générer des images du pack</button>
-        ${canon ? `<span class="hint">L'agent écrit une demande par image. Rien n'est généré avant ton accord.</span>` : `<span class="hint">Choisis d'abord une canon.</span>`}</div>
+        <button class="btn" data-pack ${canon ? "" : "disabled"}>Faire générer ces images</button>
+        ${canon ? "" : `<span class="hint">Choisis d'abord une canon.</span>`}</div>
       ${v.pack_status === "requested" ? `<p>${led("work")} L'agent de casting prépare les demandes d'images.</p>` : ""}
-      ${ownPack}
       ${spendRows(spendPack)}
-      ${packHtml}` : (packHtml || `<p class="hint">Aucune image dans le pack.</p>`);
+      ${packSection({ ...v, assets: v.assets.filter((a) => a.comment !== "image de Michael") }, editable)}
+      <details class="fold"><summary>Version HD réaliste d'une image (payante)</summary><div class="stack" style="gap:8px">
+        <p class="hint">Si ton image est un dessin ou un rendu peu réaliste, la machine peut en tirer une photo réaliste HD, avec le même personnage. Le résultat arrive dans les candidates.</p>
+        ${spendRows(spendHd)}
+        ${dropZone("canon", "Déposer l'image à rendre réaliste", "png, jpg ou webp", "image/*", false)}</div></details>`
+    : (packHtml || "");
 
   return `${intro}
-    ${charPanel("La canon",
-      `La photo de référence de ${esc(ch.name)}. Toutes les images et vidéos des clips partent d'elle : c'est elle qui garde le même visage d'un plan à l'autre.`
-      + (editable ? " Les candidates sont des propositions : choisis celle qui devient la canon." : ""), canonBody)}
-    ${editable ? charPanel("Partir d'un brouillon",
-      `Tu as dessiné ou généré ${esc(ch.name)} ailleurs, même avec un rendu peu réaliste ? Dépose l'image ici.
-       La machine en tire une photo réaliste en haute définition, avec le même visage, en suivant la fiche ci-dessous.
-       Le résultat arrive dans les candidates. Coût : environ 0,13 $, lancé seulement avec ton accord.`, draftBody) : ""}
+    ${charPanel("Tes images de référence",
+      `Tout ce que tu déposes ici sert de référence telle quelle dans les clips : la canon (l'image principale) et le reste du pack.
+       Rien n'est généré, rien n'est payé.`, refsBody)}
     ${charPanel("Fiche du personnage",
-      `Qui est ${esc(ch.name)} : apparence, caractère, façon de bouger, ce qu'il faut toujours respecter et ne jamais faire. Aussi long que tu veux. Les agents la lisent en entier : le casting pour le pack, le storyboard et le prompteur pour chaque plan, où ils reprennent seulement ce qui sert la scène. Le résumé visuel, plus bas, est le seul texte envoyé tel quel aux modèles d'image.`, adnBody)}
-    ${charPanel("Pack de référence",
-      `Une série de photos de ${esc(ch.name)} sous plusieurs angles, expressions et lumières, faites à partir de la canon.
-       Les modèles s'en servent pour reproduire le même visage dans tous les plans. Écris ce que tu veux, l'agent prépare les demandes, tu les valides, puis tu gardes ou écartes chaque image.`, packBody)}
+      `Qui est ${esc(ch.name)} : apparence, caractère, façon de bouger, ce qu'il faut toujours respecter et ne jamais faire. Les agents la lisent en entier : le casting, le storyboard et le prompteur, qui reprennent seulement ce qui sert la scène. Le résumé visuel, plus bas, est le seul texte envoyé tel quel aux modèles d'image.`, adnBody)}
+    ${editable ? charPanel("Compléter par génération (facultatif)", `Des images en plus, générées à partir de la canon.`, genBody)
+      : (packHtml ? charPanel("Images générées", "", packHtml) : "")}
     ${charPanel("Essais et tests",
       `Ce qui a été réussi pour cette version en dehors du pack : tests de modèles concluants, vidéos d'essai, bonnes images. On le garde pour capitaliser sur l'identité du personnage.`,
       v.essais.length ? mediaGrid(v.essais) : `<p class="hint">Aucun essai pour l'instant.</p>`)}
@@ -2338,6 +2351,13 @@ async function characterClick(e, ch, v) {
       toast(d.spenddo === "approve" ? "Lancé : les images arrivent dans une à deux minutes" : "Pas lancé");
       refreshSys();
       return reload();
+    }
+    if (d.canonhd !== undefined) {
+      if (needsConfirm(t, "canonhd")) return;
+      t.disabled = true;
+      await api(`${base}/versions/${v.version}/canon-hd`, { method: "POST" });
+      toast("Version HD lancée : elle arrive dans les candidates dans une à deux minutes");
+      refreshSys(); return reload();
     }
     if (d.draftto) {
       const [asset_id, kind] = d.draftto.split(":");

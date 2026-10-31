@@ -469,6 +469,10 @@ def character_snapshot(conn: sqlite3.Connection, slug: str) -> dict:
         lk["images"] = [rel(p) for p in sorted(ldir.glob("*")) if p.suffix.lower() in IMAGE_EXT] if ldir.is_dir() else []
         lk["clips"] = [c["clip_slug"] for c in ch["clips"] if c["look_slug"] == lk["slug"]]
     ch["looks"] = looks
+    hd_key = routing.pick_model("canon_hd")
+    hd_cfg = routing.model(hd_key)
+    ch["canon_hd"] = {"cost_usd": round(routing.estimate_cost(hd_cfg, mode="final"), 3), "model": hd_cfg.get("label", hd_key),
+                      "usable": routing.provider_usable(hd_cfg.get("provider", "fal")) and hd_cfg.get("provider") != "vertex"}
     ch["spend"] = spend_requests(conn, "pending")
     ch["spend"] = [r for r in ch["spend"] if r["character_slug"] == slug]
     return ch
@@ -629,6 +633,19 @@ def add_pack_images(conn: sqlite3.Connection, slug: str, version: int, kind: str
     return out
 
 
+def set_asset_kind(conn: sqlite3.Connection, asset_id: int, kind: str) -> None:
+    """Michael change la catégorie d'une image de son pack (feuille, angles, détails...)."""
+    if kind not in PACK_KINDS or kind == "canon":
+        raise ProductionError(f"Catégorie inconnue : {kind}")
+    a = db.row(conn.execute("SELECT a.*, v.status AS vstatus FROM character_assets a JOIN character_versions v "
+                            "ON v.id=a.version_id WHERE a.id=?", (asset_id,)).fetchone())
+    if a is None:
+        raise ProductionError("Image inconnue")
+    if a["vstatus"] != "draft":
+        raise ProductionError("Une version validée ne se modifie plus : crée une nouvelle version")
+    conn.execute("UPDATE character_assets SET kind=? WHERE id=?", (kind, asset_id))
+
+
 def draft_to_pack(conn: sqlite3.Connection, slug: str, version: int, asset_id: int, kind: str) -> dict:
     """Un brouillon déposé est pris tel quel : comme canon, ou dans une catégorie du pack. Pas de HD payante."""
     v = _draft_version(conn, slug, version)
@@ -705,6 +722,26 @@ def launch_canon_hd(conn: sqlite3.Connection, slug: str, version: int, model_key
         _insert_job(conn, "character_assets", cur.lastrowid, mcfg["endpoint"], sub, out)
         db.log_event(conn, None, "casting", f"{slug} v{version} : canon HD lancée ({mcfg.get('label', model_key)})")
     return {"asset_id": cur.lastrowid, "model_key": model_key}
+
+
+def canon_hd_from_canon(conn: sqlite3.Connection, slug: str, version: int) -> dict:
+    """Michael demande une version HD réaliste de la canon actuelle (bouton avec le prix : c'est son accord).
+    Le résultat arrive dans les candidates ; la canon actuelle ne change pas tant qu'il n'a pas choisi."""
+    v = _draft_version(conn, slug, version)
+    canon = db.row(conn.execute("SELECT * FROM character_assets WHERE version_id=? AND kind='canon' AND status='kept' "
+                                "ORDER BY id DESC LIMIT 1", (v["id"],)).fetchone())
+    if canon is None or not absp(canon["path"]) or not absp(canon["path"]).is_file():
+        raise ProductionError("Choisis d'abord une canon")
+    src = absp(canon["path"])
+    dest = _free_name(absp(v["dir"]) / "brouillons" / f"canon-pour-hd{src.suffix.lower()}")
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy(src, dest)
+    with db.tx(conn):
+        conn.execute("UPDATE character_assets SET status='rejected' WHERE version_id=? AND kind='canon_draft' "
+                     "AND status='kept'", (v["id"],))
+        conn.execute("INSERT INTO character_assets (version_id, kind, label, path, status, created_at) VALUES (?,?,?,?,?,?)",
+                     (v["id"], "canon_draft", "canon (source de la HD)", rel(dest), "kept", db.now()))
+    return launch_canon_hd(conn, slug, version, approved=True)
 
 
 def _canon_hd_prompt(vdir: Path) -> str:
