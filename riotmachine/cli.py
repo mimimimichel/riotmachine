@@ -131,9 +131,12 @@ def cmd_shot_show(a) -> None:
     for c in shot["characters"]:
         if c in casting:
             cv = casting[c]
+            lk = production.shot_look(conn, shot, c, cv)
+            ld = conn.execute("SELECT description FROM looks WHERE character_slug=? AND slug=?", (c, lk)).fetchone() if lk else None
             view["casting"].append({
-                "character": c, "version": cv["version"], "look": cv["look_slug"],
-                "refs": [production.rel(p) for p in production.character_refs(conn, c, cv["version"], cv["look_slug"])],
+                "character": c, "version": cv["version"], "look": lk,
+                "tenue": (ld["description"] if ld else None),
+                "refs": [production.rel(p) for p in production.character_refs(conn, c, cv["version"], lk)],
                 "adn": production.adn_text(conn, c, cv["version"]),
                 "resume_visuel": production.resume_text(conn, c, cv["version"]),
             })

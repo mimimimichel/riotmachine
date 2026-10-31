@@ -123,7 +123,7 @@ function fitFor(clip, key, secs) {
 function fitHtml(f, key) {
   if (!f) return "";
   return `<span class="fit ${f.level}">${esc(f.text)}</span>${f.suggest ? `<div class="row" style="gap:8px;margin-top:6px">
-      <button class="btn small go" data-usemodel="${key}:${esc(f.suggest.key)}">Prendre ${esc(f.suggest.label)} · ≈ ${money(f.suggest.cost)} au lieu de ${money(f.suggest.from)}</button></div>` : ""}`;
+      <button class="btn small ghost" data-usemodel="${key}:${esc(f.suggest.key)}">Moins cher : ${esc(f.suggest.label)} · ≈ ${money(f.suggest.cost)} au lieu de ${money(f.suggest.from)}</button></div>` : ""}`;
 }
 function fitBadge(f) { return f ? `<span class="fit ${f.level}">${esc(f.text)}</span>` : ""; }
 function modelSelect(clip, current, attrs) {
@@ -1047,7 +1047,7 @@ function renderDrawer() {
     </div>`;
   const detailBox = `<details class="fold" ${shot.detail ? "" : "open"}><summary>Prompt détaillé${shot.detail_edited ? " · écrit par toi" : ""}</summary><div class="stack" style="gap:6px">
       <textarea id="dt-${shot.id}" rows="4" data-mention placeholder="Le plan en détail : sujet, action, décor, lumière, cadrage. Tape @ pour citer un décor.">${esc(shot.detail || "")}</textarea>
-      ${refsCheck(shot.description, shot.detail)}
+      ${refsCheck(shot.description, shot.detail, shot.id, shot.refs_ok)}
       <div class="row"><button class="btn small" data-savedetail="${shot.id}">Enregistrer</button>
         <span class="hint">${(shot.assets || []).some((a) => a.kind === "image") ? "Le visuel déjà fait ne change pas tout seul : demande une modif pour le refaire." : "Le storyboard part de ce texte."}</span></div></div></details>`;
 
@@ -1313,6 +1313,11 @@ async function drawerClick(ev) {
       if (!pk.hidden) pk.scrollIntoView({ behavior: "smooth", block: "nearest" });
       return;
     }
+    if (d.refsok) {
+      const [sid, on] = d.refsok.split(":");
+      await api(`/api/shots/${sid}/refs-ok`, { json: { ok: on === "1" } });
+      return reload();
+    }
     if (d.charadd || d.charunlink) {
       await api(`/api/shots/${state.shotId}/characters`, { json: { slug: d.charadd || d.charunlink, remove: !!d.charunlink } });
       toast(d.charadd ? "Ajouté au plan (et casté dans le clip si besoin)" : "Retiré du plan"); return reload();
@@ -1391,7 +1396,7 @@ function editorFromClip(clip) {
     name: b.name, intention: b.intention || "", look: b.look || "",
     shots: b.shot_ids.map((id) => shotById[id]).filter(Boolean).map((s) => ({
       id: s.id, t_start: tc(s.t_start), t_end: tc(s.t_end), description: s.description, detail: s.detail || "",
-      detail_edited: !!s.detail_edited, model_key: s.model_key || "", singing: !!s.singing, cut_ok: !!s.cut_ok,
+      detail_edited: !!s.detail_edited, model_key: s.model_key || "", singing: !!s.singing, cut_ok: !!s.cut_ok, refs_ok: !!s.refs_ok,
       pending: (clip.pending_reviews || []).filter((r) => r.gate === "decoupage" && r.shot_id === s.id).map((r) => r.comment),
       framing: s.framing, motion: s.motion, camera: s.camera, characters: s.characters, notes: s.notes,
     })),
@@ -1505,7 +1510,7 @@ function renderDecoupageTab(clip) {
           <label class="field"><span>Prompt détaillé${s.detail_edited ? " · écrit par toi" : s.detail ? " · écrit par le scénariste" : " · à écrire"}</span>
             <textarea rows="5" data-mention data-sf="${key}:detail" placeholder="Le plan en détail : sujet, action, décor, lumière, cadrage. Le scénariste le remplit, tu peux le réécrire.">${esc(s.detail || "")}</textarea></label>
           ${pend ? `<div class="agentbar">${led("work")}Modif demandée au scénariste : « ${esc(s.pending[s.pending.length - 1])} ». Il s'en occupe.</div>` : ""}
-          <div data-refs="${key}">${refsCheck(s.description, s.detail)}</div>
+          <div data-refs="${key}">${refsCheck(s.description, s.detail, s.id, s.refs_ok)}</div>
           <div class="row dshot-main" style="gap:8px">
             <button class="btn small" data-savedec>Enregistrer</button>
             ${s.id ? `<button class="btn small ${s.cut_ok ? "ghost" : "ok"}" data-cutok="${s.id}:${s.cut_ok ? "0" : "1"}">${s.cut_ok ? "Retirer la validation" : "Valider ce plan"}</button>
@@ -1897,7 +1902,7 @@ function bindClip() {
       }
       if (f === "description" || f === "detail") {
         const rc = $view.querySelector(`[data-refs="${bi}:${si}"]`);
-        if (rc) rc.innerHTML = refsCheck(sh.description, sh.detail);
+        if (rc) rc.innerHTML = refsCheck(sh.description, sh.detail, sh.id, sh.refs_ok);
       }
       markDirty();
     } else if (t.dataset.bf) {
@@ -2017,6 +2022,19 @@ function bindClip() {
         sh._open = !sh._open;
         document.getElementById(`dshot-${bi}:${si}`)?.classList.toggle("open", sh._open);
         if (sh._open) fitAll(document.getElementById(`dshot-${bi}:${si}`));
+        return;
+      }
+      if (d.refsok) {
+        const [sid, on] = d.refsok.split(":");
+        await api(`/api/shots/${sid}/refs-ok`, { json: { ok: on === "1" } });
+        const sh = clip.shots.find((x) => x.id === +sid); if (sh) sh.refs_ok = on === "1" ? 1 : 0;
+        state.clipJson = JSON.stringify(clip);
+        const at = decIndexOf(+sid);
+        if (at) {
+          const e = state.editor[at[0]].shots[at[1]]; e.refs_ok = on === "1";
+          const rc = document.querySelector(`[data-refs="${at[0]}:${at[1]}"]`);
+          if (rc) rc.innerHTML = refsCheck(e.description, e.detail, e.id, e.refs_ok);
+        }
         return;
       }
       if (d.gobadref !== undefined) {
@@ -2457,7 +2475,9 @@ function looksSection(ch) {
   const looks = ch.looks.map((lk) => `<div class="lookcard">
       <div class="row"><b>${esc(lk.slug)}</b><span class="spacer"></span>
         <span class="hint">${lk.clips.length ? "Dans : " + lk.clips.map(esc).join(", ") : "Dans aucun clip pour l'instant"}</span></div>
-      ${lk.description ? `<p class="hint">${esc(lk.description)}</p>` : ""}
+      <p class="hint mono">Dans un plan : @${esc(ch.slug)}-${esc(lk.slug)}</p>
+      <textarea rows="3" data-lookdesc="${esc(lk.slug)}" placeholder="Description : vêtements, couleurs, matières, chaussures, accessoires">${esc(lk.description || "")}</textarea>
+      <div class="row"><button class="btn small" data-looksave="${esc(lk.slug)}">Enregistrer la description</button></div>
       ${lk.images.length ? mediaGrid(lk.images.map((p) => ({ path: p, type: "image" }))) : ""}
       ${dropZone("look:" + lk.slug, "Ajouter des photos de cette tenue", "png, jpg ou webp, plusieurs à la fois", "image/*", true)}
     </div>`).join("");
@@ -2597,6 +2617,10 @@ async function characterClick(e, ch, v) {
       await api(`${base}/versions/${v.version}/canon-hd`, { method: "POST" });
       toast("Version HD lancée : elle arrive dans les candidates dans une à deux minutes");
       refreshSys(); return reload();
+    }
+    if (d.looksave) {
+      await api(`${base}/looks/${encodeURIComponent(d.looksave)}`, { json: { description: $view.querySelector(`[data-lookdesc="${d.looksave}"]`).value } });
+      toast("Tenue enregistrée"); return reload();
     }
     if (d.makecanon) {
       await api(`/api/character-assets/${d.makecanon}/make-canon`, { method: "POST" });
@@ -2955,6 +2979,23 @@ async function loadDecors(clip, keep = false) {
       ${d.elements.length ? `<div class="eltiles-wrap">${tiles}</div>` : ""}
     </section>
     ${sections}
+    <section class="elsection k-tenue" style="margin-top:18px"><div class="elsection-h"><h2>Tenues</h2>
+        <span class="hint">Les tenues des personnages du clip. Cite-les dans un plan avec @personnage-tenue : le personnage joue dans cette tenue, la même d'un plan à l'autre.</span></div>
+      ${(d.looks || []).map((lk) => `<div class="panel stack lookcard" style="margin-top:10px">
+          <div class="row"><b>${esc(lk.name)}</b><span class="mono hint">@${esc(lk.slug)}</span></div>
+          ${lk.images.length ? `<div class="packgrid">${lk.images.map((p) => `<div class="packitem"><img src="${media(p)}" data-zoom="${media(p)}" alt=""></div>`).join("")}</div>`
+            : `<p class="hint">Pas encore de photo : la description seule part au modèle.</p>`}
+          ${dropZone(`look:${lk.character}:${lk.look}`, "Ajouter des photos de la tenue", "png, jpg ou webp", "image/*", true)}
+          <label class="field"><span>Description (ce qui doit rester identique)</span>
+            <textarea rows="3" data-lookdesc="${esc(lk.character)}:${esc(lk.look)}">${esc(lk.description)}</textarea></label>
+          <div class="row"><button class="btn small" data-looksave="${esc(lk.character)}:${esc(lk.look)}">Enregistrer</button></div>
+        </div>`).join("") || `<p class="hint">Aucune tenue pour l'instant.</p>`}
+      ${(d.cast || []).length ? `<div class="panel stack" style="margin-top:10px"><b>Nouvelle tenue</b>
+        <div class="row" style="gap:8px"><select id="look-char">${d.cast.map((c) => `<option value="${esc(c.slug)}">${esc(c.name)}</option>`).join("")}</select>
+          <input type="text" id="look-new-name" placeholder="Nom (ex. bureau, soirée, sport)" style="flex:1;min-width:160px"></div>
+        <textarea id="look-new-desc" rows="3" placeholder="Description : vêtements, couleurs, matières, chaussures, accessoires"></textarea>
+        <div class="row"><button class="btn go" data-looknew>Créer la tenue</button></div></div>` : ""}
+    </section>
     <section class="panel stack" style="margin-top:18px"><h2>Ajouter un élément</h2>
       <div class="row" style="gap:8px"><select id="el-kind"><option value="decor">Décor</option><option value="objet">Objet clé</option><option value="figurant">Figurant</option></select>
       <input type="text" id="el-name" placeholder="Nom (ex. Maison et jardin, le chien, le vélo)" style="flex:1;min-width:200px"></div>
@@ -2968,6 +3009,13 @@ async function loadDecors(clip, keep = false) {
   }));
   const remember = (id) => prefs("elopen:" + clip.slug, [...new Set([...(prefs("elopen:" + clip.slug) || []), String(id)])]);
   bindDrops(box, async (kind, files) => {
+    if (kind.startsWith("look:")) {
+      const [, ch, lk] = kind.split(":");
+      const fd = new FormData(); [...files].forEach((f) => fd.append("files", f));
+      try { await upload(`/api/characters/${encodeURIComponent(ch)}/looks/${encodeURIComponent(lk)}/images`, fd); toast("Photos ajoutées à la tenue"); loadDecors(clip); }
+      catch (e) { toast(e.message, "err"); }
+      return;
+    }
     const [, id, role] = kind.split(":");
     const fd = new FormData();
     [...files].forEach((f) => fd.append("files", f));
@@ -3024,6 +3072,18 @@ async function loadDecors(clip, keep = false) {
           kind: document.getElementById("el-kind").value, name, description: "" } });
         remember(e.id);
         toast("Ajouté : dépose ton image de départ"); return reload();
+      }
+      if (dd.looksave) {
+        const [ch, lk] = dd.looksave.split(":");
+        await api(`/api/characters/${encodeURIComponent(ch)}/looks/${encodeURIComponent(lk)}`, { json: { description: box.querySelector(`[data-lookdesc="${dd.looksave}"]`).value } });
+        toast("Tenue enregistrée"); return reload();
+      }
+      if (dd.looknew !== undefined) {
+        const name = document.getElementById("look-new-name").value.trim();
+        if (!name) { toast("Donne un nom à la tenue", "err"); return; }
+        const ch = document.getElementById("look-char").value;
+        const r = await api(`/api/characters/${encodeURIComponent(ch)}/looks`, { json: { name, description: document.getElementById("look-new-desc").value } });
+        toast(`Tenue créée : cite-la avec @${ch}-${r.slug}`); return reload();
       }
       if (dd.eldrafts) {
         const brief = box.querySelector(`[data-elbrief="${dd.eldrafts}"]`).value;
@@ -3106,20 +3166,26 @@ const normTxt = (s) => (s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]
 /* ce qu'on peut citer avec @ : les personnages du studio d'abord, puis les décors, objets et figurants du clip */
 function mentionables() {
   const chars = ((state.clip && state.clip.characters_all) || []).map((c) => ({ ...c, kind: "perso" }));
-  return [...chars, ...((state.clip && state.clip.elements) || [])];
+  const looks = ((state.clip && state.clip.looks_all) || []).map((l) => ({ ...l, kind: "tenue" }));
+  return [...chars, ...looks, ...((state.clip && state.clip.elements) || [])];
 }
 
 /* vérification des @ d'un plan : chaque référence, l'image qui part au modèle, et les @ qui ne mènent à rien */
-const SENT_LABEL = { hd: "image HD", brouillon: "brouillon (pas en HD)", canon: "canon" };
-function refsCheck(...texts) {
+const SENT_LABEL = { hd: "image HD", brouillon: "brouillon (pas en HD)", canon: "canon", tenue: "photos de la tenue" };
+function refsCheck(desc, detail, shotId, refsOk) {
   const idx = Object.fromEntries(mentionables().map((e) => [e.slug, e]));
-  const slugs = [...new Set(texts.join("\n").toLowerCase().match(/@([a-z0-9][a-z0-9-]*[a-z0-9]|[a-z0-9])/g) || [])].map((m) => m.slice(1));
-  if (!slugs.length) return `<div class="refscheck"><span class="hint muted">Pas de @ : rien n'est envoyé en référence pour ce plan (normal s'il ne montre aucun personnage ni décor récurrent).</span></div>`;
+  const slugs = [...new Set(`${desc || ""}\n${detail || ""}`.toLowerCase().match(/@([a-z0-9][a-z0-9-]*[a-z0-9]|[a-z0-9])/g) || [])].map((m) => m.slice(1));
+  if (!slugs.length) {
+    if (refsOk) return `<div class="refscheck"><span class="hint muted">✓ Pas de référence, c'est voulu.</span>
+      ${shotId ? `<button class="linkbtn" data-refsok="${shotId}:0">annuler</button>` : ""}</div>`;
+    return `<div class="refscheck"><span class="hint muted">Pas de @ : aucune image de référence ne part avec ce plan.</span>
+      ${shotId ? `<button class="btn small ghost" data-refsok="${shotId}:1">C'est voulu</button>` : ""}</div>`;
+  }
   return `<div class="refscheck"><span class="hint">Références envoyées au modèle :</span>${slugs.map((sl) => {
     const e = idx[sl];
     if (!e) return `<span class="refchip bad" title="Aucun personnage ni élément ne s'appelle @${esc(sl)} : renomme le @ ou crée l'élément">⚠ @${esc(sl)} introuvable</span>`;
     return `<span class="refchip k-${e.kind}">${e.thumb ? `<img src="${media(e.thumb)}" alt="">` : ""}<b>${esc(e.name)}</b>
-      <span class="${e.sent ? (e.sent === "brouillon" ? "warn" : "") : "bad"}">${e.sent ? SENT_LABEL[e.sent] : "aucune image : la fiche seule"}</span></span>`;
+      <span class="${e.sent ? (e.sent === "brouillon" ? "warn" : "") : "bad"}">${e.sent ? SENT_LABEL[e.sent] : e.kind === "tenue" ? "pas de photo : la description seule" : "aucune image : la fiche seule"}</span></span>`;
   }).join("")}</div>`;
 }
 
@@ -3156,7 +3222,7 @@ function mentionDraw() {
   mention.box.style.top = `${r.bottom + 4}px`;
   mention.box.innerHTML = mention.items.map((e, i) => `<div class="mi ${i === mention.sel ? "on" : ""}" data-mi="${i}">
       ${e.thumb ? `<img src="${media(e.thumb)}" alt="">` : `<span class="none"></span>`}
-      <span><b>${esc(e.name)}</b><span class="hint">${({ perso: "Personnage", decor: "Décor", objet: "Objet", figurant: "Figurant" })[e.kind]} · @${esc(e.slug)}</span></span></div>`).join("")
+      <span><b>${esc(e.name)}</b><span class="hint">${({ perso: "Personnage", tenue: "Tenue", decor: "Décor", objet: "Objet", figurant: "Figurant" })[e.kind]} · @${esc(e.slug)}</span></span></div>`).join("")
     || `<div class="mi"><span class="hint">Rien de ce nom : crée le personnage (Personnages) ou l'élément (onglet Décors).</span></div>`;
   mention.box.hidden = false;
 }

@@ -558,6 +558,15 @@ def shot_cut_ok(shot_id: int, body: CutOk) -> dict[str, Any]:
     return {"ok": True}
 
 
+@app.post("/api/shots/{shot_id}/refs-ok")
+def shot_refs_ok(shot_id: int, body: CutOk) -> dict[str, Any]:
+    """Michael confirme qu'un plan n'a pas besoin de référence @ : plus aucun signalement."""
+    conn = _conn()
+    db.get_shot(conn, shot_id)
+    conn.execute("UPDATE shots SET refs_ok=? WHERE id=?", (1 if body.ok else 0, shot_id))
+    return {"ok": True}
+
+
 class ShotChange(BaseModel):
     comment: str
 
@@ -867,6 +876,9 @@ def clip_elements(slug: str) -> dict[str, Any]:
             "spend": spend, "shots": shots, "hd_cost": round(cost, 3), "hd_model": mcfg.get("label", key),
             "hd_usable": routing.provider_usable(mcfg.get("provider", "fal")) and mcfg.get("provider") != "vertex",
             "hd_provider": (routing.models_cfg().get("providers") or {}).get(mcfg.get("provider", "fal"), {}).get("label"),
+            "looks": [lk for lk in production.studio_looks(conn) if lk["character"] in
+                      {c["character_slug"] for c in db.casting_for_clip(conn, slug)}],
+            "cast": [{"slug": c["character_slug"], "name": c["name"]} for c in db.casting_for_clip(conn, slug)],
             "drafts_usable": bool(elements.draft_backends()),
             "draft_models": [{"key": f"{b[0]}:{b[1]}", "label": b[2]} for b in elements.draft_backends()]}
 
@@ -1022,6 +1034,19 @@ def new_look(slug: str, body: LookIn) -> dict[str, Any]:
         return production.create_look(_conn(), slug, body.name, body.description)
     except production.ProductionError as exc:
         raise _error(exc)
+
+
+class LookEdit(BaseModel):
+    description: str = ""
+
+
+@app.post("/api/characters/{slug}/looks/{look}")
+def edit_look(slug: str, look: str, body: LookEdit) -> dict[str, Any]:
+    try:
+        production.update_look(_conn(), slug, look, body.description)
+    except production.ProductionError as exc:
+        raise _error(exc)
+    return {"ok": True}
 
 
 @app.post("/api/characters/{slug}/looks/{look}/images")

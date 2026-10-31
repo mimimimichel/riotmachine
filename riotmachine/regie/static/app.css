@@ -812,3 +812,5 @@ details.sources-box > div { padding: 10px 0 0; }
 .pill.bad { color: #ff6b6b; background: #ff4d4d1a; border-color: #ff4d4d66; }
 .dshot.badref { border-color: #ff4d4d88; }
 .refscheck .muted { color: var(--dim); font-style: italic; }
+.k-tenue { --k: #4da3ff; --k-soft: #4da3ff1f; }
+.linkbtn { background: none; border: 0; color: var(--muted); text-decoration: underline; cursor: pointer; font-size: 12px; padding: 0 4px; }

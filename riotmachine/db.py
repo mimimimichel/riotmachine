@@ -414,7 +414,9 @@ LATER_COLUMNS = {
     # failed_step : l'étape qui a échoué, pour relancer au bon endroit
     "shots": [("detail", "TEXT"), ("detail_edited", "INTEGER NOT NULL DEFAULT 0"), ("failed_step", "TEXT"),
               ("lipsync_key", "TEXT"),    # lip-sync choisi par Michael pour ce plan
-              ("cut_ok", "INTEGER NOT NULL DEFAULT 0")],   # plan validé par Michael dans le découpage
+              ("cut_ok", "INTEGER NOT NULL DEFAULT 0"),   # plan validé par Michael dans le découpage
+              ("looks", "TEXT"),    # tenue de chaque personnage dans ce plan (JSON {personnage: tenue}), par @
+              ("refs_ok", "INTEGER NOT NULL DEFAULT 0")],   # Michael confirme : pas de référence @ voulue
     "blocks": [("look", "TEXT"),   # lumière et étalonnage communs aux plans du bloc
                ("validated", "INTEGER NOT NULL DEFAULT 0")],   # bloc validé par Michael : ses plans sont en production
     # prompt : le prompt de l'image HD, réécrit par Michael (NULL = prompt par défaut)

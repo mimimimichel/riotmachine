@@ -543,6 +543,13 @@ def link_mentions(conn: sqlite3.Connection, shot_id: int) -> list[str]:
             add_character(conn, shot_id, slug)   # un vrai personnage du studio, pas un figurant
             linked.append(slug)
             continue
+        lk = None if r else conn.execute(
+            "SELECT character_slug, slug FROM looks WHERE character_slug || '-' || slug = ?", (slug,)).fetchone()
+        if lk:   # une tenue : le personnage joue dans le plan, dans cette tenue
+            add_character(conn, shot_id, lk["character_slug"])
+            set_shot_look(conn, shot_id, lk["character_slug"], lk["slug"])
+            linked.append(slug)
+            continue
         if r:
             conn.execute("INSERT OR IGNORE INTO shot_elements (shot_id, element_id, state) VALUES (?,?,NULL)",
                          (shot_id, r["id"]))
@@ -559,6 +566,17 @@ def add_character(conn: sqlite3.Connection, shot_id: int, slug: str) -> None:
     if slug not in chars:
         chars.append(slug)
         conn.execute("UPDATE shots SET characters=? WHERE id=?", (json.dumps(chars), shot_id))
+
+
+def set_shot_look(conn: sqlite3.Connection, shot_id: int, character_slug: str, look_slug: str | None) -> None:
+    shot = db.get_shot(conn, shot_id)
+    looks = shot.get("looks")
+    looks = json.loads(looks) if isinstance(looks, str) and looks else dict(looks or {})
+    if look_slug:
+        looks[character_slug] = look_slug
+    else:
+        looks.pop(character_slug, None)
+    conn.execute("UPDATE shots SET looks=? WHERE id=?", (json.dumps(looks) if looks else None, shot_id))
 
 
 def remove_character(conn: sqlite3.Connection, shot_id: int, slug: str) -> None:

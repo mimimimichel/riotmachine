@@ -524,6 +524,42 @@ def create_look(conn: sqlite3.Connection, slug: str, name: str, description: str
     return {"slug": lslug, "dir": rel(ldir)}
 
 
+def update_look(conn: sqlite3.Connection, slug: str, look: str, description: str) -> None:
+    """Michael précise la description d'une tenue (ce qui doit être identique d'un plan à l'autre)."""
+    lk = conn.execute("SELECT dir FROM looks WHERE character_slug=? AND slug=?", (slug, look)).fetchone()
+    if lk is None:
+        raise ProductionError(f"Tenue inconnue : {look}")
+    conn.execute("UPDATE looks SET description=? WHERE character_slug=? AND slug=?", (description.strip(), slug, look))
+    f = absp(lk["dir"]) / "look.md"
+    f.write_text(f"# {look}\n\n{description.strip()}\n", encoding="utf-8")
+
+
+def look_key(character_slug: str, look_slug: str) -> str:
+    """La référence @ d'une tenue : personnage-tenue (ex. @jj-bureau)."""
+    return f"{character_slug}-{look_slug}"
+
+
+def studio_looks(conn: sqlite3.Connection) -> list[dict]:
+    """Toutes les tenues, citables avec @personnage-tenue dans les plans."""
+    out = []
+    for lk in conn.execute("SELECT l.*, c.name AS cname FROM looks l JOIN characters c ON c.slug=l.character_slug "
+                           "ORDER BY c.name, l.slug").fetchall():
+        ldir = absp(lk["dir"])
+        imgs = sorted(p for p in ldir.glob("*") if p.suffix.lower() in IMAGE_EXT) if ldir and ldir.is_dir() else []
+        out.append({"slug": look_key(lk["character_slug"], lk["slug"]), "character": lk["character_slug"],
+                    "look": lk["slug"], "name": f"{lk['cname']} · {lk['slug'].replace('-', ' ')}",
+                    "description": lk["description"] or "", "images": [rel(p) for p in imgs],
+                    "thumb": rel(imgs[0]) if imgs else None, "sent": "tenue" if imgs else None})
+    return out
+
+
+def shot_look(conn: sqlite3.Connection, shot: dict, character_slug: str, casting: dict | None) -> str | None:
+    """La tenue d'un personnage dans un plan : celle citée dans le plan, sinon celle du casting du clip."""
+    looks = shot.get("looks")
+    looks = json.loads(looks) if isinstance(looks, str) and looks else (looks or {})
+    return looks.get(character_slug) or (casting or {}).get("look_slug")
+
+
 def add_look_image(conn: sqlite3.Connection, slug: str, look: str, src: str | Path) -> str:
     lk = conn.execute("SELECT dir FROM looks WHERE character_slug=? AND slug=?", (slug, look)).fetchone()
     if lk is None:
@@ -1568,14 +1604,23 @@ def launch_image(conn: sqlite3.Connection, shot_id: int, force: bool = False, ap
     casting = {c["character_slug"]: c for c in db.casting_for_clip(conn, clip["slug"])}
     refs: list[Path] = []
     per_char = max(2, int(mcfg.get("max_refs", 6)) // max(1, len(shot["characters"]) or 1))
+    look_text = ""
     for c in shot["characters"]:
         if c in casting:
-            refs += character_refs(conn, c, casting[c]["version"], casting[c]["look_slug"], limit=per_char)
+            lk = shot_look(conn, shot, c, casting[c])
+            refs += character_refs(conn, c, casting[c]["version"], lk, limit=per_char)
+            if lk:
+                d = conn.execute("SELECT description FROM looks WHERE character_slug=? AND slug=?", (c, lk)).fetchone()
+                if d and d["description"]:
+                    look_text += f"\n- Outfit of {c} ({lk}), identical in every shot where it appears: {d['description']}"
+    if look_text:
+        look_text = "\n\nOutfits (keep them exactly as in their reference photos):" + look_text
     from . import elements
     missing = elements.missing_refs(conn, shot_id)
     if missing:   # pas bloquant : le visuel part sans leur image, d'après leur fiche
         db.add_note(conn, shot_id, "machine", f"Visuel lancé sans image de référence pour : {', '.join(missing)}.")
     el_refs, el_text = elements.shot_context(conn, shot_id)
+    el_text = look_text + el_text
     block_ref, block_text = block_reference(conn, shot)
     # ordre : une image par personnage, puis le décor et les objets, puis le reste du pack ;
     # le visuel validé du même bloc ferme la liste (référence de lumière)
@@ -2328,6 +2373,7 @@ def clip_snapshot(conn: sqlite3.Connection, slug: str, compact: bool = False) ->
         sh["en_production"] = clip["stage"] == "production" or sh.get("block_id") in validated_blocks
     clip["needs_agent"] = needs_agent(conn, slug)["reasons"]
     clip["characters_all"] = studio_characters(conn)   # citables avec @slug dans les plans
+    clip["looks_all"] = studio_looks(conn)             # tenues, citables avec @personnage-tenue
     if not compact:
         clip["video_default"] = routing.default_video_model()
         clip["video_models"] = routing.video_models()
