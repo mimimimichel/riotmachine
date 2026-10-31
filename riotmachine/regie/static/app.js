@@ -97,17 +97,33 @@ function durText(s) {
 
 /* modèle vidéo d'un plan et écart de durée (mêmes règles que routing.duration_fit) */
 function modelOf(clip, key) { return (clip.video_models || []).find((m) => m.key === (key || clip.video_default)); }
+function genSecs(m, secs) {
+  const allowed = (m.durations || [5]).slice().sort((a, b) => a - b);
+  return allowed.find((d) => d + 1e-6 >= secs) ?? null;
+}
 function fitFor(clip, key, secs) {
   const m = modelOf(clip, key);
   if (!m || !(secs > 0)) return null;
   const allowed = (m.durations || [5]).slice().sort((a, b) => a - b);
   const max = allowed[allowed.length - 1];
-  const gen = allowed.find((d) => d + 1e-6 >= secs) ?? max;
-  const span = allowed.length <= 4 ? allowed.join(", ") : `${allowed[0]} à ${max}`;
-  if (secs > max + 0.05) return { level: "bad", text: `Trop long pour ${m.label} (${max} s max) : à couper ou à confier à un autre modèle` };
+  const gen = genSecs(m, secs);
+  const s1 = secs.toFixed(1).replace(".", ",");
+  // le modèle branché le moins cher pour ce plan, tout compris (secondes générées × prix)
+  const cost = (x) => { const g = genSecs(x, secs); return g == null ? Infinity : g * (x.price_s || 0); };
+  const best = (clip.video_models || []).filter((x) => x.usable).sort((a, b) => cost(a) - cost(b))[0];
+  const cur = gen == null ? Infinity : cost(m);
+  const suggest = best && best.key !== m.key && cost(best) < cur - 0.005 ? { key: best.key, label: best.label, cost: cost(best), from: cur } : null;
+  if (gen == null) return { level: "bad", short: `trop long pour ${m.label}`, suggest,
+    text: `Plan de ${s1} s, trop long pour ${m.label} (${max} s au plus) : coupe-le en deux ou prends un autre modèle.` };
   const waste = gen - secs;
-  if (waste >= 1.5) return { level: "warn", text: `${m.label} génère ${gen} s pour ${secs.toFixed(1)} s gardées (${span} s possibles) : ${waste.toFixed(1)} s payées pour rien` };
-  return { level: "ok", text: `${m.label} génère ${gen} s` };
+  if (waste >= 1.5) return { level: "warn", short: `${waste.toFixed(1).replace(".", ",")} s payées en trop`, suggest,
+    text: `Plan de ${s1} s, mais ${m.label} fait au moins ${gen} s : ${waste.toFixed(1).replace(".", ",")} s payées en trop (≈ ${money(waste * (m.price_s || 0))}).` };
+  return { level: "ok", short: "", suggest, text: `${m.label} génère ${gen} s pour ce plan (≈ ${money(cur)}).` };
+}
+function fitHtml(f, key) {
+  if (!f) return "";
+  return `<span class="fit ${f.level}">${esc(f.text)}</span>${f.suggest ? `<div class="row" style="gap:8px;margin-top:6px">
+      <button class="btn small go" data-usemodel="${key}:${esc(f.suggest.key)}">Prendre ${esc(f.suggest.label)} · ≈ ${money(f.suggest.cost)} au lieu de ${money(f.suggest.from)}</button></div>` : ""}`;
 }
 function fitBadge(f) { return f ? `<span class="fit ${f.level}">${esc(f.text)}</span>` : ""; }
 function modelSelect(clip, current, attrs) {
@@ -1447,7 +1463,8 @@ function renderDecoupageTab(clip) {
           <span class="dshot-tc mono">${esc(s.t_start || "?")} → ${esc(s.t_end || "?")}</span>
           <span class="dshot-dur mono" data-dur="${key}">${durText(s)}</span>
           ${s.singing ? `<span class="dshot-sing" title="Plan chanté : lip-sync">♪</span>` : ""}
-          <span data-fit="${key}">${fit && fit.level !== "ok" ? fitBadge(fit) : ""}</span>
+          <span class="dshot-model hint">${esc((modelOf(clip, s.model_key) || {}).label || "")}</span>
+          <span data-fit="${key}">${fit && fit.level !== "ok" ? `<span class="fit ${fit.level}">${esc(fit.short)}</span>` : ""}</span>
           <span class="spacer"></span>
           ${complete ? "" : `<span class="pill review">à compléter</span>`}
           <span class="chev">›</span>
@@ -1457,6 +1474,8 @@ function renderDecoupageTab(clip) {
           ${tech ? `<p class="dshot-tech">${esc(tech)}</p>` : ""}
         </div>
         <div class="dshot-body">
+          <label class="field"><span>Modèle vidéo</span>${modelSelect(clip, s.model_key, `data-sf="${key}:model_key" aria-label="Modèle vidéo"`)}</label>
+          <div data-fitfull="${key}">${fitHtml(fit, key)}</div>
           <div class="dshot-row">
             <label class="field"><span>Début</span><input class="tc" type="text" inputmode="decimal" value="${esc(s.t_start)}" data-sf="${key}:t_start" placeholder="0:00.0"></label>
             <label class="field"><span>Fin</span><input class="tc" type="text" inputmode="decimal" value="${esc(s.t_end)}" data-sf="${key}:t_end" placeholder="0:04.0"></label>
@@ -1466,8 +1485,6 @@ function renderDecoupageTab(clip) {
             <textarea rows="2" data-mention data-sf="${key}:description" placeholder="Ce qu'on voit, en une ligne (tape @ pour citer un décor)">${esc(s.description)}</textarea></label>
           <label class="field"><span>Prompt détaillé${s.detail_edited ? " · écrit par toi" : s.detail ? " · écrit par le script doctor" : " · à écrire"}</span>
             <textarea rows="5" data-mention data-sf="${key}:detail" placeholder="Le plan en détail : sujet, action, décor, lumière, cadrage. Le script doctor le remplit, tu peux le réécrire.">${esc(s.detail || "")}</textarea></label>
-          <div class="row" style="gap:8px">${modelSelect(clip, s.model_key, `data-sf="${key}:model_key" aria-label="Modèle vidéo"`)}
-            <span data-fitfull="${key}">${fitBadge(fit)}</span></div>
           <div class="dshot-acts">
             ${si < b.shots.length - 1 ? `<button class="btn small ghost" data-mergeshot="${key}">Fusionner avec le plan suivant</button>` : ""}
             <button class="btn small ghost" data-splitshot="${key}">Couper en deux</button>
@@ -1745,9 +1762,9 @@ function bindClip() {
         if (el) el.textContent = durText(sh);
         const fit = fitFor(clip, sh.model_key, parseTc(sh.t_end) - parseTc(sh.t_start));
         const fe = $view.querySelector(`[data-fit="${bi}:${si}"]`);
-        if (fe) fe.innerHTML = fit && fit.level !== "ok" ? fitBadge(fit) : "";
+        if (fe) fe.innerHTML = fit && fit.level !== "ok" ? `<span class="fit ${fit.level}">${esc(fit.short)}</span>` : "";
         const ff = $view.querySelector(`[data-fitfull="${bi}:${si}"]`);
-        if (ff) ff.innerHTML = fitBadge(fit);
+        if (ff) ff.innerHTML = fitHtml(fit, `${bi}:${si}`);
         const tcEl = $view.querySelector(`#dshot-${bi}\\:${si} .dshot-tc`);
         if (tcEl) tcEl.textContent = `${sh.t_start || "?"} → ${sh.t_end || "?"}`;
       }
@@ -1854,6 +1871,12 @@ function bindClip() {
         document.getElementById(`dshot-${bi}:${si}`)?.classList.toggle("open", sh._open);
         if (sh._open) fitAll(document.getElementById(`dshot-${bi}:${si}`));
         return;
+      }
+      if (d.usemodel) {
+        const [bi, si, mk] = d.usemodel.split(":");
+        state.editor[+bi].shots[+si].model_key = mk;
+        state.editor[+bi].shots[+si]._open = true;
+        markDirty(); toast("Modèle changé : pense à enregistrer le découpage"); return renderClip();
       }
       if (d.decall) {
         state.editor.forEach((b) => { b._open = d.decall === "open"; });

@@ -263,14 +263,16 @@ def duration_fit(cfg: dict[str, Any], seconds: float) -> dict[str, Any]:
     waste = round(max(0.0, gen - seconds), 2)
     label = cfg.get("label", cfg.get("key", ""))
     allowed_txt = ", ".join(str(d) for d in allowed) if len(allowed) <= 4 else f"{allowed[0]} à {allowed[-1]}"
+    fr = lambda x: f"{x:.1f}".replace(".", ",")
     if seconds > allowed[-1] + 0.05:
         return {"level": "bad", "generated": gen, "waste": 0.0,
-                "text": f"Trop long pour {label} ({allowed[-1]} s maximum) : à couper ou à confier à un autre modèle"}
+                "text": f"Plan de {fr(seconds)} s, trop long pour {label} ({allowed[-1]} s au plus) : "
+                        "coupe-le en deux ou prends un autre modèle."}
     if waste >= 1.5:
         return {"level": "warn", "generated": gen, "waste": waste,
-                "text": f"{label} génère {gen} s pour {seconds:.1f} s gardées ({allowed_txt} s possibles) : "
-                        f"{waste:.1f} s payées pour rien"}
-    return {"level": "ok", "generated": gen, "waste": waste, "text": f"{label} génère {gen} s"}
+                "text": f"Plan de {fr(seconds)} s, mais {label} fait au moins {gen} s ({allowed_txt} s possibles) : "
+                        f"{fr(waste)} s payées en trop."}
+    return {"level": "ok", "generated": gen, "waste": waste, "text": f"{label} génère {gen} s pour ce plan."}
 
 
 def video_models() -> list[dict[str, Any]]:
