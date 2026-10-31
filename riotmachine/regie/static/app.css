@@ -563,7 +563,7 @@ pre.text { white-space: pre-wrap; font-family: var(--mono); font-size: 12px; col
   .packgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .panel { padding: 14px; }
   .dec-block { padding: 10px; }
-  .console { position: static; }
+  .console { position: sticky; }
   .block-title .intent { white-space: normal; overflow: visible; }
   .stages { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .block-head { grid-template-columns: auto 1fr; }
@@ -786,3 +786,9 @@ details.sources-box > div { padding: 10px 0 0; }
 .dshot.ok { border-color: #3df0a255; }
 .dshot.ok .dshot-n { background: var(--led); color: #0a0911; }
 .dshot-main { padding-top: 4px; border-top: 1px dashed var(--line-2); }
+/* lecteur réduit : transport, blocs et plans seulement, pour lire les plans en dessous */
+.console.mini .tl-ticks, .console.mini .tl-lyrics, .console.mini .tl-help { display: none; }
+.console.mini .tl-wave { height: 28px; }
+.console.mini { padding: 8px 10px 6px; }
+.dshot.playing { border-color: var(--magenta); box-shadow: 0 0 0 2px #ff3fbf66; }
+.dshot.playing .dshot-n { background: var(--magenta); color: #fff; }

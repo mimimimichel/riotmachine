@@ -99,7 +99,7 @@ Michael (`author: michael`) reste prioritaire même s'il est ancien.
 
 ## Prompt détaillé, modèle choisi, lumière de bloc
 
-- Chaque plan a une ligne courte (`description`) et un prompt détaillé (`detail`).
+- Chaque plan a « ce qu'on voit » (`description`, l'idée de Michael, aussi détaillée qu'il veut) et un prompt détaillé (`detail`).
   Le storyboard et le prompteur partent du `detail`. Un `detail` réécrit par
   Michael (`detail_edited: 1`) ne se modifie plus : `riot shot set --detail` le refuse.
 - Michael peut choisir le modèle vidéo et le lip-sync de chaque plan dans la

@@ -660,7 +660,7 @@ function renderConsole(clip) {
   const step = Math.max(1, [1, 2, 5, 10, 15, 30][[1, 2, 5, 10, 15, 30].findIndex((x) => (x * 100 * z) / total >= 6)] || 30);
   const ticks = [];
   for (let t = 0; t <= total; t += step) ticks.push(`<span style="left:${pct(t)}%">${tc(t).replace(/\.\d$/, "")}</span>`);
-  return `<section class="console" id="console">
+  return `<section class="console ${prefs("tlmini") ? "mini" : ""}" id="console">
       <div class="transport">
         <button class="playbtn" data-play aria-label="Lecture">${song.paused ? "▶" : "❚❚"}</button>
         <span class="clock mono" id="clock">${tc(song.currentTime || 0)} <span>/ ${tc(total)}</span></span>
@@ -670,6 +670,7 @@ function renderConsole(clip) {
           <span class="mono zval">×${z}</span>
           <button class="zbtn" data-tlzoom="in" aria-label="Zoomer" ${z >= tlMaxZoom() ? "disabled" : ""}>＋</button>
           ${z > 1 ? `<button class="zbtn wide" data-tlzoom="fit">Tout voir</button>` : ""}
+          <button class="zbtn wide" data-tlmini title="Réduire ou agrandir le lecteur">${prefs("tlmini") ? "Agrandir" : "Réduire"}</button>
         </span>
       </div>
       <div class="tl-viewport" id="tlview">
@@ -817,6 +818,7 @@ function updateHead() {
   const clock = document.getElementById("clock");
   if (clock) clock.innerHTML = `${tc(song.currentTime || 0)} <span>/ ${tc(total)}</span>`;
   const now = state.clip.shots.find((s) => song.currentTime >= s.t_start && song.currentTime < s.t_end);
+  if (state.tab === "decoupage" && state.editor) markPlaying(now ? now.id : null);
   const nowEl = document.getElementById("nowshot");
   if (nowEl) nowEl.textContent = now ? `Plan ${now.num} · ${now.section || ""} · ${now.description}` : "";
   const btn = document.querySelector("[data-play]");
@@ -1418,14 +1420,14 @@ function renderDecoupageTab(clip) {
         <span class="spacer"></span>
         <span class="mono">Vidéo estimée : ~${money(clip.video_cost_usd)}</span>
       </div>
-      <p class="hint" style="margin-top:6px">Un plan complet a sa ligne courte, son prompt détaillé, son cadrage et son mouvement.
+      <p class="hint" style="margin-top:6px">Un plan complet a « ce qu'on voit », son prompt détaillé, son cadrage et son mouvement.
         ${nWarn ? `<b>${nWarn}</b> plan${nWarn > 1 ? "s" : ""} plus court${nWarn > 1 ? "s" : ""} que ce que le modèle génère (payé${nWarn > 1 ? "s" : ""} en trop).` : ""}
         ${nBad ? `<b style="color:var(--red)">${nBad}</b> plan${nBad > 1 ? "s" : ""} trop long${nBad > 1 ? "s" : ""} pour son modèle.` : ""}
         Veo ne sait pas faire plusieurs plans dans une même prise : fusionner deux plans courts voisins coûte moins cher.</p>
     </div>` : "";
   if (clip.stage === "decoupage_review") {
     head = `<div class="actionbox" style="margin-bottom:16px"><h3>Découpage à valider</h3>
-      <p class="hint">Relis chaque plan : sa ligne courte, son prompt détaillé, son modèle vidéo. Corrige directement
+      <p class="hint">Relis chaque plan : ce qu'on voit, son prompt détaillé, son modèle vidéo, et écoute-le avec ▶ (le lecteur reste en haut). Corrige directement
         ci-dessous, enregistre, puis valide pour lancer le storyboard. Les plans incomplets et les durées mal adaptées
         au modèle sont signalés.</p>
       ${clip.script_notes ? `<details class="fold"><summary>Notes de relecture du scénariste</summary><div><pre class="text">${esc(clip.script_notes)}</pre></div></details>` : ""}
@@ -1470,6 +1472,7 @@ function renderDecoupageTab(clip) {
           ${pend ? `<span class="pill work">modif en cours</span>` : ""}
           <span class="dshot-tc mono">${esc(s.t_start || "?")} → ${esc(s.t_end || "?")}</span>
           <span class="dshot-dur mono" data-dur="${key}">${durText(s)}</span>
+          ${clip.song_path ? `<button class="iconbtn playmini" data-decplay="${key}" title="Écouter ce plan" aria-label="Écouter ce plan">▶</button>` : ""}
           ${s.singing ? `<span class="dshot-sing" title="Plan chanté : lip-sync">♪</span>` : ""}
           <span class="dshot-model hint">${esc((modelOf(clip, s.model_key) || {}).label || "")}</span>
           <span data-fit="${key}">${fit && fit.level !== "ok" ? `<span class="fit ${fit.level}">${esc(fit.short)}</span>` : ""}</span>
@@ -1489,8 +1492,8 @@ function renderDecoupageTab(clip) {
             <label class="field"><span>Fin</span><input class="tc" type="text" inputmode="decimal" value="${esc(s.t_end)}" data-sf="${key}:t_end" placeholder="0:04.0"></label>
             <label class="sing" title="Plan chanté face caméra : lip-sync"><input type="checkbox" ${s.singing ? "checked" : ""} data-sf="${key}:singing"> ♪ chanté</label>
           </div>
-          <label class="field"><span>Ce qu'on voit (ligne courte)</span>
-            <textarea rows="2" data-mention data-sf="${key}:description" placeholder="Ce qu'on voit, en une ligne (tape @ pour citer un décor)">${esc(s.description)}</textarea></label>
+          <label class="field"><span>Ce qu'on voit : ton idée, aussi détaillée que tu veux</span>
+            <textarea rows="3" data-mention data-sf="${key}:description" placeholder="Décris le plan comme tu le vois : action, émotion, cadrage, détails qui comptent. Tape @ pour citer un personnage ou un décor.">${esc(s.description)}</textarea></label>
           <label class="field"><span>Prompt détaillé${s.detail_edited ? " · écrit par toi" : s.detail ? " · écrit par le scénariste" : " · à écrire"}</span>
             <textarea rows="5" data-mention data-sf="${key}:detail" placeholder="Le plan en détail : sujet, action, décor, lumière, cadrage. Le scénariste le remplit, tu peux le réécrire.">${esc(s.detail || "")}</textarea></label>
           ${pend ? `<div class="agentbar">${led("work")}Modif demandée au scénariste : « ${esc(s.pending[s.pending.length - 1])} ». Il s'en occupe.</div>` : ""}
@@ -1547,6 +1550,39 @@ function renderDecoupageTab(clip) {
 const FRAMING_FR = { ECU: "très gros plan", CU: "gros plan", MCU: "plan rapproché", MS: "plan taille", MWS: "plan américain",
   WS: "plan large", EWS: "plan très large" };
 const MOTION_FR = { static: "aucun", low: "faible", medium: "moyen", high: "fort" };
+
+function decIndexOf(shotId) {
+  for (let bi = 0; bi < (state.editor || []).length; bi++) {
+    const si = state.editor[bi].shots.findIndex((x) => x.id === shotId);
+    if (si >= 0) return [bi, si];
+  }
+  return null;
+}
+function focusDecShot(shotId, open) {
+  const at = decIndexOf(shotId);
+  if (!at) return;
+  const [bi, si] = at;
+  const b = state.editor[bi];
+  if (!b._open) { b._open = true; document.getElementById("decblock-" + bi)?.classList.add("open"); saveDecOpen(state.clip); }
+  if (open) { b.shots[si]._open = true; document.getElementById(`dshot-${bi}:${si}`)?.classList.add("open"); }
+  document.getElementById(`dshot-${bi}:${si}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+let playingId = null;
+function markPlaying(shotId) {
+  if (shotId === playingId) return;
+  document.querySelectorAll(".dshot.playing").forEach((n) => n.classList.remove("playing"));
+  playingId = shotId;
+  const at = shotId != null && decIndexOf(shotId);
+  if (!at) return;
+  const node = document.getElementById(`dshot-${at[0]}:${at[1]}`);
+  if (node) {
+    node.classList.add("playing");
+    // pendant la lecture, la liste suit le plan joué si son bloc est ouvert
+    const r = node.getBoundingClientRect();
+    const top = (document.getElementById("console")?.getBoundingClientRect().bottom || 0) + 8;
+    if (!song.paused && node.offsetParent && (r.top < top || r.bottom > innerHeight)) node.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+}
 
 function saveDecOpen(clip) {
   prefs("decopen:" + clip.slug, (state.editor || []).map((b, i) => (b._open ? i : null)).filter((x) => x !== null));
@@ -1808,11 +1844,31 @@ function bindClip() {
       if (d.zoom) return lightbox(d.zoom);
       if (d.unfold !== undefined) { t.classList.toggle("folded"); return; }
       if (d.play !== undefined) { if (song.paused) song.play().catch(() => {}); else song.pause(); return; }
+      if (d.openshot && state.tab === "decoupage" && state.editor) {
+        const shot = clip.shots.find((s) => s.id === +d.openshot);
+        if (shot) { song.currentTime = shot.t_start; updateHead(); }
+        focusDecShot(+d.openshot, true);
+        return;
+      }
+      if (d.decplay) {
+        const [bi, si] = d.decplay.split(":").map(Number);
+        const sh = state.editor[bi].shots[si];
+        const a = parseTc(sh.t_start), b = parseTc(sh.t_end);
+        if (a == null || b == null || isNaN(a) || isNaN(b)) { toast("Timecodes illisibles", "err"); return; }
+        song.currentTime = a; song.play().catch(() => {}); stopAt = { end: b };
+        return;
+      }
       if (d.openshot) {
         const shot = clip.shots.find((s) => s.id === +d.openshot);
         if (shot && t.classList.contains("tl-shot")) { song.currentTime = shot.t_start; updateHead(); }
         location.hash = shotHref(d.openshot);
         return;
+      }
+      if (d.tlmini !== undefined) {
+        const mini = !prefs("tlmini"); prefs("tlmini", mini);
+        document.getElementById("console").classList.toggle("mini", mini);
+        t.textContent = mini ? "Agrandir" : "Réduire";
+        return drawWave();
       }
       if (d.tlzoom) {
         const z = tlZoom();

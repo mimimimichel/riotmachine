@@ -138,9 +138,10 @@ relis les autres si besoin), mets la mémoire à jour, puis :
    un nouveau plan ; un plan absent du fichier est supprimé.
 
    Chaque plan a deux textes :
-   - `description` : **une ligne courte en français** qui dit ce qu'on voit
-     (10 à 25 mots). C'est ce que Michael lit dans la liste des plans. Garde ses
-     mots ; ajoute une précision validée dans les sources si elle manque.
+   - `description` : **ce qu'on voit, l'idée du plan en français**, aussi détaillée
+     que nécessaire (plusieurs phrases si besoin). C'est ce que Michael écrit et relit.
+     Garde ses mots, ne résume jamais son idée ; complète-la avec ce qui a été validé
+     dans le dossier, le brief et les sources quand ça manque.
    - `detail` : **le prompt détaillé**, en anglais, 80 à 150 mots. Le storyboard et
      le prompteur partent de ce texte, rien d'autre : tout ce qui compte pour ce
      plan doit y être. Dans l'ordre :
@@ -175,7 +176,7 @@ relis les autres si besoin), mets la mémoire à jour, puis :
    - `singing: true` si le personnage chante à l'écran, bouche visible (le
      lip-sync sera appliqué sur ce plan) : appuie-toi sur les paroles et les timecodes ;
    - `intention` du bloc : d'après le concept et le dossier, en une phrase.
-   Garde ses mots dans `description` ; tu peux préciser, pas réinterpréter.
+   Garde ses mots dans `description` ; tu peux préciser, pas réinterpréter ni résumer.
 
 3. Import : `riot shots import <clip> studio/clips/<clip>/script/shots.json`, puis
    `riot clip stage <clip> decoupage_review`.
