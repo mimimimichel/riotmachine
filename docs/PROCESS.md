@@ -255,3 +255,17 @@ Section à enrichir au fil des clips : une ligne par leçon, avec sa date.
 - Lip-sync sur une voix fournie : rien sur Vertex AI. Voies hors fal : API Kling (lip-sync), sync.so, OmniHuman (BytePlus), Hedra. Seedance 2.0 accepte des pistes audio en référence, mais le calage des lèvres sur une voix chantée fournie n'est pas confirmé : à tester sur 2 s avant de s'y fier.
 - Plus de simulation : un fournisseur sans clé refuse la génération au lieu de produire un faux fichier.
 - Chaque remarque sur un plan va dans son historique (shot_notes) : le retour de Michael n'est plus écrasé par le contrôleur ou par une erreur.
+
+## Fiche d'un personnage : longueur et forme (31/10/2026)
+
+- **Fiche** (`v<N>/adn.md`) : 300 à 600 mots, six parties courtes sans redite :
+  identité, apparence, signes distinctifs, caractère (3 à 5 traits, avec à quoi on
+  les voit), façon de bouger, Toujours / Jamais (5 à 8 règles). Les agents la lisent
+  en entier et n'en reprennent que ce qui sert le plan. Au-delà de 700 mots, les
+  redites et les détails secondaires les brouillent.
+- **Résumé visuel** (`v<N>/resume.md`) : 60 à 120 mots en anglais, apparence seule.
+  C'est le seul texte envoyé tel quel aux modèles d'image (canon HD, visuels de plan).
+- Un comportement qui, sorti de son contexte, donne une image fausse (« montre les
+  dents ») se décrit avec sa situation (« pendant le jeu, faux combat »).
+- Les images que Michael fait lui-même (feuille de personnage, angles) entrent dans
+  le pack telles quelles, sans passage en HD.

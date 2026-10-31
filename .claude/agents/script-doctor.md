@@ -169,7 +169,9 @@ relis les autres si besoin), mets la mémoire à jour, puis :
    - `framing` : ECU, CU, MCU, MS, MWS, WS, EWS ;
    - `motion` : static, low, medium, high (high = danse, course, action) ;
    - `camera` : mouvement de caméra (s'il ne l'a pas donné, propose le plus simple) ;
-   - `characters` : seulement des personnages castés dans le clip ;
+   - `characters` : les personnages du clip. Tout personnage du studio (`characters_all` dans
+     `riot clip show`) peut jouer, même un petit rôle : cite-le `@slug` dans la ligne ou le prompt
+     détaillé, il est alors casté dans le clip et ajouté au plan (sa fiche et son pack servent de référence) ;
    - `singing: true` si le personnage chante à l'écran, bouche visible (le
      lip-sync sera appliqué sur ce plan) : appuie-toi sur les paroles et les timecodes ;
    - `intention` du bloc : d'après le concept et le dossier, en une phrase.

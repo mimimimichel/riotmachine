@@ -19,9 +19,12 @@ confie, tu écris le prompt de l'image clé et tu lances sa génération.
 2. Regarde les images de référence avec Read (au moins la canon) pour bien voir
    le personnage.
 3. Écris le prompt **en anglais**, dans cet ordre :
-   - Ancrage d'identité : "Use the reference images for [name]'s exact face, skin
-     tone, eyes, hair texture and color, and body proportions. Keep her identity
-     identical." puis 1 à 2 phrases tirées de l'ADN (traits les plus distinctifs).
+   - Ancrage d'identité : "Use the reference images for [name]'s exact appearance
+     (face or head, skin or coat, eyes, hair, body proportions). Keep the identity
+     identical." puis son **résumé visuel** (`resume_visuel` dans `riot shot show`),
+     repris tel quel. Sans résumé, 1 à 2 phrases tirées de la fiche (`adn`). La
+     fiche complète sert à comprendre le personnage (caractère, façon de bouger) :
+     n'en reprends que ce qui sert le plan, jamais tout le texte.
    - Ce qu'on voit au **début** du plan (l'image est la première image de la
      vidéo) : pose, action en cours, regard. Laisse de la place au mouvement
      prévu (un plan de danse commence sur une pose d'élan, pas figée).

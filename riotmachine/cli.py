@@ -135,6 +135,7 @@ def cmd_shot_show(a) -> None:
                 "character": c, "version": cv["version"], "look": cv["look_slug"],
                 "refs": [production.rel(p) for p in production.character_refs(conn, c, cv["version"], cv["look_slug"])],
                 "adn": production.adn_text(conn, c, cv["version"]),
+                "resume_visuel": production.resume_text(conn, c, cv["version"]),
             })
     view["aspect_ratio"] = clip["aspect_ratio"]
     from . import elements

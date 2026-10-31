@@ -29,8 +29,12 @@ reproduisent de façon crédible.
 
 ## Déroulé
 
-1. **ADN** : écris `v<N>/adn.md` (identité en anglais prête à injecter dans les
-   prompts + sections **Toujours** et **Jamais**) et `v<N>/silhouette.md`.
+1. **Fiche** : si Michael a écrit la fiche (`v<N>/adn.md`), elle fait foi, ne la
+   réécris pas. Sinon écris-la (identité, sections **Toujours** et **Jamais**).
+   Le **résumé visuel** (`v<N>/resume.md`, anglais, 60 à 120 mots, apparence seule)
+   est le seul texte envoyé tel quel aux modèles d'image : s'il manque, écris-le
+   d'après la fiche et les images. Les images que Michael a déposées dans le pack
+   (feuille de personnage, angles…) sont des références à part entière.
 2. **Canon** : Michael dépose lui-même le brouillon de la canon et valide sa HD
    dans la régie. Tu ne génères des candidates canon que s'il le demande
    explicitement dans ses instructions.

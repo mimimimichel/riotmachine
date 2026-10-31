@@ -656,6 +656,54 @@ async def canon_draft(slug: str, version: int, file: UploadFile = File(...)) -> 
     return {"ok": True}
 
 
+@app.post("/api/characters/{slug}/versions/{version}/pack-images")
+async def pack_upload(slug: str, version: int, kind: str = Form(...),
+                      files: list[UploadFile] = File(...)) -> dict[str, Any]:
+    """Michael dépose ses propres images dans le pack de référence (gardées telles quelles)."""
+    tmp = Path(tempfile.mkdtemp(prefix="riot-upload-"))
+    try:
+        added = production.add_pack_images(_conn(), slug, version, kind, _save_uploads(tmp, files, "pack"))
+    except (production.ProductionError, LookupError) as exc:
+        raise _error(exc)
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+    return {"ok": True, "added": len(added)}
+
+
+class DraftTo(BaseModel):
+    asset_id: int
+    kind: str
+
+
+@app.post("/api/characters/{slug}/versions/{version}/draft-to")
+def draft_to(slug: str, version: int, body: DraftTo) -> dict[str, Any]:
+    try:
+        return production.draft_to_pack(_conn(), slug, version, body.asset_id, body.kind)
+    except (production.ProductionError, LookupError) as exc:
+        raise _error(exc)
+
+
+class ShotCharacter(BaseModel):
+    slug: str
+    remove: bool = False
+
+
+@app.post("/api/shots/{shot_id}/characters")
+def shot_character(shot_id: int, body: ShotCharacter) -> dict[str, Any]:
+    """Un personnage du studio joue dans le plan (casté dans le clip si besoin), ou en sort."""
+    from .. import elements
+    conn = _conn()
+    try:
+        with db.tx(conn):
+            if body.remove:
+                elements.remove_character(conn, shot_id, body.slug)
+            else:
+                elements.add_character(conn, shot_id, body.slug)
+    except (production.ProductionError, LookupError) as exc:
+        raise _error(exc)
+    return {"ok": True}
+
+
 # --- Décors, objets et figurants ---------------------------------------------------
 class ElementIn(BaseModel):
     kind: str = "decor"
@@ -845,6 +893,15 @@ def shot_element(shot_id: int, body: ShotElementIn) -> dict[str, Any]:
     except production.ProductionError as exc:
         raise _error(exc)
     return {"ok": True, "elements": elements.for_shot(conn, shot_id)}
+
+
+@app.post("/api/characters/{slug}/versions/{version}/resume")
+def save_resume(slug: str, version: int, body: ScriptText) -> dict[str, Any]:
+    try:
+        production.save_resume(_conn(), slug, version, body.text)
+    except (production.ProductionError, LookupError) as exc:
+        raise _error(exc)
+    return {"ok": True}
 
 
 @app.post("/api/characters/{slug}/versions/{version}/adn")

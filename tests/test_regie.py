@@ -14,7 +14,7 @@ def test_regie_flow(studio):
 
     ov = client.get("/api/overview").json()
     assert ov["clips"][0]["slug"] == demo.SLUG
-    assert ov["characters"][0]["canon_path"].endswith("canon.jpg")
+    assert next(c for c in ov["characters"] if c["slug"] == "jj")["canon_path"].endswith("canon.jpg")
 
     clip = client.get(f"/api/clips/{demo.SLUG}").json()
     by_num = {s["num"]: s for s in clip["shots"]}

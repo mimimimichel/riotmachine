@@ -477,3 +477,24 @@ def test_provider_keys_admin(studio, tmp_path, monkeypatch):
     provider_keys.remove_key("cloudflare", "CLOUDFLARE_API_TOKEN")
     assert "CLOUDFLARE_API_TOKEN" not in env.read_text() and not os.environ.get("CLOUDFLARE_API_TOKEN")
     assert "RIOT_DISABLED_PROVIDERS" not in env.read_text()
+
+
+def test_character_pack_and_mention(studio, tmp_path):
+    """Michael dépose ses images dans le pack (telles quelles) ; @slug d'un personnage le caste et l'ajoute au plan."""
+    import subprocess
+    run("init")
+    conn = db.connect()
+    production.new_character(conn, "Rex")
+    img = tmp_path / "sheet.png"
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "color=c=orange:s=320x240",
+                    "-frames:v", "1", str(img)], check=True)
+    production.add_pack_images(conn, "rex", 1, "sheet", [img])
+    production.add_pack_images(conn, "rex", 1, "canon", [img])
+    refs = production.character_refs(conn, "rex", 1)
+    assert refs[0].name.startswith("canon") and any("sheet" in str(p) for p in refs)
+    production.create_clip(conn, "Chien", song=studio["song"], characters=["jj"])
+    production.import_shots(conn, "chien", [{"t_start": 0, "t_end": 4, "description": "@rex aboie", "characters": []}])
+    sh = conn.execute("SELECT * FROM shots WHERE clip_slug='chien'").fetchone()
+    assert "rex" in json.loads(sh["characters"])
+    assert any(c["character_slug"] == "rex" for c in db.casting_for_clip(conn, "chien"))
+    assert any(c["slug"] == "rex" for c in production.clip_snapshot(conn, "chien")["characters_all"])

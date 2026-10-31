@@ -57,7 +57,7 @@ const APPROVE_LABEL = {
   finals: ["Valider le final", "finals"],
 };
 const CHAR_KIND_LABEL = {
-  canon: "Candidates canon", turnaround: "Angles", fullbody: "Silhouette", expressions: "Expressions",
+  canon: "Candidates canon", sheet: "Feuilles de personnage", turnaround: "Angles", fullbody: "Silhouette", expressions: "Expressions",
   lighting: "Lumières", details: "Détails",
 };
 const FILE_ICON = { pdf: "PDF", docx: "DOC", md: "MD", txt: "TXT", png: "IMG", jpg: "IMG", jpeg: "IMG", webp: "IMG", mp3: "♪", wav: "♪", m4a: "♪" };
@@ -1038,16 +1038,25 @@ function renderDrawer() {
         <span class="nm">${esc(e.name)}</span><span class="kd">${KLAB[e.kind] || e.kind}</span>${extra}</div>`;
   };
   const free = (clip.elements || []).filter((e) => !linked.has(e.id));
+  const allChars = clip.characters_all || [];
+  const inShot = new Set(shot.characters || []);
+  const charTile = (c, attrs, extra = "") => `<div class="eltile2 k-perso" ${attrs}>
+      <div class="img" style="${c.thumb ? `background-image:url('${media(c.thumb)}')` : ""}">${c.thumb ? "" : `<span>pas encore d'image</span>`}</div>
+      <span class="nm">${esc(c.name)}</span><span class="kd">Personnage</span>${extra}</div>`;
+  const shotChars = allChars.filter((c) => inShot.has(c.slug));
+  const freeChars = allChars.filter((c) => !inShot.has(c.slug));
   const elBox = `<div class="shot-els panel">
-      <div class="panel-head"><h3>Décors, objets et figurants du plan</h3>
+      <div class="panel-head"><h3>Personnages, décors, objets et figurants du plan</h3>
         <a class="hint" href="#/clip/${encodeURIComponent(clip.slug)}/decors">tous les décors</a></div>
       <p class="hint">Leur image sert de référence au visuel du plan. Pour en ajouter : touche ＋, ou tape @ dans le prompt détaillé.</p>
       <div class="eltiles2">
+        ${shotChars.map((c) => charTile(c, "", `<button class="x" data-charunlink="${esc(c.slug)}" title="Retirer du plan" aria-label="Retirer du plan">✕</button>`)).join("")}
         ${(shot.elements || []).map((e) => elTile(e, "", `<button class="x" data-elunlink="${e.id}" title="Retirer du plan" aria-label="Retirer du plan">✕</button>`)).join("")}
-        ${free.length ? `<button class="eltile2 add" data-elpick><span class="plus">＋</span><span class="nm">Ajouter</span></button>` : ""}
+        ${free.length || freeChars.length ? `<button class="eltile2 add" data-elpick><span class="plus">＋</span><span class="nm">Ajouter</span></button>` : ""}
       </div>
       <div class="elpicker" id="elpicker" hidden>
-        <p class="hint">Touche un élément pour l'ajouter au plan.</p>
+        <p class="hint">Touche ce que tu veux ajouter au plan.</p>
+        ${freeChars.length ? `<h4>Personnages</h4><div class="eltiles2">${freeChars.map((c) => charTile(c, `data-charadd="${esc(c.slug)}" role="button" tabindex="0"`)).join("")}</div>` : ""}
         ${["decor", "figurant", "objet"].map((k) => free.filter((e) => e.kind === k)).filter((l) => l.length)
           .map((l) => `<h4>${KLAB[l[0].kind]}s</h4><div class="eltiles2">${l.map((e) => elTile(e, `data-eladd="${e.id}" role="button" tabindex="0"`)).join("")}</div>`).join("")}
       </div></div>`;
@@ -1249,7 +1258,7 @@ function renderPlanVideo(shot, isGate) {
 }
 
 async function drawerClick(ev) {
-  const t = ev.target.closest("button, [data-zoom], input[data-model], [data-eladd]");
+  const t = ev.target.closest("button, [data-zoom], input[data-model], [data-eladd], [data-charadd]");
   if (ev.target.matches && ev.target.matches("select")) return;
   if (!t) return;
   const d = t.dataset;
@@ -1280,6 +1289,10 @@ async function drawerClick(ev) {
       pk.hidden = !pk.hidden;
       if (!pk.hidden) pk.scrollIntoView({ behavior: "smooth", block: "nearest" });
       return;
+    }
+    if (d.charadd || d.charunlink) {
+      await api(`/api/shots/${state.shotId}/characters`, { json: { slug: d.charadd || d.charunlink, remove: !!d.charunlink } });
+      toast(d.charadd ? "Ajouté au plan (et casté dans le clip si besoin)" : "Retiré du plan"); return reload();
     }
     if (d.eladd) {
       await api(`/api/shots/${state.shotId}/elements`, { json: { element_id: +d.eladd } });
@@ -2138,11 +2151,17 @@ async function showCharacter(slug, keep = false) {
         toast("Envoi des photos…");
         await upload(`/api/characters/${encodeURIComponent(slug)}/looks/${encodeURIComponent(kind.slice(5))}/images`, fd);
         toast("Photos ajoutées à la tenue");
+      } else if (kind === "pack") {
+        [...files].forEach((f) => fd.append("files", f));
+        fd.set("kind", document.getElementById("pack-kind").value);
+        toast("Envoi des images…");
+        await upload(`/api/characters/${encodeURIComponent(slug)}/versions/${v.version}/pack-images`, fd);
+        toast("Ajoutées au pack, telles quelles");
       } else {
         fd.set("file", files[0]);
         toast("Envoi du brouillon…");
         await upload(`/api/characters/${encodeURIComponent(slug)}/versions/${v.version}/canon-draft`, fd);
-        toast("Brouillon déposé : valide la dépense pour lancer la photo réaliste");
+        toast("Brouillon déposé : prends-le tel quel, ou valide la dépense pour une version réaliste");
       }
       showCharacter(slug);
     } catch (e) { toast(e.message, "err"); }
@@ -2231,20 +2250,47 @@ function renderVersion(ch, v) {
 
   const draftBody = `${spendRows(spendHd)}
     <div class="two-col">
-      <div>${draft ? `<p class="hint">Dernier brouillon déposé :</p><img class="canonthumb" src="${media(draft.path)}" data-zoom="${media(draft.path)}" alt="">` : ""}</div>
+      <div>${draft ? `<p class="hint">Dernier brouillon déposé :</p><img class="canonthumb" src="${media(draft.path)}" data-zoom="${media(draft.path)}" alt="">
+        <div class="row" style="gap:6px;margin-top:8px">
+          <button class="btn small" data-draftto="${draft.id}:canon">Le prendre tel quel comme canon</button>
+          <button class="btn small" data-draftto="${draft.id}:sheet">Le ranger dans le pack (feuille de personnage)</button></div>
+        <p class="hint">Tel quel : pas de passage en HD, rien n'est payé.</p>` : ""}</div>
       <div>${dropZone("canon", "Déposer un brouillon", "png, jpg ou webp", "image/*", false)}</div></div>`;
+  const PACK_DROP = [["sheet", "Feuille de personnage"], ["canon", "Canon (photo de référence)"], ["turnaround", "Angles"],
+    ["fullbody", "Silhouette en pied"], ["expressions", "Expressions"], ["lighting", "Lumières"], ["details", "Détails"]];
+  const ownPack = editable ? `<div class="elsub"><b>Tes propres images</b>
+      <span class="hint">Une feuille de personnage, des angles, des expressions que tu as faits toi-même : choisis la catégorie et dépose-les.
+        Elles entrent dans le pack telles quelles et servent de référence dans les clips.</span>
+      <label class="field"><span>Catégorie</span><select id="pack-kind">${PACK_DROP.map(([k, l]) => `<option value="${k}">${l}</option>`).join("")}</select></label>
+      ${dropZone("pack", "Déposer mes images", "png, jpg ou webp, plusieurs à la fois", "image/*", true)}</div>` : "";
 
+  const nWords = (t) => (t || "").trim().split(/\s+/).filter(Boolean).length;
   const adnBody = editable
-    ? `<textarea id="adn" rows="14">${esc(v.adn || "")}</textarea><div class="row"><button class="btn" data-saveadn>Enregistrer la fiche</button></div>`
-    : (v.adn ? `<pre class="text">${esc(v.adn)}</pre>` : `<p class="hint">Pas de fiche écrite pour cette version.</p>`);
+    ? `<textarea id="adn" rows="14">${esc(v.adn || "")}</textarea>
+       <div class="row"><button class="btn" data-saveadn>Enregistrer la fiche</button>
+         <span class="hint">${nWords(v.adn)} mots · idéal : 300 à 600${nWords(v.adn) > 700 ? " (au-delà, les redites et les détails secondaires brouillent les agents)" : ""}</span></div>
+       <details class="fold"><summary>Comment écrire une bonne fiche</summary><div><p class="hint">
+         300 à 600 mots, en anglais ou en français, en 6 parties courtes, sans redire la même chose deux fois :
+         <b>1. Identité</b> (qui, âge, gabarit) · <b>2. Apparence</b> (tête, yeux, peau ou pelage, cheveux, couleurs exactes) ·
+         <b>3. Signes distinctifs</b> (ce qui le rend unique) · <b>4. Caractère</b> (3 à 5 traits, avec à quoi on les voit) ·
+         <b>5. Façon de bouger</b> · <b>6. Toujours / Jamais</b> (5 à 8 règles en tout).
+         Évite les comportements qui, sortis du contexte, donnent une image fausse (« montre les dents » peut produire un chien agressif) :
+         dis plutôt dans quelle situation ils arrivent. Le résumé visuel, lui, fait 60 à 120 mots en anglais.</p></div></details>
+       <h3 style="margin-top:8px">Résumé visuel</h3>
+       <p class="hint">Le seul texte envoyé tel quel aux modèles d'image, en anglais, 60 à 120 mots : ce qui se voit et doit toujours être identique.
+         La fiche complète, elle, est lue par les agents, qui en tirent ce qu'il faut pour chaque plan.</p>
+       <textarea id="resume" rows="5">${esc(v.resume || "")}</textarea>
+       <div class="row"><button class="btn" data-saveresume>Enregistrer le résumé</button><span class="hint">${nWords(v.resume)} mots</span></div>`
+    : (v.adn ? `<pre class="text">${esc(v.adn)}</pre>${v.resume ? `<h3>Résumé visuel</h3><pre class="text">${esc(v.resume)}</pre>` : ""}` : `<p class="hint">Pas de fiche écrite pour cette version.</p>`);
 
   const packHtml = packSection(v, editable);
   const packBody = editable ? `
       <textarea id="instructions" rows="7" placeholder="Ex. :&#10;- vues de face, trois quarts et profil, fond neutre, même lumière douce&#10;- 2 plans en pied&#10;- expressions : rire, colère, concentration, chant (bouche ouverte)&#10;- lumières : néon violet, plein soleil, contre-jour">${esc(v.instructions || "")}</textarea>
       <div class="row"><button class="btn" data-saveinstr>Enregistrer</button>
-        <button class="btn go" data-pack ${canon ? "" : "disabled"}>Préparer le pack</button>
+        <button class="btn" data-pack ${canon ? "" : "disabled"}>Faire générer des images du pack</button>
         ${canon ? `<span class="hint">L'agent écrit une demande par image. Rien n'est généré avant ton accord.</span>` : `<span class="hint">Choisis d'abord une canon.</span>`}</div>
       ${v.pack_status === "requested" ? `<p>${led("work")} L'agent de casting prépare les demandes d'images.</p>` : ""}
+      ${ownPack}
       ${spendRows(spendPack)}
       ${packHtml}` : (packHtml || `<p class="hint">Aucune image dans le pack.</p>`);
 
@@ -2257,7 +2303,7 @@ function renderVersion(ch, v) {
        La machine en tire une photo réaliste en haute définition, avec le même visage, en suivant la fiche ci-dessous.
        Le résultat arrive dans les candidates. Coût : environ 0,13 $, lancé seulement avec ton accord.`, draftBody) : ""}
     ${charPanel("Fiche du personnage",
-      `La description écrite de ${esc(ch.name)}, avec ce qu'il faut toujours respecter et ne jamais faire. Elle est ajoutée telle quelle au prompt de la canon HD. L'agent de casting en part pour écrire les prompts du pack. Le storyboard en reprend les traits les plus marquants dans le prompt de chaque visuel de plan.`, adnBody)}
+      `Qui est ${esc(ch.name)} : apparence, caractère, façon de bouger, ce qu'il faut toujours respecter et ne jamais faire. Aussi long que tu veux. Les agents la lisent en entier : le casting pour le pack, le storyboard et le prompteur pour chaque plan, où ils reprennent seulement ce qui sert la scène. Le résumé visuel, plus bas, est le seul texte envoyé tel quel aux modèles d'image.`, adnBody)}
     ${charPanel("Pack de référence",
       `Une série de photos de ${esc(ch.name)} sous plusieurs angles, expressions et lumières, faites à partir de la canon.
        Les modèles s'en servent pour reproduire le même visage dans tous les plans. Écris ce que tu veux, l'agent prépare les demandes, tu les valides, puis tu gardes ou écartes chaque image.`, packBody)}
@@ -2291,6 +2337,17 @@ async function characterClick(e, ch, v) {
       await api("/api/spend/decide", { json: { ids: d.ids.split(",").map(Number), decision: d.spenddo } });
       toast(d.spenddo === "approve" ? "Lancé : les images arrivent dans une à deux minutes" : "Pas lancé");
       refreshSys();
+      return reload();
+    }
+    if (d.draftto) {
+      const [asset_id, kind] = d.draftto.split(":");
+      await api(`${base}/versions/${v.version}/draft-to`, { json: { asset_id: +asset_id, kind } });
+      toast(kind === "canon" ? "Le brouillon est la canon, tel quel" : "Rangé dans le pack, tel quel");
+      return reload();
+    }
+    if (d.saveresume !== undefined) {
+      await api(`${base}/versions/${v.version}/resume`, { json: { text: document.getElementById("resume").value } });
+      toast("Résumé enregistré");
       return reload();
     }
     if (d.saveadn !== undefined) {
@@ -2765,8 +2822,14 @@ function elGrid(list, mode) {
 /* ---------- Références @ dans les plans ---------- */
 const normTxt = (s) => (s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 
+/* ce qu'on peut citer avec @ : les personnages du studio d'abord, puis les décors, objets et figurants du clip */
+function mentionables() {
+  const chars = ((state.clip && state.clip.characters_all) || []).map((c) => ({ ...c, kind: "perso" }));
+  return [...chars, ...((state.clip && state.clip.elements) || [])];
+}
+
 function mentionHtml(text) {
-  const idx = Object.fromEntries(((state.clip && state.clip.elements) || []).map((e) => [e.slug, e]));
+  const idx = Object.fromEntries(mentionables().map((e) => [e.slug, e]));
   return esc(text || "").replace(/@([a-z0-9][a-z0-9-]*[a-z0-9]|[a-z0-9])/g, (m, slug) =>
     idx[slug] ? `<span class="mention k-${idx[slug].kind}" title="@${slug}">${esc(idx[slug].name)}</span>` : m);
 }
@@ -2798,8 +2861,8 @@ function mentionDraw() {
   mention.box.style.top = `${r.bottom + 4}px`;
   mention.box.innerHTML = mention.items.map((e, i) => `<div class="mi ${i === mention.sel ? "on" : ""}" data-mi="${i}">
       ${e.thumb ? `<img src="${media(e.thumb)}" alt="">` : `<span class="none"></span>`}
-      <span><b>${esc(e.name)}</b><span class="hint">${({ decor: "Décor", objet: "Objet", figurant: "Figurant" })[e.kind]} · @${esc(e.slug)}</span></span></div>`).join("")
-    || `<div class="mi"><span class="hint">Aucun élément de ce nom. Crée-le dans l'onglet Décors.</span></div>`;
+      <span><b>${esc(e.name)}</b><span class="hint">${({ perso: "Personnage", decor: "Décor", objet: "Objet", figurant: "Figurant" })[e.kind]} · @${esc(e.slug)}</span></span></div>`).join("")
+    || `<div class="mi"><span class="hint">Rien de ce nom : crée le personnage (Personnages) ou l'élément (onglet Décors).</span></div>`;
   mention.box.hidden = false;
 }
 document.addEventListener("input", (ev) => {
@@ -2810,7 +2873,7 @@ document.addEventListener("input", (ev) => {
   const m = before.match(/(^|[\s(])@([\p{L}0-9-]*)$/u);
   if (!m) { mentionClose(); return; }
   const q = normTxt(m[2]);
-  const all = (state.clip && state.clip.elements) || [];
+  const all = mentionables();
   mention.ta = ta; mention.start = before.length - m[2].length - 1; mention.sel = 0;
   mention.items = all.filter((e) => !q || e.slug.includes(q) || normTxt(e.name).includes(q)).slice(0, 8);
   mentionDraw();

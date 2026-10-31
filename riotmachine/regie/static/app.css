@@ -782,3 +782,4 @@ details.sources-box > div { padding: 10px 0 0; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 .pkey { display: grid; gap: 6px; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: #ffffff05; }
 .prov.off { opacity: .6; }
+.k-perso { --k: #ff3fbf; --k-soft: #ff3fbf1f; }

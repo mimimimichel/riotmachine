@@ -23,7 +23,9 @@ from . import credits, db, fal, media, notify, providers, routing
 from .settings import get_settings, load_models
 
 IMAGE_EXT = {".png", ".jpg", ".jpeg", ".webp"}
-REF_KIND_ORDER = ["canon", "turnaround", "fullbody", "expressions", "lighting", "details"]
+# sheet : feuille de personnage (plusieurs vues sur une image), souvent faite par Michael lui-même
+REF_KIND_ORDER = ["canon", "sheet", "turnaround", "fullbody", "expressions", "lighting", "details"]
+PACK_KINDS = REF_KIND_ORDER
 
 
 class ProductionError(Exception):
@@ -206,6 +208,21 @@ def character_refs(conn: sqlite3.Connection, slug: str, version: int, look: str 
             # le canon reste en tête, le look passe juste après
             refs = refs[:1] + look_imgs[:2] + refs[1:]
     return refs[:limit]
+
+
+def resume_text(conn: sqlite3.Connection, slug: str, version: int) -> str:
+    """Le résumé visuel : le seul texte du personnage envoyé tel quel aux modèles d'image (60 à 120 mots)."""
+    v = character_version(conn, slug, version)
+    f = absp(v["dir"]) / "resume.md"
+    return f.read_text(encoding="utf-8").strip() if f.is_file() else ""
+
+
+def save_resume(conn: sqlite3.Connection, slug: str, version: int, text: str) -> None:
+    v = character_version(conn, slug, version)
+    if v["status"] != "draft":
+        raise ProductionError("Une version validée ne se modifie plus : crée une nouvelle version")
+    (absp(v["dir"]) / "resume.md").write_text(text.strip() + "\n", encoding="utf-8")
+    db.log_event(conn, None, "casting", f"{slug} v{version} : résumé visuel mis à jour")
 
 
 def adn_text(conn: sqlite3.Connection, slug: str, version: int) -> str:
@@ -438,6 +455,8 @@ def character_snapshot(conn: sqlite3.Connection, slug: str) -> dict:
         ).fetchall())
         adn = absp(v["dir"]) / "adn.md"
         v["adn"] = adn.read_text(encoding="utf-8") if adn.is_file() else ""
+        res = absp(v["dir"]) / "resume.md"
+        v["resume"] = res.read_text(encoding="utf-8").strip() if res.is_file() else ""
         v["generating"] = sum(1 for a in v["assets"] if a["status"] == "generating")
         v["essais"] = version_essais(absp(v["dir"]))
     ch["versions"] = versions
@@ -564,6 +583,96 @@ def upload_canon_draft(conn: sqlite3.Connection, slug: str, version: int, src: s
     return db.row(conn.execute("SELECT * FROM character_assets WHERE id=?", (draft_id,)).fetchone())
 
 
+def _put_canon(conn: sqlite3.Connection, v: dict, src: Path) -> str:
+    """La canon de la version devient `src` ; l'ancienne canon passe dans les détails (rien n'est perdu)."""
+    vdir = absp(v["dir"])
+    for old in conn.execute("SELECT * FROM character_assets WHERE version_id=? AND kind='canon' AND status='kept'",
+                            (v["id"],)).fetchall():
+        op = absp(old["path"])
+        if op and op.is_file():
+            archived = _free_name(vdir / "details" / f"ancienne-canon-{old['id']}{op.suffix}")
+            archived.parent.mkdir(parents=True, exist_ok=True)
+            op.rename(archived)
+            conn.execute("UPDATE character_assets SET kind='details', path=?, label='ancienne canon' WHERE id=?",
+                         (rel(archived), old["id"]))
+        else:
+            conn.execute("UPDATE character_assets SET status='rejected' WHERE id=?", (old["id"],))
+    dest = vdir / f"canon{src.suffix.lower()}"
+    shutil.copy(src, dest)
+    return rel(dest)
+
+
+def add_pack_images(conn: sqlite3.Connection, slug: str, version: int, kind: str, srcs: list,
+                    label: str | None = None) -> list[dict]:
+    """Michael dépose ses propres images dans le pack de référence : gardées telles quelles, sans génération."""
+    if kind not in PACK_KINDS:
+        raise ProductionError(f"Catégorie inconnue : {kind}")
+    v = _draft_version(conn, slug, version)
+    out = []
+    with db.tx(conn):
+        for src in srcs:
+            src = Path(src)
+            if src.suffix.lower() not in IMAGE_EXT:
+                raise ProductionError("Une image est attendue (png, jpg, webp)")
+            if kind == "canon":
+                path = _put_canon(conn, v, src)
+            else:
+                dest = _free_name(absp(v["dir"]) / kind / f"{slugify(src.stem) or kind}{src.suffix.lower()}")
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy(src, dest)
+                path = rel(dest)
+            cur = conn.execute(
+                "INSERT INTO character_assets (version_id, kind, label, path, status, created_at, comment) "
+                "VALUES (?,?,?,?,?,?,?)", (v["id"], kind, label or src.stem, path, "kept", db.now(), "image de Michael"))
+            out.append(db.row(conn.execute("SELECT * FROM character_assets WHERE id=?", (cur.lastrowid,)).fetchone()))
+        db.log_event(conn, None, "casting", f"{slug} v{version} : {len(out)} image(s) de Michael ajoutée(s) au pack ({kind})")
+    return out
+
+
+def draft_to_pack(conn: sqlite3.Connection, slug: str, version: int, asset_id: int, kind: str) -> dict:
+    """Un brouillon déposé est pris tel quel : comme canon, ou dans une catégorie du pack. Pas de HD payante."""
+    v = _draft_version(conn, slug, version)
+    a = db.row(conn.execute("SELECT * FROM character_assets WHERE id=? AND version_id=?", (asset_id, v["id"])).fetchone())
+    if a is None or not absp(a["path"]) or not absp(a["path"]).is_file():
+        raise ProductionError("Brouillon introuvable")
+    added = add_pack_images(conn, slug, version, kind, [absp(a["path"])], label=a["label"] if kind != "canon" else "canon")
+    # la canon HD demandée pour ce brouillon n'a plus lieu d'être
+    for r in conn.execute("SELECT id, args FROM spend_requests WHERE action='canon_hd' AND status='pending' "
+                          "AND character_slug=?", (slug,)).fetchall():
+        if json.loads(r["args"]).get("version") in (version, None):
+            conn.execute("UPDATE spend_requests SET status='refused', note=?, decided_at=? WHERE id=?",
+                         ("le brouillon est pris tel quel", db.now(), r["id"]))
+    return added[0]
+
+
+def studio_characters(conn: sqlite3.Connection) -> list[dict]:
+    """Tous les personnages du studio, pour les citer avec @ : nom, slug et une vignette."""
+    out = []
+    for ch in conn.execute("SELECT slug, name, canon_version FROM characters ORDER BY name").fetchall():
+        thumb = conn.execute(
+            "SELECT a.path FROM character_assets a JOIN character_versions v ON v.id=a.version_id "
+            "WHERE v.character_slug=? AND a.status='kept' AND a.path IS NOT NULL AND a.kind IN ('canon','sheet','canon_draft') "
+            "ORDER BY CASE a.kind WHEN 'canon' THEN 0 WHEN 'sheet' THEN 1 ELSE 2 END, "
+            "(v.version = COALESCE(?, v.version)) DESC, a.id DESC LIMIT 1", (ch["slug"], ch["canon_version"])).fetchone()
+        out.append({"slug": ch["slug"], "name": ch["name"], "thumb": thumb["path"] if thumb else None})
+    return out
+
+
+def cast_for_mention(conn: sqlite3.Connection, clip_slug: str, character_slug: str) -> bool:
+    """Un personnage du studio cité par @slug dans un plan est casté dans le clip s'il ne l'est pas.
+    Sa version validée de référence d'abord ; à défaut, sa dernière version en préparation."""
+    if conn.execute("SELECT 1 FROM castings WHERE clip_slug=? AND character_slug=?", (clip_slug, character_slug)).fetchone():
+        return False
+    ch = conn.execute("SELECT * FROM characters WHERE slug=?", (character_slug,)).fetchone()
+    if ch is None:
+        raise ProductionError(f"Personnage inconnu : {character_slug}")
+    version = ch["canon_version"] or conn.execute(
+        "SELECT MAX(version) FROM character_versions WHERE character_slug=?", (character_slug,)).fetchone()[0]
+    set_casting(conn, clip_slug, character_slug, version, allow_draft=True)
+    db.log_event(conn, clip_slug, "casting", f"{ch['name']} casté (v{version}) : cité dans un plan")
+    return True
+
+
 def launch_canon_hd(conn: sqlite3.Connection, slug: str, version: int, model_key: str | None = None,
                     approved: bool = False) -> dict:
     v = _draft_version(conn, slug, version)
@@ -599,15 +708,20 @@ def launch_canon_hd(conn: sqlite3.Connection, slug: str, version: int, model_key
 
 
 def _canon_hd_prompt(vdir: Path) -> str:
-    """Prompt de la canon HD : le brouillon de Michael devient une photo réaliste, même personnage."""
-    adn = (vdir / "adn.md").read_text(encoding="utf-8") if (vdir / "adn.md").is_file() else ""
+    """Prompt de la canon HD : le brouillon de Michael devient une photo réaliste, même personnage.
+
+    Seul le résumé visuel part au modèle : la fiche complète est trop longue pour un modèle d'image
+    (elle sert aux agents). Sans résumé, le début de la fiche, coupé."""
+    res = (vdir / "resume.md").read_text(encoding="utf-8").strip() if (vdir / "resume.md").is_file() else ""
+    adn = (vdir / "adn.md").read_text(encoding="utf-8").strip() if (vdir / "adn.md").is_file() else ""
     instr = (vdir / "instructions.md").read_text(encoding="utf-8") if (vdir / "instructions.md").is_file() else ""
-    return ("Turn the reference image into a true photograph of the same person: keep exactly the same face shape, "
-            "eyes (shape and color), nose, lips, skin tone, skin marks (freckles, moles, scars) if any, hair (texture, length, volume, color), "
-            "outfit and pose. Do not beautify, do not change identity. Real skin texture with visible pores and fine "
-            "vellus hair, slight natural asymmetry, no retouching. Portrait photography, 85mm lens, f/2.8, soft "
-            "natural light, neutral background, true-to-life colors, high resolution."
-            + (f"\n\nCharacter sheet (French, authoritative):\n{adn.strip()}" if adn.strip() else "")
+    desc = res or adn[:1200]
+    return ("Turn the reference image into a true photograph of the same character, person or animal: keep exactly "
+            "the same face (or head and muzzle), eyes (shape and color), nose, skin or coat (texture, length, volume, "
+            "color, markings), hair if any, outfit if any, proportions and pose. Do not beautify, do not change "
+            "identity. Natural textures, no retouching. 85mm lens, f/2.8, soft natural light, neutral background, "
+            "true-to-life colors, high resolution."
+            + (f"\n\nCharacter: {desc}" if desc else "")
             + (f"\n\nDirector's notes (French):\n{instr.strip()}" if instr.strip() else ""))
 
 
@@ -950,7 +1064,7 @@ def clip_files(conn: sqlite3.Connection, slug: str) -> list[dict]:
 
 
 def set_casting(conn: sqlite3.Connection, clip_slug: str, character_slug: str,
-                version: int | None = None, look: str | None = None) -> None:
+                version: int | None = None, look: str | None = None, allow_draft: bool = False) -> None:
     ch = conn.execute("SELECT * FROM characters WHERE slug=?", (character_slug,)).fetchone()
     if ch is None:
         raise ProductionError(f"Personnage inconnu : {character_slug}")
@@ -958,7 +1072,7 @@ def set_casting(conn: sqlite3.Connection, clip_slug: str, character_slug: str,
     if not version:
         raise ProductionError(f"{character_slug} n'a pas de version canon validée")
     v = character_version(conn, character_slug, version)
-    if v["status"] != "validated":
+    if v["status"] != "validated" and not allow_draft:
         raise ProductionError(f"{character_slug} v{version} n'est pas validée : seule une version validée peut être castée")
     conn.execute(
         "INSERT INTO castings (clip_slug, character_slug, version, look_slug) VALUES (?,?,?,?) "
@@ -1979,6 +2093,7 @@ def clip_snapshot(conn: sqlite3.Connection, slug: str, compact: bool = False) ->
     clip["memoire_path"] = rel(memoire_file(clip))
     clip["sources_unread"] = [f["id"] for f in sources_unread(conn, slug)]
     clip["needs_agent"] = needs_agent(conn, slug)["reasons"]
+    clip["characters_all"] = studio_characters(conn)   # citables avec @slug dans les plans
     if not compact:
         clip["video_default"] = routing.default_video_model()
         clip["video_models"] = routing.video_models()

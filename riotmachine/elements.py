@@ -522,11 +522,32 @@ def link_mentions(conn: sqlite3.Connection, shot_id: int) -> list[str]:
     linked = []
     for slug in dict.fromkeys(MENTION.findall(text)):
         r = conn.execute("SELECT id FROM elements WHERE clip_slug=? AND slug=?", (shot["clip_slug"], slug)).fetchone()
+        if not r and conn.execute("SELECT 1 FROM characters WHERE slug=?", (slug,)).fetchone():
+            add_character(conn, shot_id, slug)   # un vrai personnage du studio, pas un figurant
+            linked.append(slug)
+            continue
         if r:
             conn.execute("INSERT OR IGNORE INTO shot_elements (shot_id, element_id, state) VALUES (?,?,NULL)",
                          (shot_id, r["id"]))
             linked.append(slug)
     return linked
+
+
+def add_character(conn: sqlite3.Connection, shot_id: int, slug: str) -> None:
+    """Le personnage joue dans ce plan : casté dans le clip si besoin, ajouté aux personnages du plan."""
+    from .production import cast_for_mention
+    shot = db.get_shot(conn, shot_id)
+    cast_for_mention(conn, shot["clip_slug"], slug)
+    chars = json.loads(shot.get("characters") or "[]") if isinstance(shot.get("characters"), str) else list(shot.get("characters") or [])
+    if slug not in chars:
+        chars.append(slug)
+        conn.execute("UPDATE shots SET characters=? WHERE id=?", (json.dumps(chars), shot_id))
+
+
+def remove_character(conn: sqlite3.Connection, shot_id: int, slug: str) -> None:
+    shot = db.get_shot(conn, shot_id)
+    chars = json.loads(shot.get("characters") or "[]") if isinstance(shot.get("characters"), str) else list(shot.get("characters") or [])
+    conn.execute("UPDATE shots SET characters=? WHERE id=?", (json.dumps([c for c in chars if c != slug]), shot_id))
 
 
 def request(conn: sqlite3.Connection, clip_slug: str) -> None:

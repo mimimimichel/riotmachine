@@ -27,7 +27,7 @@ Trois types d'éléments :
 - `objet` : un objet qui compte pour l'histoire ou revient d'un plan à l'autre
   (vélo, chaise cassée, paillasson, portail…).
 - `figurant` : un personnage secondaire ou un animal qui revient (le chien, les
-  voleurs, les collègues). Les personnages castés dans le clip (`casting` dans `riot clip show`) ne sont pas des figurants.
+  voleurs, les collègues). **Un personnage du studio n'est jamais un figurant** : les personnages castés (`casting`) et tous ceux du studio (`characters_all` dans `riot clip show`) ont leur propre fiche et leur pack. Quand l'un d'eux joue dans le clip (même un petit rôle, comme un chien), on le cite `@slug` dans les plans, on ne crée pas d'élément pour lui.
 
 Ne crée pas d'élément pour un détail qui n'apparaît qu'une fois et ne compte pas.
 
