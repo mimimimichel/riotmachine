@@ -804,3 +804,11 @@ details.sources-box > div { padding: 10px 0 0; }
 .dblock.locked { border-left-color: var(--led); opacity: .92; }
 .dblock.locked textarea, .dblock.locked input, .dblock.locked select { pointer-events: none; opacity: .7; }
 .dblock.locked .dshot-acts, .dblock.locked .dshot-main, .dblock.locked [data-addshot], .dblock.locked .dblock-set { display: none; }
+/* l'onde jouée garde toute sa largeur : elle se dévoile, elle ne se tasse pas */
+.tl-wave canvas { max-width: none; }
+/* blocs alternés en violet et bleu : le rouge est réservé aux problèmes, le rose à la lecture */
+.dblock.alt { border-left-color: #4da3ff; }
+.dblock.alt .dblock-head { background: linear-gradient(90deg, #4da3ff1c, transparent 70%); }
+.pill.bad { color: #ff6b6b; background: #ff4d4d1a; border-color: #ff4d4d66; }
+.dshot.badref { border-color: #ff4d4d88; }
+.refscheck .muted { color: var(--dim); font-style: italic; }

@@ -1454,7 +1454,8 @@ function renderDecoupageTab(clip) {
       <span class="hint">${state.editor.length} blocs · ${allShots.length} plans · <b id="dec-okcount">${allShots.filter((x) => x.cut_ok).length} validés</b>${(() => {
         const known = new Set(mentionables().map((e) => e.slug));
         const bad = allShots.filter((x) => ((`${x.description}\n${x.detail}`).toLowerCase().match(/@([a-z0-9][a-z0-9-]*[a-z0-9]|[a-z0-9])/g) || []).some((m) => !known.has(m.slice(1))));
-        return bad.length ? ` · <b style="color:var(--red)">${bad.length} plan${bad.length > 1 ? "s" : ""} avec un @ introuvable</b>` : " · tous les @ sont reconnus";
+        return bad.length ? ` · <b style="color:var(--red)">⚠ ${bad.length} plan${bad.length > 1 ? "s" : ""} avec un @ introuvable</b>
+          <button class="btn small ghost" data-gobadref>Voir le premier</button>` : " · tous les @ sont reconnus";
       })()}</span><span class="spacer"></span>
       <button class="btn small ghost" data-decall="open" ${nOpen === state.editor.length ? "disabled" : ""}>Tout déplier</button>
       <button class="btn small ghost" data-decall="close" ${nOpen ? "" : "disabled"}>Tout replier</button>
@@ -1471,11 +1472,12 @@ function renderDecoupageTab(clip) {
       const tech = [FRAMING_FR[s.framing] || s.framing, s.motion && `mouvement ${MOTION_FR[s.motion] || s.motion}`, s.camera].filter(Boolean).join(" · ");
       const complete = s.detail && s.framing && s.motion;
       const pend = (s.pending || []).length;
-      return `<div class="dshot ${s._open ? "open" : ""} ${bi % 2 ? "alt" : ""} ${s.cut_ok ? "ok" : ""}" id="dshot-${key}">
+      return `<div class="dshot ${s._open ? "open" : ""} ${bi % 2 ? "alt" : ""} ${s.cut_ok ? "ok" : ""} ${badRefs(s).length ? "badref" : ""}" id="dshot-${key}">
         <div class="dshot-head" data-toggleshot="${key}">
           <span class="dshot-n">${n}</span>
           ${s.cut_ok ? `<span class="pill done">validé</span>` : ""}
           ${pend ? `<span class="pill work">modif en cours</span>` : ""}
+          ${badRefs(s).length ? `<span class="pill bad" title="${esc(badRefs(s).map((x) => "@" + x).join(", "))} ne mène à aucun personnage ni élément">⚠ @ introuvable</span>` : ""}
           <span class="dshot-tc mono">${esc(s.t_start || "?")} → ${esc(s.t_end || "?")}</span>
           <span class="dshot-dur mono" data-dur="${key}">${durText(s)}</span>
           ${clip.song_path ? `<button class="iconbtn playmini" data-decplay="${key}" title="Écouter ce plan" aria-label="Écouter ce plan">▶</button>` : ""}
@@ -1532,6 +1534,8 @@ function renderDecoupageTab(clip) {
         ${(() => { const okN = b.shots.filter((x) => x.cut_ok).length;
           return `<span class="pill dblock-count ${b.shots.length && okN === b.shots.length ? "done" : okN ? "work" : "wait"}">${okN}/${b.shots.length} validés</span>`; })()}
         ${todo && !b.validated ? `<span class="pill review">${todo} à compléter</span>` : ""}
+        ${(() => { const nb = b.shots.filter((x) => badRefs(x).length).length;
+          return nb ? `<span class="pill bad">⚠ ${nb} plan${nb > 1 ? "s" : ""} avec @ introuvable</span>` : ""; })()}
         ${b.validated ? `<span class="pill done">Validé · en production</span>` : ""}
       </div>
       <div class="dblock-body">
@@ -1561,6 +1565,13 @@ function renderDecoupageTab(clip) {
 const FRAMING_FR = { ECU: "très gros plan", CU: "gros plan", MCU: "plan rapproché", MS: "plan taille", MWS: "plan américain",
   WS: "plan large", EWS: "plan très large" };
 const MOTION_FR = { static: "aucun", low: "faible", medium: "moyen", high: "fort" };
+
+/* les @ d'un plan qui ne mènent à rien */
+function badRefs(sh) {
+  const known = new Set(mentionables().map((e) => e.slug));
+  return [...new Set(((`${sh.description || ""}\n${sh.detail || ""}`).toLowerCase().match(/@([a-z0-9][a-z0-9-]*[a-z0-9]|[a-z0-9])/g) || [])
+    .map((m) => m.slice(1)).filter((x) => !known.has(x)))];
+}
 
 /* compteurs « N/M validés » du bloc et du haut, mis à jour sans redessiner la page */
 function refreshDecCounts(bi) {
@@ -2006,6 +2017,19 @@ function bindClip() {
         sh._open = !sh._open;
         document.getElementById(`dshot-${bi}:${si}`)?.classList.toggle("open", sh._open);
         if (sh._open) fitAll(document.getElementById(`dshot-${bi}:${si}`));
+        return;
+      }
+      if (d.gobadref !== undefined) {
+        for (let bi = 0; bi < state.editor.length; bi++) {
+          const si = state.editor[bi].shots.findIndex((x) => badRefs(x).length);
+          if (si >= 0) {
+            const b = state.editor[bi]; b._open = true; b.shots[si]._open = true; saveDecOpen(clip);
+            document.getElementById("decblock-" + bi)?.classList.add("open");
+            const card = document.getElementById(`dshot-${bi}:${si}`);
+            card?.classList.add("open"); card?.scrollIntoView({ behavior: "smooth", block: "center" });
+            return;
+          }
+        }
         return;
       }
       if (d.validateblock) {
@@ -3090,7 +3114,7 @@ const SENT_LABEL = { hd: "image HD", brouillon: "brouillon (pas en HD)", canon: 
 function refsCheck(...texts) {
   const idx = Object.fromEntries(mentionables().map((e) => [e.slug, e]));
   const slugs = [...new Set(texts.join("\n").toLowerCase().match(/@([a-z0-9][a-z0-9-]*[a-z0-9]|[a-z0-9])/g) || [])].map((m) => m.slice(1));
-  if (!slugs.length) return `<div class="refscheck"><span class="hint">Aucune référence @ dans ce plan.</span></div>`;
+  if (!slugs.length) return `<div class="refscheck"><span class="hint muted">Pas de @ : rien n'est envoyé en référence pour ce plan (normal s'il ne montre aucun personnage ni décor récurrent).</span></div>`;
   return `<div class="refscheck"><span class="hint">Références envoyées au modèle :</span>${slugs.map((sl) => {
     const e = idx[sl];
     if (!e) return `<span class="refchip bad" title="Aucun personnage ni élément ne s'appelle @${esc(sl)} : renomme le @ ou crée l'élément">⚠ @${esc(sl)} introuvable</span>`;
