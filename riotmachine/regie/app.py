@@ -722,7 +722,7 @@ def clip_elements(slug: str) -> dict[str, Any]:
             "spend": spend, "shots": shots, "hd_cost": round(cost, 3), "hd_model": mcfg.get("label", key),
             "hd_usable": routing.provider_usable(mcfg.get("provider", "fal")) and mcfg.get("provider") != "vertex",
             "hd_provider": (routing.models_cfg().get("providers") or {}).get(mcfg.get("provider", "fal"), {}).get("label"),
-            "drafts_usable": routing.provider_usable("cloudflare")}
+            "drafts_usable": bool(elements.draft_backends())}
 
 
 @app.post("/api/clips/{slug}/elements")

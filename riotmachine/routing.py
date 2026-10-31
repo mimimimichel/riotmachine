@@ -179,7 +179,7 @@ def shot_seconds(shot: dict[str, Any]) -> float:
 
 # Fournisseurs dont l'appel est écrit dans le code. Les autres sont déclarés
 # dans models.yaml mais attendent leur branchement.
-IMPLEMENTED_PROVIDERS = {"fal", "vertex", "kling", "runway", "gemini", "minimax", "atlas", "replicate", "evolink", "cloudflare"}
+IMPLEMENTED_PROVIDERS = {"fal", "vertex", "kling", "runway", "gemini", "minimax", "atlas", "replicate", "evolink", "cloudflare", "huggingface"}
 
 
 def _forced_simulation() -> bool:
@@ -217,8 +217,9 @@ def providers() -> list[dict[str, Any]]:
         out.append({
             "key": key, "label": cfg.get("label", key), "note": cfg.get("note", ""),
             "env": env_all + ([" ou ".join(env_any)] if env_any else []),
-            "keys": [{"name": n, "required": n in env_all, "masked": provider_keys.masked(n)}
-                     for n in env_all + list(env_any)],
+            "keys": [{"name": n, "required": n in env_all, "optional": n in (cfg.get("env_optional") or []),
+                      "masked": provider_keys.masked(n)}
+                     for n in env_all + list(env_any) + list(cfg.get("env_optional") or [])],
             "any_of": list(env_any),
             "implemented": implemented, "has_key": has_key, "enabled": enabled,
             "usable": implemented and enabled and (has_key or forced), "simulated": forced,

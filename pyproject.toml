@@ -17,6 +17,7 @@ dependencies = [
   "google-auth[requests]>=2.30",          # jeton OAuth pour Vertex AI (Veo)
   "librosa>=0.10",                         # analyse du morceau : tempo et temps
   "faster-whisper>=1.0",                   # position des paroles dans le morceau
+  "gradio_client>=1.0",                    # brouillons gratuits sur Hugging Face
 ]
 
 [project.optional-dependencies]

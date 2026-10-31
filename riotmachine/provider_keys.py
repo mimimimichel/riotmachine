@@ -36,7 +36,7 @@ def env_names(provider: str) -> list[str]:
         raise KeyError_(f"Fournisseur inconnu : {provider}")
     names = cfg.get("env") or []
     names = [names] if isinstance(names, str) else list(names)
-    return names + list(cfg.get("env_any") or [])
+    return names + list(cfg.get("env_any") or []) + list(cfg.get("env_optional") or [])
 
 
 def managed_names() -> set[str]:

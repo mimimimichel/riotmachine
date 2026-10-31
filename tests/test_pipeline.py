@@ -427,8 +427,9 @@ def test_element_free_drafts(studio, tmp_path, monkeypatch):
         dest.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy(img, dest)
         return dest
+    monkeypatch.setattr(elements, "draft_backends", lambda: [("cloudflare", "klein-9b", "test")])
     monkeypatch.setattr(cloudflare, "generate", fake)
-    r = elements.launch_drafts(conn, e["id"], "le canapé vert de la 2e image", 2)
+    r = elements.launch_drafts(conn, e["id"], "le canapé vert de la 2e image", 2, background=False)
     assert len(r["images"]) == 2 and r["cost_usd"] == 0
     assert seen["n"] == 2 and "canapé vert" in seen["prompt"]
     ce = elements.clip_elements(conn, "salon")[0]

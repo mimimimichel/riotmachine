@@ -2341,6 +2341,7 @@ async function showProviders() {
     const keys = p.keys.map((k) => `<div class="pkey">
         <div class="row" style="gap:6px"><span class="mono">${esc(k.name)}</span>
           ${p.any_of.includes(k.name) && p.any_of.length > 1 ? `<span class="hint">(une des ${p.any_of.length} suffit)</span>` : ""}
+          ${k.optional ? `<span class="hint">(facultative)</span>` : ""}
           <span class="spacer"></span>${k.masked ? `<span class="mono hint">${esc(k.masked)}</span>` : `<span class="hint">absente</span>`}</div>
         <div class="row" style="gap:6px">
           <input type="password" autocomplete="off" data-pkeyval="${esc(p.key)}:${esc(k.name)}" placeholder="${k.masked ? "Nouvelle valeur pour la changer" : "Colle la clé ici"}" style="flex:1;min-width:150px">
@@ -2352,7 +2353,7 @@ async function showProviders() {
       <p class="hint">${esc(p.note)}</p>
       ${cr ? `<div class="progress"><i style="width:${Math.min(100, (100 * cr.spent) / cr.usd)}%"></i></div>
         <p class="mono" style="font-size:13px">${esc(cr.label)} : ${money(cr.remaining)} restants sur ${cr.usd.toFixed(0)} $${cr.expires ? ` · jusqu'au ${esc(cr.expires)}` : ""}</p>` : ""}
-      <details class="fold" ${p.implemented && p.enabled && !p.has_key ? "open" : ""}><summary>Clés${p.has_key ? "" : " · à renseigner"}</summary><div class="stack" style="gap:10px">${keys}
+      <details class="fold" ${p.implemented && p.enabled && !p.has_key ? "open" : ""}><summary>Clés${p.has_key ? (p.keys.some((k) => k.optional && !k.masked) ? " · facultative" : "") : " · à renseigner"}</summary><div class="stack" style="gap:10px">${keys}
         <p class="hint">La clé est rangée sur le PC (fichier .env) et n'est jamais réaffichée : seuls ses 4 derniers caractères le sont.</p></div></details>
       <div class="row"><button class="btn small ${p.enabled ? "ghost" : "go"}" data-penable="${esc(p.key)}:${p.enabled ? "0" : "1"}">${p.enabled ? "Désactiver" : "Activer"}</button>
         <span class="hint">${p.enabled ? "Une fois désactivé, il n'est plus utilisé, même avec ses clés." : "Il n'est pas utilisé tant qu'il est désactivé."}</span></div>
@@ -2571,7 +2572,7 @@ async function loadDecors(clip, keep = false) {
           ${draftProp.length ? `<p class="hint">Garde le brouillon qui te plaît, écarte les autres.</p>${elGrid(draftProp, "choose")}` : ""}
           <div class="row" style="gap:8px">
             <button class="btn ${drafts.length ? "" : "go"}" data-eldrafts="${e.id}" ${d.drafts_usable ? "" : "disabled"}>${draftProp.length || drafts.length ? "Créer 2 autres brouillons" : "Créer 2 brouillons"} · gratuit</button>
-            <span class="hint">${d.drafts_usable ? "Une dizaine de secondes." : "Pas encore branché : il manque le jeton Cloudflare (gratuit)."}</span></div>
+            <span class="hint">${d.drafts_usable ? "Gratuit. De quelques secondes à deux minutes." : "Aucune option gratuite branchée (page Fournisseurs)."}</span></div>
           <details class="fold"><summary>Ou dépose ton propre brouillon</summary><div class="stack" style="gap:6px">
             ${dropZone(`el:${e.id}:draft`, "Déposer ton brouillon", "png, jpg ou webp", "image/*", false)}</div></details>
         </div>
@@ -2704,7 +2705,7 @@ async function loadDecors(clip, keep = false) {
         t.disabled = true; t.textContent = "Création des brouillons…";
         await api(`/api/elements/${dd.eldrafts}/drafts`, { json: { brief, n: 2 } });
         remember(dd.eldrafts);
-        toast("Brouillons prêts : garde le bon"); return reload();
+        toast("Brouillons lancés : ils arrivent ici, de quelques secondes à deux minutes"); return reload();
       }
       if (dd.eldescribe) {
         await api(`/api/elements/${dd.eldescribe}/describe`, { method: "POST" });
@@ -2752,8 +2753,10 @@ async function loadDecors(clip, keep = false) {
 function elGrid(list, mode) {
   return `<div class="packgrid elgrid">${list.map((i) => `<div class="packitem ${mode === "kept" ? "kept" : ""}">
       ${i.status === "generating" ? `<div class="none" style="aspect-ratio:4/3;display:grid;place-items:center">${led("work")} en cours</div>`
+        : i.status === "failed" ? `<div class="none" style="aspect-ratio:4/3;display:grid;place-items:center;padding:8px;font-size:12px;text-align:center">Échec : ${esc((i.error || "").slice(0, 160))}</div>`
         : `<img src="${media(i.path)}" data-zoom="${media(i.path)}" alt="">`}
-      <div class="pi"><span class="hint">${i.role === "inspi" ? "inspiration" : i.role === "draft" ? (i.source === "gen" ? "brouillon" : "ton image") : i.source === "michael" ? "ton image HD" : "image HD"}</span>
+      <div class="pi"><span class="hint">${i.role === "inspi" ? "inspiration" : i.role === "draft" ? (i.source === "gen" ? esc(i.label || "brouillon") : "ton image") : i.source === "michael" ? "ton image HD" : "image HD"}</span>
+        ${i.status === "failed" ? `<button class="btn small ghost" data-elpick="${i.id}:reject">Retirer</button>` : ""}
         ${mode === "choose" && i.status === "proposed" ? `<div class="row" style="gap:6px"><button class="btn small ok" data-elpick="${i.id}:keep">Garder</button>
           <button class="btn small" data-elpick="${i.id}:reject">Écarter</button></div>` : ""}
         ${mode !== "choose" ? `<button class="btn small ghost" data-elpick="${i.id}:reject">Retirer</button>` : ""}</div></div>`).join("")}</div>`;

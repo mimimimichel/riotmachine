@@ -129,7 +129,13 @@ restants, toutes les offres classées par coût et le carnet de rodage.
 Règle de Michael (30/10/2026) : les 300 $ de crédits Google Cloud sont réservés à
 la **vidéo**. Aucune image ne part chez Google (le code le refuse).
 
-- **Brouillons des décors** : Cloudflare Workers AI, plan gratuit (10 000 neurones
+- **Brouillons des décors** : toutes les options gratuites, en chaîne. D'abord
+  Hugging Face (Spaces officiels Qwen Image Edit 2511 puis FLUX.2 dev, GPU gratuits :
+  2 min par jour sans compte, 5 min avec un compte gratuit, jeton `HF_TOKEN`
+  facultatif), puis Cloudflare (klein 9B, puis 4B). Quand une option a épuisé son
+  quota du jour ou échoue, la suivante prend le relais. Pour les éléments
+  importants (le chien, par exemple), Michael fait le brouillon lui-même.
+- Détail Cloudflare : Workers AI, plan gratuit (10 000 neurones
   par jour, renouvelés chaque jour, sans carte). FLUX.2 [klein] 4B, environ 90
   images 1024 px par jour, jusqu'à 4 images d'inspiration en entrée. Clés :
   `CLOUDFLARE_ACCOUNT_ID` et `CLOUDFLARE_API_TOKEN` (jeton avec la permission

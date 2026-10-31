@@ -59,10 +59,15 @@ providers:
     env_any: [VERTEX_API_KEY, GOOGLE_APPLICATION_CREDENTIALS]
     note: Veo 3.1. Seule voie payable par les 300 $ de l'essai Google Cloud. Pas de format 1:1.
     credits: {label: "crédits Google Cloud", usd: 300, start: "2026-10-29", expires: "2027-01-27"}
+  huggingface:
+    label: Hugging Face (gratuit)
+    env: []
+    env_optional: [HF_TOKEN]
+    note: "Brouillons gratuits, la meilleure option : Qwen Image Edit et FLUX.2 dev. 2 min de calcul par jour sans compte, 5 min avec un compte gratuit (HF_TOKEN, facultatif)."
   cloudflare:
     label: Cloudflare Workers AI (gratuit)
     env: [CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_API_TOKEN]
-    note: Brouillons des décors, gratuits (FLUX.2 klein, environ 90 images par jour, plan gratuit sans carte).
+    note: "Brouillons gratuits, en secours de Hugging Face : FLUX.2 klein 9B (7 par jour) puis 4B. Plan gratuit sans carte."
   kling:
     label: Kling AI (API officielle)
     env: [KLING_API_KEY]

@@ -282,7 +282,8 @@ def draft_prompt(e: dict, brief: str, n_refs: int) -> str:
         parts.append(f"Use the {n_refs} reference image{'s' if n_refs > 1 else ''} (image 0"
                      + "".join(f", image {i}" for i in range(1, n_refs)) + ") as inspiration: "
                      "combine them into one coherent picture as the direction says.")
-    if (e.get("description") or "").strip():
+    if not n_refs and not brief.strip() and (e.get("description") or "").strip():
+        # la fiche ne sert qu'en dernier recours : elle ne doit jamais contredire les images ou l'instruction
         parts.append(f"Appearance notes (French): {e['description'].strip()}")
     parts.append({"decor": "Wide establishing view, no people.",
                   "objet": "The whole object, alone, plain neutral background.",
@@ -291,41 +292,92 @@ def draft_prompt(e: dict, brief: str, n_refs: int) -> str:
     return " ".join(parts)
 
 
-def launch_drafts(conn: sqlite3.Connection, element_id: int, brief: str | None = None, n: int = 2) -> dict:
-    """Brouillons gratuits (Cloudflare) à partir des images d'inspiration et du texte de Michael.
+# Brouillons : toutes les options gratuites, de la meilleure à la plus simple. Quand une option
+# a épuisé son quota du jour (ou échoue), la suivante prend le relais.
+DRAFT_CHAIN = [("huggingface", "qwen-edit-2511", "Qwen Image Edit (Hugging Face)"),
+               ("huggingface", "flux2-dev", "FLUX.2 dev (Hugging Face)"),
+               ("cloudflare", "klein-9b", "FLUX.2 klein 9B (Cloudflare)"),
+               ("cloudflare", "klein-4b", "FLUX.2 klein 4B (Cloudflare)")]
 
-    Synchrone : les images arrivent en quelques secondes, à choisir (garder ou écarter)."""
-    from .providers import cloudflare
+
+def draft_backends() -> list[tuple[str, str, str]]:
+    return [b for b in DRAFT_CHAIN if routing.provider_usable(b[0])]
+
+
+def _draft_one(backend: tuple[str, str, str], text: str, inspi: list[Path], out: Path, w: int, h: int) -> None:
+    import random
+    from .providers import cloudflare, hfspace
+    seed = random.randint(1, 2**31 - 1)
+    if backend[0] == "cloudflare":
+        cloudflare.generate(text, inspi, out, width=w, height=h, seed=seed, model=backend[1])
+    else:
+        hfspace.generate(backend[1], text, inspi, out, width=w, height=h, seed=seed)
+
+
+def _run_drafts(element_id: int, ids: list[int], text: str, inspi: list[Path], w: int, h: int) -> None:
     from .providers._http import ProviderError
+    conn = db.connect()
+    e = _element(conn, element_id)
+    dead: set[tuple] = set()
+    made, errors = 0, []
+    for image_id in ids:
+        out = _free_name(absp(e["dir"]) / "brouillons" / f"brouillon-{db.now()[:10]}.png")
+        done = False
+        for b in draft_backends():
+            if b in dead:
+                continue
+            try:
+                _draft_one(b, text, inspi, out, w, h)
+            except (ProviderError, OSError, subprocess.CalledProcessError, ValueError) as exc:
+                dead.add(b)
+                errors.append(f"{b[2]} : {exc}")
+                continue
+            conn.execute("UPDATE element_images SET status='proposed', path=?, model_key=?, label=? WHERE id=?",
+                         (rel(out), f"{b[0]}:{b[1]}", f"brouillon · {b[2]}", image_id))
+            conn.commit()
+            done, made = True, made + 1
+            break
+        if not done:
+            conn.execute("UPDATE element_images SET status='failed', error=? WHERE id=?",
+                         ("; ".join(errors[-3:])[:500] or "aucune option gratuite disponible", image_id))
+            conn.commit()
+    db.log_event(conn, e["clip_slug"], "decors",
+                 f"{made} brouillon(s) gratuit(s) : {e['name']}" + (f" ({len(ids) - made} en échec)" if made < len(ids) else ""))
+    conn.commit()
+
+
+def launch_drafts(conn: sqlite3.Connection, element_id: int, brief: str | None = None, n: int = 2,
+                  background: bool = True) -> dict:
+    """Brouillons gratuits à partir des images et de l'instruction de Michael.
+
+    Les images arrivent en arrière-plan (de quelques secondes à deux minutes), à choisir ensuite."""
     e = _element(conn, element_id)
     if brief is not None:
         set_brief(conn, element_id, brief)
         e = _element(conn, element_id)
+    if not draft_backends():
+        raise ProductionError("Aucune option gratuite de brouillon n'est branchée (page Fournisseurs)")
     inspi = [p for p in (absp(r["path"]) for r in conn.execute(
         "SELECT path FROM element_images WHERE element_id=? AND role='inspi' AND status='kept' AND path IS NOT NULL "
         "ORDER BY id", (element_id,)).fetchall()) if p and p.is_file()][:4]
     if not inspi and not (e.get("brief") or "").strip():
-        raise ProductionError("Ajoute des images d'inspiration ou écris ce que tu veux")
+        raise ProductionError("Ajoute des images ou écris ton instruction")
     text = draft_prompt(e, e.get("brief") or "", len(inspi))
     w, h = DRAFT_SIZE[e["kind"]]
-    made = []
-    import random
-    for i in range(max(1, min(n, 4))):
-        out = _free_name(absp(e["dir"]) / "brouillons" / f"brouillon-{db.now()[:10]}.png")
-        try:
-            cloudflare.generate(text, inspi, out, width=w, height=h, seed=random.randint(1, 2**31 - 1))
-        except (ProviderError, OSError, subprocess.CalledProcessError) as exc:
-            if not made:
-                raise ProductionError(str(exc))
-            break
-        cur = conn.execute(
-            "INSERT INTO element_images (element_id, source, path, label, prompt, model_key, cost_usd, funding, "
-            "status, role, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-            (element_id, "gen", rel(out), "brouillon", text, "cloudflare-flux2-klein", 0, "free", "proposed", "draft",
-             db.now()))
-        made.append(cur.lastrowid)
-    db.log_event(conn, e["clip_slug"], "decors", f"{len(made)} brouillon(s) gratuit(s) : {e['name']}")
-    return {"images": made, "cost_usd": 0}
+    ids = []
+    with db.tx(conn):
+        for _ in range(max(1, min(n, 4))):
+            cur = conn.execute(
+                "INSERT INTO element_images (element_id, source, label, prompt, model_key, cost_usd, funding, status, "
+                "role, created_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                (element_id, "gen", "brouillon", text, "gratuit", 0, "free", "generating", "draft", db.now()))
+            ids.append(cur.lastrowid)
+    if background:
+        import threading
+        threading.Thread(target=_run_drafts, args=(element_id, ids, text, inspi, w, h), daemon=True).start()
+    else:
+        _run_drafts(element_id, ids, text, inspi, w, h)
+    return {"images": ids, "cost_usd": 0}
 
 
 def launch_ready(conn: sqlite3.Connection, clip_slug: str) -> dict:
@@ -430,8 +482,8 @@ def clip_elements(conn: sqlite3.Connection, clip_slug: str) -> list[dict]:
         e = dict(r)
         e["states"] = json.loads(e["states"] or "[]")
         e["images"] = db.rows(conn.execute(
-            "SELECT id, state, source, role, path, label, status, cost_usd, model_key FROM element_images "
-            "WHERE element_id=? AND status IN ('generating','proposed','kept') ORDER BY id", (e["id"],)).fetchall())
+            "SELECT id, state, source, role, path, label, status, cost_usd, model_key, error FROM element_images "
+            "WHERE element_id=? AND status IN ('generating','proposed','kept','failed') ORDER BY id", (e["id"],)).fetchall())
         e["shots"] = [x["num"] for x in conn.execute(
             "SELECT s.num FROM shot_elements se JOIN shots s ON s.id=se.shot_id WHERE se.element_id=? ORDER BY s.num",
             (e["id"],)).fetchall()]
