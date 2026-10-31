@@ -1239,6 +1239,12 @@ def import_shots(conn: sqlite3.Connection, slug: str, shots: Any, by: str = "age
                     if src and int(src) in existing:
                         conn.execute("INSERT OR IGNORE INTO shot_elements (shot_id, element_id, state) "
                                      "SELECT ?, element_id, state FROM shot_elements WHERE shot_id=?", (new_id, int(src)))
+        if by != "michael":
+            for sid, old in existing.items():
+                new_row = conn.execute("SELECT description, detail, t_start, t_end FROM shots WHERE id=?", (sid,)).fetchone()
+                if new_row and (new_row["description"], new_row["detail"], new_row["t_start"], new_row["t_end"]) != (
+                        old.get("description"), old.get("detail"), old.get("t_start"), old.get("t_end")):
+                    conn.execute("UPDATE shots SET cut_ok=0 WHERE id=?", (sid,))
         gone = set(existing) - kept
         for sid in gone:
             conn.execute("DELETE FROM shot_notes WHERE shot_id=?", (sid,))
@@ -1319,6 +1325,29 @@ def set_detail(conn: sqlite3.Connection, shot_id: int, text: str) -> dict:
     from . import elements
     elements.link_mentions(conn, shot_id)
     return db.get_shot(conn, shot_id)
+
+
+def set_cut_ok(conn: sqlite3.Connection, shot_id: int, ok: bool) -> None:
+    """Michael valide (ou dévalide) un plan du découpage, avant de valider le découpage entier."""
+    shot = db.get_shot(conn, shot_id)
+    if db.get_clip(conn, shot["clip_slug"])["stage"] not in ("script", "decoupage_review"):
+        raise ProductionError("Le découpage est déjà validé")
+    conn.execute("UPDATE shots SET cut_ok=? WHERE id=?", (1 if ok else 0, shot_id))
+
+
+def request_shot_change(conn: sqlite3.Connection, shot_id: int, comment: str) -> None:
+    """Michael demande au scénariste de modifier un seul plan du découpage."""
+    shot = db.get_shot(conn, shot_id)
+    if db.get_clip(conn, shot["clip_slug"])["stage"] not in ("script", "decoupage_review"):
+        raise ProductionError("Le découpage est déjà validé : demande la modif dans le panneau du plan")
+    if not comment.strip():
+        raise ProductionError("Écris ce que tu veux changer")
+    with db.tx(conn):
+        conn.execute("INSERT INTO reviews (clip_slug, shot_id, gate, decision, comment, handled, created_at) "
+                     "VALUES (?,?,?,?,?,?,?)", (shot["clip_slug"], shot_id, "decoupage", "change", comment.strip(), 0, db.now()))
+        conn.execute("UPDATE shots SET cut_ok=0 WHERE id=?", (shot_id,))
+        db.add_note(conn, shot_id, "michael", comment.strip())
+        db.log_event(conn, shot["clip_slug"], "decoupage", f"Plan {shot['num']} : modif demandée au scénariste")
 
 
 def request_completion(conn: sqlite3.Connection, slug: str) -> None:

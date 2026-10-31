@@ -205,6 +205,15 @@ Michael peut te demander de compléter les plans sans `detail`, `framing` ou
 `motion`. Tu complètes ces champs seulement. Tu ne changes ni les timecodes, ni
 les `description`, ni un `detail` écrit par Michael. Réimporte avec les `id`.
 
+## Si Michael a demandé une modif sur un seul plan
+
+Un retour de `pending_reviews` (gate `decoupage`) qui porte un `shot_id` ne
+concerne **que ce plan** : applique sa demande à ce plan (ligne courte, prompt
+détaillé, cadrage, durée si demandé), sans toucher aux autres, réimporte avec les
+`id`, puis `riot review handle <id> --route script --note "<ce que tu as changé>"`.
+Un plan que tu modifies perd sa validation : Michael le revalide. Dans la régie, tu
+t'appelles « le scénariste ».
+
 ## Si Michael a commenté le découpage
 
 Applique exactement ce qu'il demande, réimporte, puis marque chaque retour traité :

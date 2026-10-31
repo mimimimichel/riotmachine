@@ -581,15 +581,15 @@ async function loadScenario(clip) {
         <div class="row"><button class="btn small ok" data-scpick="${esc(x.key)}:accept">Accepter${x.kind === "pitch" || x.kind === "concept" ? ` (remplace ton ${x.kind})` : " (ajouté au dossier)"}</button>
           <button class="btn small ghost" data-scpick="${esc(x.key)}:reject">Écarter</button></div>`
         : `<pre class="text">${esc(x.text)}</pre>`}</div>`).join("") : "";
-  box.innerHTML = `<div class="panel-head"><h2>Scénariste</h2>
-      <span class="hint">Colle un brainstorm brut (conversation, notes). Le scénariste en tire un pitch, un concept,
+  box.innerHTML = `<div class="panel-head"><h2>Atelier d'idées</h2>
+      <span class="hint">Colle un brainstorm brut (conversation, notes). L'atelier en tire un pitch, un concept,
         des blocs et des idées de plans, en évitant les clichés. Tu acceptes ou écartes chaque partie.</span></div>
-    ${sc.status === "requested" ? `<div class="agentbar">${led("work")}Le scénariste lit ton brainstorm. Ses propositions arrivent ici.</div>` : ""}
+    ${sc.status === "requested" ? `<div class="agentbar">${led("work")}L'atelier d'idées lit ton brainstorm. Ses propositions arrivent ici.</div>` : ""}
     ${prop ? `${prop.resume ? `<p>${esc(prop.resume)}</p>` : ""}${open.length ? `<p class="hint">${open.length} partie${open.length > 1 ? "s" : ""} en attente de validation.</p>` : ""}
       <div class="stack" style="gap:10px">${parts}</div>` : ""}
     <details class="fold" ${prop ? "" : "open"}><summary>Coller un brainstorm</summary><div class="stack" style="gap:6px">
       <textarea id="brainstorm" rows="8" placeholder="Colle ici la conversation ou tes notes, telles quelles"></textarea>
-      <div class="row"><button class="btn go" data-brainstorm>Envoyer au scénariste</button></div></div></details>`;
+      <div class="row"><button class="btn go" data-brainstorm>Envoyer à l'atelier d'idées</button></div></div></details>`;
   fitAll(box);
   box.onclick = async (ev) => {
     const t = ev.target.closest("button");
@@ -600,7 +600,7 @@ async function loadScenario(clip) {
         if (!text) { toast("Colle d'abord ton brainstorm", "err"); return; }
         t.disabled = true;
         await api(`/api/clips/${encodeURIComponent(clip.slug)}/brainstorm`, { json: { text } });
-        toast("Brainstorm envoyé au scénariste");
+        toast("Brainstorm envoyé à l'atelier d'idées");
         return loadScenario(clip);
       }
       if (t.dataset.scpick) {
@@ -918,6 +918,10 @@ function renderPlans(clip) {
       Les plans apparaissent ici une fois le découpage validé. Commence par l'onglet
       <a href="#/clip/${encodeURIComponent(clip.slug)}/decoupage">Découpage</a>.</p></div>`;
   }
+  const preBanner = preProduction() ? `<div class="actionbox" style="margin-bottom:16px"><h3>Les plans ne sont pas encore en production</h3>
+      <p class="hint">Ici, tu suivras chaque plan de son visuel à sa vidéo finale, avec ses boutons de validation. Ils démarrent quand tu valides le découpage.
+        Pour l'instant, relis, modifie et valide les plans dans l'onglet Découpage.</p>
+      <div class="row"><a class="btn go" href="#/clip/${encodeURIComponent(clip.slug)}/decoupage">Aller au découpage</a></div></div>` : "";
   const c = clipCounts(clip);
   const filters = [
     ["all", "Tous", clip.shots.length], ["review", "À valider", c.review], ["work", "En cours", c.work],
@@ -956,7 +960,7 @@ function renderPlans(clip) {
     </section>`;
   }).join("");
   const nextReview = clip.shots.find((s) => shotState(s) === "review");
-  return `${stageSummary(clip)}
+  return `${preBanner}${stageSummary(clip)}
     <div class="toolbar">
       ${filters.map(([k, l, n]) => `<button class="chip ${state.filter === k ? "on" : ""}" data-filter="${k}">${l}${n ? `<span class="n">${n}</span>` : ""}</button>`).join("")}
       ${state.stepFilter ? `<button class="chip on" data-stepfilter="">${esc(STEPS[STEP_INDEX[state.stepFilter]].label)} ✕</button>` : ""}
@@ -1383,7 +1387,8 @@ function editorFromClip(clip) {
     name: b.name, intention: b.intention || "", look: b.look || "",
     shots: b.shot_ids.map((id) => shotById[id]).filter(Boolean).map((s) => ({
       id: s.id, t_start: tc(s.t_start), t_end: tc(s.t_end), description: s.description, detail: s.detail || "",
-      detail_edited: !!s.detail_edited, model_key: s.model_key || "", singing: !!s.singing,
+      detail_edited: !!s.detail_edited, model_key: s.model_key || "", singing: !!s.singing, cut_ok: !!s.cut_ok,
+      pending: (clip.pending_reviews || []).filter((r) => r.gate === "decoupage" && r.shot_id === s.id).map((r) => r.comment),
       framing: s.framing, motion: s.motion, camera: s.camera, characters: s.characters, notes: s.notes,
     })),
   }));
@@ -1409,7 +1414,7 @@ function renderDecoupageTab(clip) {
   const summary = clip.shots.length ? `<div class="panel dec-summary" style="margin-bottom:16px">
       <div class="row" style="gap:14px">
         <span>${incomplete ? `${pill(`${incomplete} plan${incomplete > 1 ? "s" : ""} incomplet${incomplete > 1 ? "s" : ""}`, "review")}` : pill("Tous les plans sont complets", "done")}</span>
-        ${incomplete ? `<button class="btn small" data-complete>Faire compléter par le script doctor</button>` : ""}
+        ${incomplete ? `<button class="btn small" data-complete>Faire compléter par le scénariste</button>` : ""}
         <span class="spacer"></span>
         <span class="mono">Vidéo estimée : ~${money(clip.video_cost_usd)}</span>
       </div>
@@ -1423,26 +1428,26 @@ function renderDecoupageTab(clip) {
       <p class="hint">Relis chaque plan : sa ligne courte, son prompt détaillé, son modèle vidéo. Corrige directement
         ci-dessous, enregistre, puis valide pour lancer le storyboard. Les plans incomplets et les durées mal adaptées
         au modèle sont signalés.</p>
-      ${clip.script_notes ? `<details class="fold"><summary>Notes de relecture du script doctor</summary><div><pre class="text">${esc(clip.script_notes)}</pre></div></details>` : ""}
+      ${clip.script_notes ? `<details class="fold"><summary>Notes de relecture du scénariste</summary><div><pre class="text">${esc(clip.script_notes)}</pre></div></details>` : ""}
       <div class="row"><button class="btn ok" data-cut="approve">Valider le découpage</button>
         <button class="btn ghost" data-cut="open">Demander des changements</button></div>
       <div class="feedback stack" id="fb-cut" hidden>
         <textarea placeholder="Ex. : fusionner les plans 4 et 5, le refrain commence sur un plan large…"></textarea>
-        <div class="row"><button class="btn go" data-cut="change">Envoyer au script doctor</button></div></div>
+        <div class="row"><button class="btn go" data-cut="change">Envoyer au scénariste</button></div></div>
     </div>`;
   } else {
     head = `<div class="panel" style="margin-bottom:16px"><div class="panel-head"><h2>Ton découpage</h2></div>
       <p class="hint">Saisis tes blocs (intro, couplet, refrain…) et les plans de chaque bloc avec leurs timecodes,
         en écoutant le morceau. Format des temps : <span class="mono">1:04.2</span> ou <span class="mono">64.2</span>.
-        Tu peux aussi déposer ton découpage dans le dossier de réalisation : le script doctor le reprendra.
+        Tu peux aussi déposer ton découpage dans le dossier de réalisation : le scénariste le reprendra.
         Une fois prêt, envoie le tout depuis l'onglet <a href="#/clip/${encodeURIComponent(clip.slug)}/dossier">Dossier</a>.</p>
-      ${clip.script_notes ? `<details class="fold" style="margin-top:10px" open><summary>Notes du script doctor</summary><div><pre class="text">${esc(clip.script_notes)}</pre></div></details>` : ""}
+      ${clip.script_notes ? `<details class="fold" style="margin-top:10px" open><summary>Notes du scénariste</summary><div><pre class="text">${esc(clip.script_notes)}</pre></div></details>` : ""}
     </div>`;
   }
   let n = 0;
   const nOpen = state.editor.filter((b) => b._open).length;
   const tools = `<div class="dec-tools">
-      <span class="hint">${state.editor.length} blocs · ${allShots.length} plans</span><span class="spacer"></span>
+      <span class="hint">${state.editor.length} blocs · ${allShots.length} plans · <b>${allShots.filter((x) => x.cut_ok).length} validés</b></span><span class="spacer"></span>
       <button class="btn small ghost" data-decall="open" ${nOpen === state.editor.length ? "disabled" : ""}>Tout déplier</button>
       <button class="btn small ghost" data-decall="close" ${nOpen ? "" : "disabled"}>Tout replier</button>
     </div>`;
@@ -1457,16 +1462,19 @@ function renderDecoupageTab(clip) {
       const fit = fitFor(clip, s.model_key, parseTc(s.t_end) - parseTc(s.t_start));
       const tech = [FRAMING_FR[s.framing] || s.framing, s.motion && `mouvement ${MOTION_FR[s.motion] || s.motion}`, s.camera].filter(Boolean).join(" · ");
       const complete = s.detail && s.framing && s.motion;
-      return `<div class="dshot ${s._open ? "open" : ""} ${bi % 2 ? "alt" : ""}" id="dshot-${key}">
+      const pend = (s.pending || []).length;
+      return `<div class="dshot ${s._open ? "open" : ""} ${bi % 2 ? "alt" : ""} ${s.cut_ok ? "ok" : ""}" id="dshot-${key}">
         <div class="dshot-head" data-toggleshot="${key}">
           <span class="dshot-n">${n}</span>
+          ${s.cut_ok ? `<span class="pill done">validé</span>` : ""}
+          ${pend ? `<span class="pill work">modif en cours</span>` : ""}
           <span class="dshot-tc mono">${esc(s.t_start || "?")} → ${esc(s.t_end || "?")}</span>
           <span class="dshot-dur mono" data-dur="${key}">${durText(s)}</span>
           ${s.singing ? `<span class="dshot-sing" title="Plan chanté : lip-sync">♪</span>` : ""}
           <span class="dshot-model hint">${esc((modelOf(clip, s.model_key) || {}).label || "")}</span>
           <span data-fit="${key}">${fit && fit.level !== "ok" ? `<span class="fit ${fit.level}">${esc(fit.short)}</span>` : ""}</span>
           <span class="spacer"></span>
-          ${complete ? "" : `<span class="pill review">à compléter</span>`}
+          ${complete || pend ? "" : `<span class="pill review">à compléter</span>`}
           <span class="chev">›</span>
         </div>
         <div class="dshot-sum" data-toggleshot="${key}">
@@ -1483,8 +1491,17 @@ function renderDecoupageTab(clip) {
           </div>
           <label class="field"><span>Ce qu'on voit (ligne courte)</span>
             <textarea rows="2" data-mention data-sf="${key}:description" placeholder="Ce qu'on voit, en une ligne (tape @ pour citer un décor)">${esc(s.description)}</textarea></label>
-          <label class="field"><span>Prompt détaillé${s.detail_edited ? " · écrit par toi" : s.detail ? " · écrit par le script doctor" : " · à écrire"}</span>
-            <textarea rows="5" data-mention data-sf="${key}:detail" placeholder="Le plan en détail : sujet, action, décor, lumière, cadrage. Le script doctor le remplit, tu peux le réécrire.">${esc(s.detail || "")}</textarea></label>
+          <label class="field"><span>Prompt détaillé${s.detail_edited ? " · écrit par toi" : s.detail ? " · écrit par le scénariste" : " · à écrire"}</span>
+            <textarea rows="5" data-mention data-sf="${key}:detail" placeholder="Le plan en détail : sujet, action, décor, lumière, cadrage. Le scénariste le remplit, tu peux le réécrire.">${esc(s.detail || "")}</textarea></label>
+          ${pend ? `<div class="agentbar">${led("work")}Modif demandée au scénariste : « ${esc(s.pending[s.pending.length - 1])} ». Il s'en occupe.</div>` : ""}
+          <div class="row dshot-main" style="gap:8px">
+            <button class="btn small" data-savedec>Enregistrer</button>
+            ${s.id ? `<button class="btn small ${s.cut_ok ? "ghost" : "ok"}" data-cutok="${s.id}:${s.cut_ok ? "0" : "1"}">${s.cut_ok ? "Retirer la validation" : "Valider ce plan"}</button>
+              <button class="btn small ghost" data-cutask="${key}">Demander une modif au scénariste</button>` : ""}
+          </div>
+          <div class="feedback stack" id="cutask-${key}" hidden>
+            <textarea rows="2" placeholder="Ce que tu veux changer dans ce plan"></textarea>
+            <div class="row"><button class="btn small go" data-cutsend="${key}:${s.id || ""}">Envoyer au scénariste</button></div></div>
           <div class="dshot-acts">
             ${si < b.shots.length - 1 ? `<button class="btn small ghost" data-mergeshot="${key}">Fusionner avec le plan suivant</button>` : ""}
             <button class="btn small ghost" data-splitshot="${key}">Couper en deux</button>
@@ -1502,7 +1519,10 @@ function renderDecoupageTab(clip) {
           <span class="mono">${a != null && !isNaN(a) ? tc(a) : "?"} → ${e != null && !isNaN(e) ? tc(e) : "?"} · ${b.shots.length ? `plans ${first} à ${n}` : "aucun plan"}${a != null && e != null && !isNaN(a) && !isNaN(e) ? ` · ${(e - a).toFixed(0)} s` : ""}</span>
           ${b.intention ? `<span class="dblock-int">${esc(b.intention)}</span>` : ""}
         </span>
-        ${todo ? `<span class="pill review">${todo} à compléter</span>` : b.shots.length ? `<span class="pill done">complet</span>` : ""}
+        ${(() => { const okN = b.shots.filter((x) => x.cut_ok).length;
+          return b.shots.length && okN === b.shots.length ? `<span class="pill done">${okN}/${b.shots.length} validés</span>`
+            : `<span class="pill ${okN ? "work" : "wait"}">${okN}/${b.shots.length} validés</span>`; })()}
+        ${todo ? `<span class="pill review">${todo} à compléter</span>` : ""}
       </div>
       <div class="dblock-body">
         <details class="fold dblock-set"><summary>Nom, intention et lumière du bloc</summary><div class="stack" style="gap:8px">
@@ -1586,7 +1606,7 @@ function renderDossier(clip) {
     const hasDocs = of("dossier").length || of("lyrics").length;
     const ready = clip.song_path && (hasDec || hasDocs);
     cta = clip.brief_ready
-      ? `<div class="agentbar">${led("work")}Dossier envoyé au script doctor. Il prépare le découpage ; tu seras prévenu.
+      ? `<div class="agentbar">${led("work")}Dossier envoyé au scénariste. Il prépare le découpage ; tu seras prévenu.
           Si tu ajoutes un fichier ou modifies ton découpage, il le reprendra.</div>`
       : `<div class="actionbox" style="margin-bottom:16px"><h3>Prêt pour le découpage ?</h3>
         <div class="checklist">
@@ -1595,9 +1615,9 @@ function renderDossier(clip) {
           <div>${led(of("dossier").length ? "done" : "wait")}Dossier de réalisation ${of("dossier").length ? `(${of("dossier").length} fichier${of("dossier").length > 1 ? "s" : ""})` : "(facultatif)"}</div>
           <div>${led(of("lyrics").length ? "done" : "wait")}Paroles ${of("lyrics").length ? "déposées" : "(recommandées pour le timing et les plans chantés)"}</div>
         </div>
-        <p class="hint">Le script doctor reprend tes timecodes tels quels, puis complète chaque plan
+        <p class="hint">Le scénariste reprend tes timecodes tels quels, puis complète chaque plan
           (cadrage, mouvement, caméra, plan chanté). Il ne crée ni ne déplace aucun plan.</p>
-        <div class="row"><button class="btn go" data-submitbrief ${ready ? "" : "disabled"}>Envoyer au script doctor</button></div>
+        <div class="row"><button class="btn go" data-submitbrief ${ready ? "" : "disabled"}>Envoyer au scénariste</button></div>
       </div>`;
   }
   const formats = [["16:9", "Horizontal", "YouTube, écran", 48, 27], ["9:16", "Vertical", "Reels, TikTok, Shorts", 22, 39], ["1:1", "Carré", "Posts", 34, 34]];
@@ -1666,7 +1686,7 @@ function renderDossier(clip) {
     </div>`;
 }
 
-/* ----- sources du script doctor et mémoire de réalisation ----- */
+/* ----- sources du scénariste et mémoire de réalisation ----- */
 
 function sizeText(n) {
   if (!n) return "";
@@ -1687,12 +1707,12 @@ function renderSourcesBox(clip, inDecoupage) {
   const memo = clip.memoire || "";
   const body = `
     <p class="hint">Colle ou dépose tout ce qui a nourri le clip : conversations entières avec d'autres IA,
-      transcriptions audio, notes. Aucune limite de taille. Le script doctor les lit en entier et en tire la
+      transcriptions audio, notes. Aucune limite de taille. Le scénariste les lit en entier et en tire la
       mémoire de réalisation : tes décisions, ce que tu as écarté et pourquoi. Tous les agents la lisent, pour ne
       jamais te reproposer une idée refusée.</p>
     <div class="files">${rows || `<p class="hint">Aucune source pour l'instant.</p>`}</div>
-    ${working ? `<div class="agentbar">${led("work")}Le script doctor relit tes sources et met à jour la mémoire${clip.stage === "script" || clip.stage === "decoupage_review" ? " et les plans" : ""}.</div>`
-      : nNew ? `<div class="row"><button class="btn go" data-askmemoire>Faire lire ${nNew > 1 ? `ces ${nNew} sources` : "cette source"} au script doctor</button>
+    ${working ? `<div class="agentbar">${led("work")}Le scénariste relit tes sources et met à jour la mémoire${clip.stage === "script" || clip.stage === "decoupage_review" ? " et les plans" : ""}.</div>`
+      : nNew ? `<div class="row"><button class="btn go" data-askmemoire>Faire lire ${nNew > 1 ? `ces ${nNew} sources` : "cette source"} au scénariste</button>
           <span class="hint">${clip.stage === "script" || clip.stage === "decoupage_review" ? "Il met à jour la mémoire, puis reprend les plans concernés." : "Il met à jour la mémoire ; les plans déjà validés ne bougent pas."}</span></div>` : ""}
     <details class="fold" ${sources.length ? "" : "open"}><summary>Coller un texte</summary><div class="stack" style="gap:8px">
       <input type="text" id="src-label" placeholder="Titre (ex. : conversation avec ChatGPT du 29 octobre)">
@@ -1703,14 +1723,14 @@ function renderSourcesBox(clip, inDecoupage) {
     ${memo ? `<details class="fold"><summary>Lire et corriger la mémoire (${memo.split("\n").filter((l) => l.trim()).length} lignes)</summary><div class="stack" style="gap:8px">
         <textarea id="memoire" rows="18">${esc(memo)}</textarea>
         <div class="row"><button class="btn" data-savememoire>Enregistrer ma correction</button></div></div></details>`
-      : `<p class="hint">Pas encore écrite : elle apparaît ici quand le script doctor a lu tes sources.</p>`}`;
+      : `<p class="hint">Pas encore écrite : elle apparaît ici quand le scénariste a lu tes sources.</p>`}`;
   if (inDecoupage) {
     return `<details class="panel fold sources-box" id="sources" ${nNew || working ? "open" : ""}>
-      <summary><b>Sources et mémoire du script doctor</b> <span class="hint">${sources.length} source${sources.length > 1 ? "s" : ""}${nNew ? ` · ${nNew} pas encore lue${nNew > 1 ? "s" : ""}` : ""}${memo ? " · mémoire écrite" : ""}</span></summary>
+      <summary><b>Sources et mémoire du scénariste</b> <span class="hint">${sources.length} source${sources.length > 1 ? "s" : ""}${nNew ? ` · ${nNew} pas encore lue${nNew > 1 ? "s" : ""}` : ""}${memo ? " · mémoire écrite" : ""}</span></summary>
       <div class="stack">${body}</div></details>`;
   }
   return `<div class="panel stack sources-box" id="sources" style="margin-bottom:16px">
-      <div class="panel-head"><h2>Sources du script doctor</h2></div>${body}</div>`;
+      <div class="panel-head"><h2>Sources du scénariste</h2></div>${body}</div>`;
 }
 
 async function loadLyrics(clip) {
@@ -1872,6 +1892,24 @@ function bindClip() {
         if (sh._open) fitAll(document.getElementById(`dshot-${bi}:${si}`));
         return;
       }
+      if (d.cutok) {
+        if (state.editorDirty) { toast("Enregistre d'abord tes modifications", "err"); return; }
+        const [sid, on] = d.cutok.split(":");
+        await api(`/api/shots/${sid}/cut-ok`, { json: { ok: on === "1" } });
+        toast(on === "1" ? "Plan validé" : "Validation retirée"); return reload("decoupage");
+      }
+      if (d.cutask) {
+        const fb = document.getElementById("cutask-" + d.cutask); fb.hidden = !fb.hidden;
+        if (!fb.hidden) fb.querySelector("textarea").focus(); return;
+      }
+      if (d.cutsend) {
+        const [bi, si, sid] = d.cutsend.split(":");
+        const text = document.querySelector(`#cutask-${bi}\\:${si} textarea`).value.trim();
+        if (!text) { toast("Écris ce que tu veux changer", "err"); return; }
+        if (state.editorDirty) { toast("Enregistre d'abord tes modifications", "err"); return; }
+        await api(`/api/shots/${sid}/cut-change`, { json: { comment: text } });
+        toast("Envoyé au scénariste : il reprend ce plan"); return reload("decoupage");
+      }
       if (d.usemodel) {
         const [bi, si, mk] = d.usemodel.split(":");
         state.editor[+bi].shots[+si].model_key = mk;
@@ -1931,7 +1969,7 @@ function bindClip() {
         if (state.editorDirty) { toast("Enregistre d'abord tes modifications du découpage", "err"); return; }
         t.disabled = true;
         await api(`/api/clips/${encodeURIComponent(clip.slug)}/complete`, { method: "POST" });
-        toast("Le script doctor complète les plans");
+        toast("Le scénariste complète les plans");
         return reload("decoupage");
       }
       if (d.savedec !== undefined) {
@@ -1948,7 +1986,7 @@ function bindClip() {
         const comment = d.cut === "change" ? document.querySelector("#fb-cut textarea").value.trim() : "";
         if (d.cut === "change" && !comment) { toast("Explique les changements voulus", "err"); return; }
         await api(`/api/clips/${encodeURIComponent(clip.slug)}/decoupage`, { json: { decision: d.cut, comment } });
-        toast(d.cut === "approve" ? "Découpage validé : le storyboard démarre" : "Retour envoyé au script doctor");
+        toast(d.cut === "approve" ? "Découpage validé : le storyboard démarre" : "Retour envoyé au scénariste");
         return reload(d.cut === "approve" ? "plans" : "decoupage");
       }
       // sources et mémoire
@@ -1963,7 +2001,7 @@ function bindClip() {
       if (d.askmemoire !== undefined) {
         t.disabled = true;
         await api(`/api/clips/${encodeURIComponent(clip.slug)}/memoire/request`, { method: "POST" });
-        toast("Le script doctor va lire tes sources");
+        toast("Le scénariste va lire tes sources");
         return reload();
       }
       if (d.savememoire !== undefined) {
@@ -2002,7 +2040,7 @@ function bindClip() {
       }
       if (d.submitbrief !== undefined) {
         await api(`/api/clips/${encodeURIComponent(clip.slug)}/submit-brief`, { method: "POST" });
-        toast("Envoyé au script doctor");
+        toast("Envoyé au scénariste");
         return reload();
       }
     } catch (e) {
@@ -2072,7 +2110,7 @@ async function showNewClip() {
       <div class="panel stack">
         <div class="progress" id="up-bar" hidden><i></i></div>
         <div class="row"><button class="btn go" type="submit">Créer le clip</button>
-          <span class="hint" id="up-msg">Ensuite, tu saisis ton découpage (blocs et plans) ou tu laisses le script doctor le tirer de ton dossier.</span></div>
+          <span class="hint" id="up-msg">Ensuite, tu saisis ton découpage (blocs et plans) ou tu laisses le scénariste le tirer de ton dossier.</span></div>
       </div>
     </form>`;
   const form = document.getElementById("newclip");

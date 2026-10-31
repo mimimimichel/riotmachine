@@ -783,3 +783,6 @@ details.sources-box > div { padding: 10px 0 0; }
 .pkey { display: grid; gap: 6px; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: #ffffff05; }
 .prov.off { opacity: .6; }
 .k-perso { --k: #ff3fbf; --k-soft: #ff3fbf1f; }
+.dshot.ok { border-color: #3df0a255; }
+.dshot.ok .dshot-n { background: var(--led); color: #0a0911; }
+.dshot-main { padding-top: 4px; border-top: 1px dashed var(--line-2); }

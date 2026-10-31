@@ -507,6 +507,32 @@ def edit_decoupage(slug: str, body: DecoupageEdit) -> dict[str, Any]:
     return {"ok": True, "shots": n}
 
 
+class CutOk(BaseModel):
+    ok: bool = True
+
+
+@app.post("/api/shots/{shot_id}/cut-ok")
+def shot_cut_ok(shot_id: int, body: CutOk) -> dict[str, Any]:
+    try:
+        production.set_cut_ok(_conn(), shot_id, body.ok)
+    except (production.ProductionError, LookupError) as exc:
+        raise _error(exc)
+    return {"ok": True}
+
+
+class ShotChange(BaseModel):
+    comment: str
+
+
+@app.post("/api/shots/{shot_id}/cut-change")
+def shot_cut_change(shot_id: int, body: ShotChange) -> dict[str, Any]:
+    try:
+        production.request_shot_change(_conn(), shot_id, body.comment)
+    except (production.ProductionError, LookupError) as exc:
+        raise _error(exc)
+    return {"ok": True}
+
+
 @app.post("/api/clips/{slug}/submit-brief")
 def submit_brief(slug: str) -> dict[str, Any]:
     try:

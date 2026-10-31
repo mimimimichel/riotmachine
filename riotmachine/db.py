@@ -411,7 +411,8 @@ LATER_COLUMNS = {
     # detail_edited : 1 quand Michael l'a modifié à la main (les agents ne le réécrivent plus)
     # failed_step : l'étape qui a échoué, pour relancer au bon endroit
     "shots": [("detail", "TEXT"), ("detail_edited", "INTEGER NOT NULL DEFAULT 0"), ("failed_step", "TEXT"),
-              ("lipsync_key", "TEXT")],   # lip-sync choisi par Michael pour ce plan
+              ("lipsync_key", "TEXT"),    # lip-sync choisi par Michael pour ce plan
+              ("cut_ok", "INTEGER NOT NULL DEFAULT 0")],   # plan validé par Michael dans le découpage
     "blocks": [("look", "TEXT")],   # lumière et étalonnage communs aux plans du bloc
     # prompt : le prompt de l'image HD, réécrit par Michael (NULL = prompt par défaut)
     # prompt_agent : le prompt écrit par le décorateur d'après l'image de départ de Michael
