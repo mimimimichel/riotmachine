@@ -406,7 +406,8 @@ LATER_COLUMNS = {
               ("scenario_status", "TEXT NOT NULL DEFAULT 'none'"),  # none | requested | proposed
               # mémoire de réalisation (script/memoire.md) : none | requested (le script doctor relit les sources)
               ("memoire_status", "TEXT NOT NULL DEFAULT 'none'"),
-              ("memoire_sources", "TEXT")],  # ids (JSON) des sources déjà lues par le script doctor
+              ("memoire_sources", "TEXT"),   # ids (JSON) des sources déjà lues par le script doctor
+              ("da", "TEXT")],   # direction artistique écrite par Michael : fait foi sur tout le reste
     # detail : le prompt détaillé du plan (description courte = `description`)
     # detail_edited : 1 quand Michael l'a modifié à la main (les agents ne le réécrivent plus)
     # failed_step : l'étape qui a échoué, pour relancer au bon endroit

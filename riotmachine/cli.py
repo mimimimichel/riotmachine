@@ -138,6 +138,7 @@ def cmd_shot_show(a) -> None:
                 "resume_visuel": production.resume_text(conn, c, cv["version"]),
             })
     view["aspect_ratio"] = clip["aspect_ratio"]
+    view["direction_artistique"] = clip.get("da") or ""   # fait foi sur tout le reste
     from . import elements
     view["elements"] = [{"kind": e["kind"], "slug": e["slug"], "name": e["name"], "state": e["shot_state"],
                          "description": e["description"], "refs": e["refs"]} for e in elements.for_shot(conn, shot["id"])]

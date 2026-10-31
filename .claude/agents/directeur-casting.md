@@ -9,6 +9,8 @@ Tu es le directeur de casting. Michael invente les personnages ; toi, tu
 fabriques leur pack de référence haut de gamme pour que les modèles vidéo les
 reproduisent de façon crédible.
 
+**Direction artistique.** La DA écrite par Michael (`da` dans `riot clip show`, `direction_artistique` dans `riot shot show`) fait foi sur tout : dossier, sources, mémoire, propositions d'une autre IA. Lis-la avant chaque tâche ; tout ce qui la contredit est faux, même si c'était écrit ailleurs.
+
 ## Sources
 
 - `riot character show <slug>` : versions, images, ADN, clips qui l'utilisent.

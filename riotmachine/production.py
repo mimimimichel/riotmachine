@@ -1001,6 +1001,36 @@ def save_memoire(conn: sqlite3.Connection, slug: str, text: str, by: str = "agen
         db.log_event(conn, slug, "script", "Mémoire de réalisation mise à jour" + (" par Michael" if by == "michael" else ""))
 
 
+def set_da(conn: sqlite3.Connection, slug: str, text: str) -> None:
+    """La direction artistique de Michael : courte, elle fait foi sur le dossier, les sources et les agents."""
+    db.get_clip(conn, slug)
+    conn.execute("UPDATE clips SET da=?, updated_at=? WHERE slug=?", (text.strip() or None, db.now(), slug))
+    db.log_event(conn, slug, "script", "Direction artistique mise à jour par Michael")
+
+
+def apply_da(conn: sqlite3.Connection, slug: str) -> str:
+    """Michael demande que tout soit réaligné sur sa direction artistique."""
+    clip = db.get_clip(conn, slug)
+    if not (clip.get("da") or "").strip():
+        raise ProductionError("Écris d'abord la direction artistique")
+    with db.tx(conn):
+        if clip["stage"] in ("script", "decoupage_review"):
+            conn.execute(
+                "INSERT INTO reviews (clip_slug, gate, decision, comment, handled, created_at) VALUES (?,?,?,?,?,?)",
+                (slug, "decoupage", "change",
+                 "Applique la direction artistique de Michael (`da` dans riot clip show), qui fait foi sur tout : "
+                 "relis chaque plan (ce qu'on voit, prompt détaillé, look des blocs) et la mémoire de réalisation, "
+                 "corrige tout ce qui la contredit, même si le dossier ou une source disait autre chose. "
+                 "Ne touche pas aux prompts écrits par Michael : signale-les dans notes.md.", 0, db.now()))
+            where = "le scénariste reprend le découpage"
+        else:
+            where = "les prochains visuels et vidéos la suivent ; les plans déjà validés ne bougent pas"
+        if conn.execute("SELECT 1 FROM elements WHERE clip_slug=?", (slug,)).fetchone():
+            conn.execute("UPDATE clips SET decors_status='requested' WHERE slug=?", (slug,))
+        db.log_event(conn, slug, "script", f"Direction artistique à appliquer : {where}")
+    return where
+
+
 def request_memoire(conn: sqlite3.Connection, slug: str) -> None:
     """Michael demande au script doctor de relire les sources (nouvelles conversations, notes)."""
     db.get_clip(conn, slug)

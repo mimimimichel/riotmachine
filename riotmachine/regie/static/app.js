@@ -1539,7 +1539,7 @@ function renderDecoupageTab(clip) {
       </div>
     </section>`;
   }).join("");
-  return `${head}${summary}${renderSourcesBox(clip, true)}${tools}${blocks}
+  return `${head}${summary}${renderDaBox(clip, true)}${renderSourcesBox(clip, true)}${tools}${blocks}
     <div class="row" style="position:sticky;bottom:12px;z-index:5;background:#0a0911ee;padding:10px;border-radius:12px;border:1px solid var(--line)">
       <button class="btn" data-addblock>＋ Bloc</button><span class="spacer"></span>
       <span class="hint" id="dec-status">${state.editorDirty ? "Modifications non enregistrées" : `${n} plans`}</span>
@@ -1659,6 +1659,7 @@ function renderDossier(clip) {
   const formats = [["16:9", "Horizontal", "YouTube, écran", 48, 27], ["9:16", "Vertical", "Reels, TikTok, Shorts", 22, 39], ["1:1", "Carré", "Posts", 34, 34]];
   const formatLocked = clip.stage !== "script" && clip.stage !== "decoupage_review";
   return `${cta}
+    ${renderDaBox(clip, false)}
     ${renderSourcesBox(clip, false)}
     <div id="scenario-box" class="panel stack" style="margin-bottom:16px"><p class="loading">Chargement…</p></div>
     <div class="two-col">
@@ -1720,6 +1721,24 @@ function renderDossier(clip) {
       ${clip.casting.length ? clip.casting.map((c) => `<div class="row"><a href="#/personnages/${encodeURIComponent(c.character_slug)}"><b>${esc(c.name)}</b></a>
         <span class="hint">version ${c.version}${c.look_slug ? " · look " + esc(c.look_slug) : ""}</span></div>`).join("") : `<p class="hint">Aucun personnage.</p>`}
     </div>`;
+}
+
+/* ----- direction artistique : écrite par Michael, fait foi sur tout ----- */
+function renderDaBox(clip, folded) {
+  const da = (clip.da || "").trim();
+  const body = `<p class="hint">Quelques lignes, à toi : le ton, le niveau de réalisme, qui sont les personnages (âge, métier, style),
+      leurs tenues, les lieux, la lumière, et ce que tu ne veux jamais voir. Elle passe avant le dossier, les sources et tout ce
+      qu'une IA a proposé. Chaque agent la reçoit à chaque tâche.</p>
+    <textarea id="da-text" rows="7" placeholder="Ex. : ambiance vraie vie, pas de look rock. JJ, jeune directrice dans un cabinet de conseil : tailleur sobre, escarpins ou mocassins, jamais de Doc Martens. Bureaux réalistes de cabinet, pas de plateau stylisé hors des scènes dansées.">${esc(da)}</textarea>
+    <div class="row" style="gap:8px"><button class="btn" data-saveda>Enregistrer</button>
+      <button class="btn go" data-applyda>Enregistrer et faire tout réaligner</button>
+      <span class="hint">${clip.stage === "script" || clip.stage === "decoupage_review" ? "Le scénariste relit chaque plan et la mémoire, le décorateur ses fiches." : "Les prochains visuels et vidéos la suivent."}</span></div>`;
+  if (folded) {
+    return `<details class="panel fold dabox" ${da ? "" : "open"}><summary><b>Direction artistique</b> <span class="pill done">fait foi</span>
+        <span class="hint">${da ? esc(da.split("\n")[0].slice(0, 90)) + (da.length > 90 ? "…" : "") : "pas encore écrite"}</span></summary>
+      <div class="stack">${body}</div></details>`;
+  }
+  return `<div class="panel stack dabox" style="margin-bottom:16px"><div class="panel-head"><h2>Direction artistique</h2><span class="pill done">fait foi</span></div>${body}</div>`;
 }
 
 /* ----- sources du scénariste et mémoire de réalisation ----- */
@@ -2045,6 +2064,17 @@ function bindClip() {
         toast(d.cut === "approve" ? "Découpage validé : le storyboard démarre" : "Retour envoyé au scénariste");
         return reload(d.cut === "approve" ? "plans" : "decoupage");
       }
+      // direction artistique
+      if (d.saveda !== undefined || d.applyda !== undefined) {
+        if (d.applyda !== undefined && state.editorDirty) { toast("Enregistre d'abord tes modifications du découpage", "err"); return; }
+        t.disabled = true;
+        await api(`/api/clips/${encodeURIComponent(clip.slug)}/da`, { json: { text: document.getElementById("da-text").value } });
+        if (d.applyda !== undefined) {
+          const r = await api(`/api/clips/${encodeURIComponent(clip.slug)}/da/apply`, { method: "POST" });
+          toast(`Direction artistique enregistrée : ${r.where}`);
+        } else toast("Direction artistique enregistrée");
+        return reload();
+      }
       // sources et mémoire
       if (d.addsource !== undefined) {
         const text = document.getElementById("src-text").value;
@@ -2345,8 +2375,8 @@ function looksSection(ch) {
      Une tenue sert de référence pour les plans où elle la porte. Elle se réutilise d'un clip à l'autre.`,
     `${looks || `<p class="hint">Aucune tenue pour l'instant.</p>`}
      <div class="lookcard"><b>Nouvelle tenue</b>
-       <input type="text" id="look-name" placeholder="Nom (ex. bureau Doc Martens)">
-       <textarea id="look-desc" rows="3" placeholder="Description (ex. chemise blanche ajustée, pantalon noir, Doc Martens noires)"></textarea>
+       <input type="text" id="look-name" placeholder="Nom (ex. tailleur de bureau)">
+       <textarea id="look-desc" rows="3" placeholder="Description (ex. tailleur gris anthracite, chemisier blanc, escarpins noirs)"></textarea>
        <div class="row"><button class="btn go" data-newlook>Créer la tenue</button></div></div>`);
 }
 

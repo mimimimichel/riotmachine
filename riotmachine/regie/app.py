@@ -436,6 +436,23 @@ def add_source(slug: str, body: SourceText) -> dict[str, Any]:
     return {"ok": True, "file": f}
 
 
+@app.post("/api/clips/{slug}/da")
+def save_da(slug: str, body: ScriptText) -> dict[str, Any]:
+    try:
+        production.set_da(_conn(), slug, body.text)
+    except (production.ProductionError, LookupError) as exc:
+        raise _error(exc)
+    return {"ok": True}
+
+
+@app.post("/api/clips/{slug}/da/apply")
+def apply_da(slug: str) -> dict[str, Any]:
+    try:
+        return {"ok": True, "where": production.apply_da(_conn(), slug)}
+    except (production.ProductionError, LookupError) as exc:
+        raise _error(exc)
+
+
 class MemoireText(BaseModel):
     text: str
 

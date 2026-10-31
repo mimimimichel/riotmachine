@@ -24,7 +24,10 @@ Langue de travail : **français** (les prompts envoyés aux modèles sont en ang
    avec `riot notify`. Jamais de `--force` sans son accord explicite.
 4. **Un agent ne note pas son propre travail** : le contrôle qualité est fait par
    l'agent `controleur`, pas par celui qui a produit l'image ou le prompt.
-5. **Tout passe par la CLI `riot`** (base SQLite + fichiers dans `studio/`).
+5. **La direction artistique de Michael fait foi.** Le texte `da` du clip (`riot clip show`)
+   passe avant le dossier, les sources, la mémoire et toute proposition d'une autre IA.
+   Chaque agent le lit avant chaque tâche.
+6. **Tout passe par la CLI `riot`** (base SQLite + fichiers dans `studio/`).
    Ne modifie pas la base à la main, ne déplace pas les fichiers de `studio/`.
 
 ## Dépenses et mémoire des personnages
