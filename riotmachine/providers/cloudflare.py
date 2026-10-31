@@ -24,7 +24,8 @@ from . import _http
 ENV_ACCOUNT = "CLOUDFLARE_ACCOUNT_ID"
 ENV_TOKEN = "CLOUDFLARE_API_TOKEN"
 MODELS = {"klein-4b": "@cf/black-forest-labs/flux-2-klein-4b",
-          "klein-9b": "@cf/black-forest-labs/flux-2-klein-9b"}
+          "klein-9b": "@cf/black-forest-labs/flux-2-klein-9b",
+          "flux-2-dev": "@cf/black-forest-labs/flux-2-dev"}   # le plus lourd : 2 ou 3 images par jour
 
 
 def _small(src: Path, tmp: Path, i: int) -> Path:
@@ -55,8 +56,8 @@ def generate(prompt: str, images: list[Path], dest: Path, *, width: int = 1024, 
     if r.status_code >= 400:
         msg = r.text[:300]
         if r.status_code == 429 or "neuron" in msg.lower() or "limit" in msg.lower():
-            raise _http.ProviderError("Enveloppe gratuite Cloudflare du jour épuisée : réessaie demain.")
-        raise _http.ProviderError(f"Cloudflare a refusé ({r.status_code}) : {msg}")
+            raise _http.ProviderError("quota gratuit du jour épuisé")
+        raise _http.ProviderError(f"indisponible pour l'instant ({r.status_code} : {msg[:120]})")
     body = r.json()
     b64 = ((body.get("result") or {}).get("image")) or body.get("image")
     if not b64:

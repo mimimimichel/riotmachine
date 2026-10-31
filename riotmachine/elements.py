@@ -294,9 +294,10 @@ def draft_prompt(e: dict, brief: str, n_refs: int) -> str:
 
 # Brouillons : toutes les options gratuites, de la meilleure à la plus simple. Quand une option
 # a épuisé son quota du jour (ou échoue), la suivante prend le relais.
-DRAFT_CHAIN = [("huggingface", "qwen-edit-2511", "Qwen Image Edit (Hugging Face)"),
+DRAFT_CHAIN = [("cloudflare", "klein-9b", "FLUX.2 klein 9B (Cloudflare)"),
                ("huggingface", "flux2-dev", "FLUX.2 dev (Hugging Face)"),
-               ("cloudflare", "klein-9b", "FLUX.2 klein 9B (Cloudflare)"),
+               ("huggingface", "kontext-dev", "FLUX.1 Kontext (Hugging Face)"),
+               ("cloudflare", "flux-2-dev", "FLUX.2 dev (Cloudflare)"),
                ("cloudflare", "klein-4b", "FLUX.2 klein 4B (Cloudflare)")]
 
 
@@ -314,7 +315,8 @@ def _draft_one(backend: tuple[str, str, str], text: str, inspi: list[Path], out:
         hfspace.generate(backend[1], text, inspi, out, width=w, height=h, seed=seed)
 
 
-def _run_drafts(element_id: int, ids: list[int], text: str, inspi: list[Path], w: int, h: int) -> None:
+def _run_drafts(element_id: int, ids: list[int], text: str, inspi: list[Path], w: int, h: int,
+                only: str | None = None) -> None:
     from .providers._http import ProviderError
     conn = db.connect()
     e = _element(conn, element_id)
@@ -324,7 +326,7 @@ def _run_drafts(element_id: int, ids: list[int], text: str, inspi: list[Path], w
         out = absp(e["dir"]) / "brouillons" / f"brouillon-{db.now()[:19].replace(':', '').replace('-', '')}-{image_id}.png"
         done = False
         for b in draft_backends():
-            if b in dead:
+            if b in dead or (only and f"{b[0]}:{b[1]}" != only):
                 continue
             try:
                 _draft_one(b, text, inspi, out, w, h)
@@ -339,7 +341,8 @@ def _run_drafts(element_id: int, ids: list[int], text: str, inspi: list[Path], w
             break
         if not done:
             conn.execute("UPDATE element_images SET status='failed', error=? WHERE id=?",
-                         ("; ".join(errors[-3:])[:500] or "aucune option gratuite disponible", image_id))
+                         (("Aucun modèle gratuit n'a pu le faire. " + " · ".join(dict.fromkeys(errors)))[:700]
+                          if errors else "aucun modèle gratuit disponible", image_id))
             conn.commit()
     db.log_event(conn, e["clip_slug"], "decors",
                  f"{made} brouillon(s) gratuit(s) : {e['name']}" + (f" ({len(ids) - made} en échec)" if made < len(ids) else ""))
@@ -347,7 +350,7 @@ def _run_drafts(element_id: int, ids: list[int], text: str, inspi: list[Path], w
 
 
 def launch_drafts(conn: sqlite3.Connection, element_id: int, brief: str | None = None, n: int = 2,
-                  background: bool = True) -> dict:
+                  background: bool = True, backend: str | None = None) -> dict:
     """Brouillons gratuits à partir des images et de l'instruction de Michael.
 
     Les images arrivent en arrière-plan (de quelques secondes à deux minutes), à choisir ensuite."""
@@ -377,9 +380,10 @@ def launch_drafts(conn: sqlite3.Connection, element_id: int, brief: str | None =
             ids.append(cur.lastrowid)
     if background:
         import threading
-        threading.Thread(target=_run_drafts, args=(element_id, ids, text, inspi, w, h), daemon=True).start()
+        threading.Thread(target=_run_drafts, args=(element_id, ids, text, inspi, w, h, backend or None),
+                         daemon=True).start()
     else:
-        _run_drafts(element_id, ids, text, inspi, w, h)
+        _run_drafts(element_id, ids, text, inspi, w, h, backend or None)
     return {"images": ids, "cost_usd": 0}
 
 

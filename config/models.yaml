@@ -63,11 +63,11 @@ providers:
     label: Hugging Face (gratuit)
     env: []
     env_optional: [HF_TOKEN]
-    note: "Brouillons gratuits, la meilleure option : Qwen Image Edit et FLUX.2 dev. 2 min de calcul par jour sans compte, 5 min avec un compte gratuit (HF_TOKEN, facultatif)."
+    note: "Brouillons gratuits : FLUX.2 dev (plusieurs images) et FLUX.1 Kontext (une image), 30 à 40 s chacun. 2 min de calcul par jour sans compte (2 à 3 brouillons), 5 min avec un compte gratuit (HF_TOKEN, facultatif)."
   cloudflare:
     label: Cloudflare Workers AI (gratuit)
     env: [CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_API_TOKEN]
-    note: "Brouillons gratuits, en secours de Hugging Face : FLUX.2 klein 9B (7 par jour) puis 4B. Plan gratuit sans carte."
+    note: "Brouillons gratuits : FLUX.2 klein 9B (7 par jour), FLUX.2 dev (2 ou 3 par jour), klein 4B (une quarantaine). Enveloppe commune, renouvelée chaque jour. Plan gratuit sans carte."
   kling:
     label: Kling AI (API officielle)
     env: [KLING_API_KEY]

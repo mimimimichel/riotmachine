@@ -2796,6 +2796,9 @@ async function loadDecors(clip, keep = false) {
           ${drafts.length ? elGrid(drafts, "draft") : ""}
           ${draftProp.length ? `<p class="hint">Garde le brouillon qui te plaît, écarte les autres.</p>${elGrid(draftProp, "choose")}` : ""}
           <div class="row" style="gap:8px">
+            <select data-eldraftmodel="${e.id}" aria-label="Modèle des brouillons">
+              <option value="">Le meilleur gratuit disponible</option>
+              ${(d.draft_models || []).map((m) => `<option value="${esc(m.key)}" ${prefs("draftmodel") === m.key ? "selected" : ""}>${esc(m.label)}</option>`).join("")}</select>
             <button class="btn ${drafts.length ? "" : "go"}" data-eldrafts="${e.id}" ${d.drafts_usable ? "" : "disabled"}>${draftProp.length || drafts.length ? "Créer 2 autres brouillons" : "Créer 2 brouillons"} · gratuit</button>
             <span class="hint">${d.drafts_usable ? `Gratuit, à partir ${inspi.length ? `de tes ${Math.min(inspi.length, 4)} image${inspi.length > 1 ? "s" : ""} de l'étape 1` : "de ton instruction seule"}. De quelques secondes à deux minutes.` : "Aucune option gratuite branchée (page Fournisseurs)."}</span></div>
           <details class="fold"><summary>Ou dépose ton propre brouillon</summary><div class="stack" style="gap:6px">
@@ -2928,7 +2931,9 @@ async function loadDecors(clip, keep = false) {
       if (dd.eldrafts) {
         const brief = box.querySelector(`[data-elbrief="${dd.eldrafts}"]`).value;
         t.disabled = true; t.textContent = "Création des brouillons…";
-        await api(`/api/elements/${dd.eldrafts}/drafts`, { json: { brief, n: 2 } });
+        const backend = box.querySelector(`[data-eldraftmodel="${dd.eldrafts}"]`)?.value || "";
+        prefs("draftmodel", backend);
+        await api(`/api/elements/${dd.eldrafts}/drafts`, { json: { brief, n: 2, backend } });
         remember(dd.eldrafts);
         toast("Brouillons lancés : ils arrivent ici, de quelques secondes à deux minutes"); return reload();
       }
@@ -2988,7 +2993,7 @@ function fromStrip(img) {
 function elGrid(list, mode) {
   return `<div class="packgrid elgrid">${list.map((i) => `<div class="packitem ${mode === "kept" ? "kept" : ""}">
       ${i.status === "generating" ? `<div class="none" style="aspect-ratio:4/3;display:grid;place-items:center">${led("work")} en cours</div>`
-        : i.status === "failed" ? `<div class="none" style="aspect-ratio:4/3;display:grid;place-items:center;padding:8px;font-size:12px;text-align:center">Échec : ${esc((i.error || "").slice(0, 160))}</div>`
+        : i.status === "failed" ? `<div class="none" style="aspect-ratio:4/3;display:grid;place-items:center;padding:8px;font-size:12px;text-align:center;overflow:auto">${esc(i.error || "Échec")}</div>`
         : `<img src="${media(i.path)}" data-zoom="${media(i.path)}" alt="">`}
       ${i.from_ids && mode === "choose" ? fromStrip(i) : ""}
       <div class="pi"><span class="hint">${i.role === "inspi" ? "inspiration" : i.role === "draft" ? (i.source === "gen" ? esc(i.label || "brouillon") : "ton image") : i.source === "michael" ? "ton image HD" : "image HD"}</span>

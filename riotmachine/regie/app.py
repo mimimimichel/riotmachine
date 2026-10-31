@@ -794,6 +794,7 @@ def element_brief(element_id: int, body: ElementBrief) -> dict[str, Any]:
 class ElementDrafts(BaseModel):
     brief: str = ""
     n: int = 2
+    backend: str = ""   # vide : le meilleur modèle gratuit disponible
 
 
 @app.post("/api/elements/{element_id}/drafts")
@@ -801,7 +802,7 @@ def element_drafts(element_id: int, body: ElementDrafts) -> dict[str, Any]:
     """Brouillons gratuits (Cloudflare) d'après les images d'inspiration et le texte de Michael."""
     from .. import elements
     try:
-        return elements.launch_drafts(_conn(), element_id, body.brief, body.n)
+        return elements.launch_drafts(_conn(), element_id, body.brief, body.n, backend=body.backend or None)
     except production.ProductionError as exc:
         raise _error(exc)
 
@@ -836,7 +837,8 @@ def clip_elements(slug: str) -> dict[str, Any]:
             "spend": spend, "shots": shots, "hd_cost": round(cost, 3), "hd_model": mcfg.get("label", key),
             "hd_usable": routing.provider_usable(mcfg.get("provider", "fal")) and mcfg.get("provider") != "vertex",
             "hd_provider": (routing.models_cfg().get("providers") or {}).get(mcfg.get("provider", "fal"), {}).get("label"),
-            "drafts_usable": bool(elements.draft_backends())}
+            "drafts_usable": bool(elements.draft_backends()),
+            "draft_models": [{"key": f"{b[0]}:{b[1]}", "label": b[2]} for b in elements.draft_backends()]}
 
 
 @app.post("/api/clips/{slug}/elements")
