@@ -44,6 +44,7 @@ def test_full_clip(studio, tmp_path):
     assert run("clip", "new", "Premier Clip", "--song", studio["song"], "--vocals", studio["song"],
                "--characters", "jj", "--budget", "50", "--pitch", "JJ seule à l'aube",
                "--dossier", dossier) == 0
+    production.set_visual_hd(conn, "premier-clip", True)   # ce parcours teste aussi le visuel HD (facultatif)
     clip = db.get_clip(conn, "premier-clip")
     assert clip["pitch"] == "JJ seule à l'aube" and clip["duration_s"] > 19
     files = production.clip_files(conn, "premier-clip")
@@ -369,13 +370,12 @@ def test_elements_flow(studio, tmp_path):
     e = elements.create(conn, "decors", "decor", "Jardin de JJ", "Terrasse en dalles", ["vide au retour"])
     elements.link(conn, ids, e["id"], "vide au retour")
     production.update_shot(conn, ids[0], image_prompt="x")
-    with pytest.raises(production.ProductionError):
-        production.launch_image(conn, ids[0])          # pas encore de référence gardée
+    assert elements.missing_refs(conn, ids[0]) == ["Jardin de JJ"]   # pas bloquant : le visuel partirait sans
     img = tmp_path / "j.jpg"
     subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "color=c=green:s=320x240",
                     "-frames:v", "1", str(img)], check=True)
-    elements.add_image(conn, e["id"], img)               # image de départ : ne débloque pas les plans
-    assert elements.missing_refs(conn, ids[0]) == ["Jardin de JJ"]
+    elements.add_image(conn, e["id"], img)               # image de départ : sert de référence en attendant la HD
+    assert elements.missing_refs(conn, ids[0]) == []
     ce = elements.clip_elements(conn, "decors")[0]
     assert ce["step"] == "hd_todo" and "reference image" in ce["prompt_text"] and ce["prompt_status"] == "requested"
     assert any("image(s) de départ à regarder" in r for r in production.needs_agent(conn, "decors")["reasons"])
@@ -491,7 +491,11 @@ def test_character_pack_and_mention(studio, tmp_path):
     production.add_pack_images(conn, "rex", 1, "sheet", [img])
     production.add_pack_images(conn, "rex", 1, "canon", [img])
     refs = production.character_refs(conn, "rex", 1)
-    assert refs[0].name.startswith("canon") and any("sheet" in str(p) for p in refs)
+    canon = conn.execute("SELECT a.path FROM character_assets a JOIN character_versions v ON v.id=a.version_id "
+                         "WHERE v.character_slug='rex' AND a.kind='canon' AND a.status='kept'").fetchall()
+    assert len(canon) == 1 and str(refs[0]).endswith(canon[0]["path"].split("/")[-1])   # une seule canon, en tête
+    assert conn.execute("SELECT COUNT(*) FROM character_assets a JOIN character_versions v ON v.id=a.version_id "
+                        "WHERE v.character_slug='rex' AND a.status='kept'").fetchone()[0] == 2   # pas de doublon
     production.create_clip(conn, "Chien", song=studio["song"], characters=["jj"])
     production.import_shots(conn, "chien", [{"t_start": 0, "t_end": 4, "description": "@rex aboie", "characters": []}])
     sh = conn.execute("SELECT * FROM shots WHERE clip_slug='chien'").fetchone()

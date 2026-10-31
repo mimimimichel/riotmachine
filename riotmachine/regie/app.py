@@ -436,6 +436,19 @@ def add_source(slug: str, body: SourceText) -> dict[str, Any]:
     return {"ok": True, "file": f}
 
 
+class VisualHd(BaseModel):
+    on: bool
+
+
+@app.post("/api/clips/{slug}/visual-hd")
+def visual_hd(slug: str, body: VisualHd) -> dict[str, Any]:
+    try:
+        production.set_visual_hd(_conn(), slug, body.on)
+    except (production.ProductionError, LookupError) as exc:
+        raise _error(exc)
+    return {"ok": True}
+
+
 @app.post("/api/clips/{slug}/da")
 def save_da(slug: str, body: ScriptText) -> dict[str, Any]:
     try:
@@ -721,6 +734,15 @@ def canon_hd_now(slug: str, version: int) -> dict[str, Any]:
         raise _error(exc)
     except Exception as exc:   # fournisseur non branché, refus du fournisseur
         raise HTTPException(400, str(exc))
+
+
+@app.post("/api/character-assets/{asset_id}/make-canon")
+def asset_make_canon(asset_id: int) -> dict[str, Any]:
+    try:
+        production.make_canon(_conn(), asset_id)
+    except (production.ProductionError, LookupError) as exc:
+        raise _error(exc)
+    return {"ok": True}
 
 
 class AssetKind(BaseModel):

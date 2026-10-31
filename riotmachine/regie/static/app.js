@@ -1047,6 +1047,7 @@ function renderDrawer() {
     </div>`;
   const detailBox = `<details class="fold" ${shot.detail ? "" : "open"}><summary>Prompt détaillé${shot.detail_edited ? " · écrit par toi" : ""}</summary><div class="stack" style="gap:6px">
       <textarea id="dt-${shot.id}" rows="4" data-mention placeholder="Le plan en détail : sujet, action, décor, lumière, cadrage. Tape @ pour citer un décor.">${esc(shot.detail || "")}</textarea>
+      ${refsCheck(shot.description, shot.detail)}
       <div class="row"><button class="btn small" data-savedetail="${shot.id}">Enregistrer</button>
         <span class="hint">${(shot.assets || []).some((a) => a.kind === "image") ? "Le visuel déjà fait ne change pas tout seul : demande une modif pour le refaire." : "Le storyboard part de ce texte."}</span></div></div></details>`;
 
@@ -1449,7 +1450,11 @@ function renderDecoupageTab(clip) {
   let n = 0;
   const nOpen = state.editor.filter((b) => b._open).length;
   const tools = `<div class="dec-tools">
-      <span class="hint">${state.editor.length} blocs · ${allShots.length} plans · <b>${allShots.filter((x) => x.cut_ok).length} validés</b></span><span class="spacer"></span>
+      <span class="hint">${state.editor.length} blocs · ${allShots.length} plans · <b>${allShots.filter((x) => x.cut_ok).length} validés</b>${(() => {
+        const known = new Set(mentionables().map((e) => e.slug));
+        const bad = allShots.filter((x) => ((`${x.description}\n${x.detail}`).toLowerCase().match(/@([a-z0-9][a-z0-9-]*[a-z0-9]|[a-z0-9])/g) || []).some((m) => !known.has(m.slice(1))));
+        return bad.length ? ` · <b style="color:var(--red)">${bad.length} plan${bad.length > 1 ? "s" : ""} avec un @ introuvable</b>` : " · tous les @ sont reconnus";
+      })()}</span><span class="spacer"></span>
       <button class="btn small ghost" data-decall="open" ${nOpen === state.editor.length ? "disabled" : ""}>Tout déplier</button>
       <button class="btn small ghost" data-decall="close" ${nOpen ? "" : "disabled"}>Tout replier</button>
     </div>`;
@@ -1497,6 +1502,7 @@ function renderDecoupageTab(clip) {
           <label class="field"><span>Prompt détaillé${s.detail_edited ? " · écrit par toi" : s.detail ? " · écrit par le scénariste" : " · à écrire"}</span>
             <textarea rows="5" data-mention data-sf="${key}:detail" placeholder="Le plan en détail : sujet, action, décor, lumière, cadrage. Le scénariste le remplit, tu peux le réécrire.">${esc(s.detail || "")}</textarea></label>
           ${pend ? `<div class="agentbar">${led("work")}Modif demandée au scénariste : « ${esc(s.pending[s.pending.length - 1])} ». Il s'en occupe.</div>` : ""}
+          <div data-refs="${key}">${refsCheck(s.description, s.detail)}</div>
           <div class="row dshot-main" style="gap:8px">
             <button class="btn small" data-savedec>Enregistrer</button>
             ${s.id ? `<button class="btn small ${s.cut_ok ? "ghost" : "ok"}" data-cutok="${s.id}:${s.cut_ok ? "0" : "1"}">${s.cut_ok ? "Retirer la validation" : "Valider ce plan"}</button>
@@ -1847,6 +1853,10 @@ function bindClip() {
         const de = $view.querySelector(`[data-desc="${bi}:${si}"]`);
         if (de) de.innerHTML = mentionHtml(sh.description);
       }
+      if (f === "description" || f === "detail") {
+        const rc = $view.querySelector(`[data-refs="${bi}:${si}"]`);
+        if (rc) rc.innerHTML = refsCheck(sh.description, sh.detail);
+      }
       markDirty();
     } else if (t.dataset.bf) {
       const [bi, f] = t.dataset.bf.split(":");
@@ -1971,7 +1981,12 @@ function bindClip() {
         if (state.editorDirty) { toast("Enregistre d'abord tes modifications", "err"); return; }
         const [sid, on] = d.cutok.split(":");
         await api(`/api/shots/${sid}/cut-ok`, { json: { ok: on === "1" } });
-        toast(on === "1" ? "Plan validé" : "Validation retirée"); return reload("decoupage");
+        // pas de rechargement : la page reste où elle est, pour valider les plans à la suite
+        const y = window.scrollY;
+        const sh = clip.shots.find((x) => x.id === +sid); if (sh) sh.cut_ok = on === "1" ? 1 : 0;
+        const at = decIndexOf(+sid); if (at) state.editor[at[0]].shots[at[1]].cut_ok = on === "1";
+        renderClip(); window.scrollTo(0, y);
+        toast(on === "1" ? "Plan validé" : "Validation retirée"); return;
       }
       if (d.cutask) {
         const fb = document.getElementById("cutask-" + d.cutask); fb.hidden = !fb.hidden;
@@ -1983,7 +1998,8 @@ function bindClip() {
         if (!text) { toast("Écris ce que tu veux changer", "err"); return; }
         if (state.editorDirty) { toast("Enregistre d'abord tes modifications", "err"); return; }
         await api(`/api/shots/${sid}/cut-change`, { json: { comment: text } });
-        toast("Envoyé au scénariste : il reprend ce plan"); return reload("decoupage");
+        toast("Envoyé au scénariste : il reprend ce plan");
+        const y = window.scrollY; await reload("decoupage"); window.scrollTo(0, y); return;
       }
       if (d.usemodel) {
         const [bi, si, mk] = d.usemodel.split(":");
@@ -2419,9 +2435,10 @@ function renderVersion(ch, v) {
     && (a.comment === "image de Michael" || a.kind === "canon_draft"));
   const refsBody = `<div class="two-col">
       <div>${canon ? `<img class="canonbig" src="${media(canon.path)}" data-zoom="${media(canon.path)}" alt="Canon">
-          <p class="hint">La canon : l'image principale, envoyée en premier à chaque génération.</p>
+          <p class="hint">La canon : l'image principale, envoyée en premier à chaque génération.
+            ${canon.model_key ? "" : `<span class="pill wait" title="Ton image sert telle quelle ; une version HD est facultative">pas en HD</span>`}</p>
           ${editable ? `<div class="row" style="gap:8px"><button class="btn small" data-canonhd ${ch.canon_hd.usable ? "" : "disabled"}>Générer une version HD réaliste · ${money(ch.canon_hd.cost_usd)}</button>
-            <span class="hint">${ch.canon_hd.usable ? "Elle arrive dans les candidates : tu choisis ensuite laquelle est la canon." : `Pas encore branché : ${esc(ch.canon_hd.model)} demande une clé fal (page Fournisseurs).`}</span></div>` : ""}`
+            <span class="hint">${ch.canon_hd.usable ? "Facultatif. Elle arrive dans les candidates : tu choisis ensuite laquelle est la canon." : `Facultatif : ton image sert telle quelle. La version HD (${esc(ch.canon_hd.model)}) demandera une clé fal.`}</span></div>` : ""}`
         : `<p class="empty">Pas encore de canon : choisis-la parmi tes images (bouton « En faire la canon »).</p>`}</div>
       <div class="stack">
         ${mine.length ? `<div class="packgrid">${mine.map((a) => `<div class="packitem kept">
@@ -2429,7 +2446,7 @@ function renderVersion(ch, v) {
             <div class="pi">${editable && a.kind !== "canon_draft" ? `<select data-assetkind="${a.id}" aria-label="Catégorie">${["sheet", "turnaround", "fullbody", "expressions", "lighting", "details"]
                 .map((k) => `<option value="${k}" ${k === a.kind ? "selected" : ""}>${esc(KLABEL[k])}</option>`).join("")}</select>`
                 : `<span class="hint">${esc(KLABEL[a.kind] || a.kind)}</span>`}
-              ${editable ? `<div class="row" style="gap:6px"><button class="btn small" data-draftto="${a.id}:canon">En faire la canon</button>
+              ${editable ? `<div class="row" style="gap:6px"><button class="btn small" ${a.kind === "canon_draft" ? `data-draftto="${a.id}:canon"` : `data-makecanon="${a.id}"`}>En faire la canon</button>
                 ${a.kind === "canon_draft" ? `<button class="btn small" data-draftto="${a.id}:sheet">Garder comme référence</button>` : ""}
                 <button class="btn small ghost" data-pickasset="${a.id}:reject">Retirer</button></div>` : ""}</div></div>`).join("")}</div>`
           : `<p class="hint">Aucune image déposée pour l'instant.</p>`}
@@ -2505,6 +2522,11 @@ async function characterClick(e, ch, v) {
       await api(`${base}/versions/${v.version}/canon-hd`, { method: "POST" });
       toast("Version HD lancée : elle arrive dans les candidates dans une à deux minutes");
       refreshSys(); return reload();
+    }
+    if (d.makecanon) {
+      await api(`/api/character-assets/${d.makecanon}/make-canon`, { method: "POST" });
+      toast("C'est la nouvelle canon ; l'ancienne reste dans tes images");
+      return reload();
     }
     if (d.draftto) {
       const [asset_id, kind] = d.draftto.split(":");
@@ -2731,7 +2753,7 @@ const EL_KIND = {
 const EL_STEP = {
   start: ["Images et instruction à donner", "review"],
   draft_choose: ["Brouillon à choisir", "review"],
-  hd_todo: ["Image HD à lancer", "review"],
+  hd_todo: ["Prêt · brouillon, pas en HD", "done"],
   hd_wait: ["Image HD en cours ou à choisir", "work"],
   done: ["Prêt", "done"] };
 
@@ -2779,7 +2801,7 @@ async function loadDecors(clip, keep = false) {
         <div class="row elrename" style="gap:8px">
           <input type="text" data-elname="${e.id}" value="${esc(e.name)}" aria-label="Nom" style="flex:1;min-width:180px">
           <button class="btn small" data-elrename="${e.id}">Renommer</button>
-          <button class="btn small ghost danger" data-eldel="${e.id}">Supprimer</button>
+          <button class="btn small ghost danger" data-eldel="${e.id}" title="${e.shots.length ? `Cité dans les plans ${compactNums(e.shots)} : leur @${esc(e.slug)} ne mènera plus à rien` : ""}">Supprimer${e.shots.length ? ` (cité dans ${e.shots.length} plan${e.shots.length > 1 ? "s" : ""})` : ""}</button>
         </div>
         <div class="elstep ${inspi.length || (e.brief || "").trim() || drafts.length ? "ok" : ""}">
           <div class="elstep-h"><span class="num">1</span><b>Tes images et ton instruction</b>
@@ -2807,7 +2829,7 @@ async function loadDecors(clip, keep = false) {
 
         <div class="elstep ${s3 ? "ok" : ""}">
           <div class="elstep-h"><span class="num">3</span><b>Image HD</b>
-            <span class="hint">${s3 ? "Gardée : elle sert de référence aux visuels des plans." : "La version finale du brouillon, qui servira de référence aux plans."}</span></div>
+            <span class="hint">${s3 ? "Gardée : elle sert de référence aux visuels des plans." : drafts.length ? "Facultatif : en attendant, ton brouillon gardé sert de référence aux plans (pas en HD)." : "La version finale du brouillon, qui servira de référence aux plans."}</span></div>
           ${hdKept.length ? elGrid(hdKept, "kept") : ""}
           ${hdProp.length ? `<p class="hint">Garde la bonne image HD.</p>${elGrid(hdProp, "choose")}` : ""}
           ${sp.length ? spendRows(sp) : ""}
@@ -3010,6 +3032,20 @@ const normTxt = (s) => (s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]
 function mentionables() {
   const chars = ((state.clip && state.clip.characters_all) || []).map((c) => ({ ...c, kind: "perso" }));
   return [...chars, ...((state.clip && state.clip.elements) || [])];
+}
+
+/* vérification des @ d'un plan : chaque référence, l'image qui part au modèle, et les @ qui ne mènent à rien */
+const SENT_LABEL = { hd: "image HD", brouillon: "brouillon (pas en HD)", canon: "canon" };
+function refsCheck(...texts) {
+  const idx = Object.fromEntries(mentionables().map((e) => [e.slug, e]));
+  const slugs = [...new Set(texts.join("\n").toLowerCase().match(/@([a-z0-9][a-z0-9-]*[a-z0-9]|[a-z0-9])/g) || [])].map((m) => m.slice(1));
+  if (!slugs.length) return `<div class="refscheck"><span class="hint">Aucune référence @ dans ce plan.</span></div>`;
+  return `<div class="refscheck"><span class="hint">Références envoyées au modèle :</span>${slugs.map((sl) => {
+    const e = idx[sl];
+    if (!e) return `<span class="refchip bad" title="Aucun personnage ni élément ne s'appelle @${esc(sl)} : renomme le @ ou crée l'élément">⚠ @${esc(sl)} introuvable</span>`;
+    return `<span class="refchip k-${e.kind}">${e.thumb ? `<img src="${media(e.thumb)}" alt="">` : ""}<b>${esc(e.name)}</b>
+      <span class="${e.sent ? (e.sent === "brouillon" ? "warn" : "") : "bad"}">${e.sent ? SENT_LABEL[e.sent] : "aucune image : la fiche seule"}</span></span>`;
+  }).join("")}</div>`;
 }
 
 function mentionHtml(text) {

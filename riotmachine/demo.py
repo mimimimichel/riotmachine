@@ -127,6 +127,7 @@ def create(conn: sqlite3.Connection) -> str:
     production.create_clip(conn, "Premier clip (démo)", slug=SLUG, song=song, vocals=song,
                            characters=["jj"], budget_usd=80, pitch=PITCH, concept=CONCEPT,
                            lyrics_text=LYRICS, dossier=[dossier])
+    production.set_visual_hd(conn, SLUG, True)   # la démo montre tout le parcours, visuel HD compris
     shutil.rmtree(tmp, ignore_errors=True)
     notes = production.studio() / "clips" / SLUG / "script" / "notes.md"
     notes.write_text("Relecture (démo) : le refrain dansé en plan large est le plus cher ; "

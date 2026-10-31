@@ -96,6 +96,11 @@ def delete(conn: sqlite3.Connection, element_id: int) -> None:
                      "(SELECT id FROM element_images WHERE element_id=?)", (element_id,))
         conn.execute("DELETE FROM element_images WHERE element_id=?", (element_id,))
         conn.execute("DELETE FROM elements WHERE id=?", (element_id,))
+        cited = [r["num"] for r in conn.execute(
+            "SELECT num FROM shots WHERE clip_slug=? AND (LOWER(description) LIKE ? OR LOWER(detail) LIKE ?) ORDER BY num",
+            (e["clip_slug"], f"%@{e['slug']}%", f"%@{e['slug']}%")).fetchall()]
+        db.log_event(conn, e["clip_slug"], "decors", f"{KIND_LABEL[e['kind']]} supprimé : {e['name']}"
+                     + (f" (encore cité par @{e['slug']} dans les plans {', '.join(map(str, cited))})" if cited else ""))
     shutil.rmtree(absp(e["dir"]), ignore_errors=True)
 
 
@@ -444,7 +449,9 @@ def for_shot(conn: sqlite3.Connection, shot_id: int) -> list[dict]:
     for r in rows:
         d = dict(r)
         d["states"] = json.loads(d["states"] or "[]")
-        d["refs"] = [rel(p) for p in _refs(conn, d["id"], d["shot_state"], limit=2)]
+        # la HD gardée sert de référence ; à défaut, le brouillon gardé (rien n'est bloquant)
+        d["refs"] = [rel(p) for p in (_refs(conn, d["id"], d["shot_state"], limit=2)
+                                      or _refs(conn, d["id"], d["shot_state"], limit=2, role="draft"))]
         out.append(d)
     return out
 
@@ -512,9 +519,12 @@ def index(conn: sqlite3.Connection, clip_slug: str) -> list[dict]:
     for r in conn.execute("SELECT id, kind, slug, name, states FROM elements WHERE clip_slug=? "
                           "ORDER BY CASE kind WHEN 'decor' THEN 0 WHEN 'figurant' THEN 1 ELSE 2 END, id",
                           (clip_slug,)).fetchall():
-        thumb = _refs(conn, r["id"], None, limit=1) or _refs(conn, r["id"], None, limit=1, role="draft")
+        hd = _refs(conn, r["id"], None, limit=1)
+        thumb = hd or _refs(conn, r["id"], None, limit=1, role="draft")
+        # ce qui part au modèle avec ce plan : l'image HD gardée, sinon le brouillon gardé, sinon rien
         out.append({"id": r["id"], "kind": r["kind"], "slug": r["slug"], "name": r["name"],
-                    "states": json.loads(r["states"] or "[]"), "thumb": rel(thumb[0]) if thumb else None})
+                    "states": json.loads(r["states"] or "[]"), "thumb": rel(thumb[0]) if thumb else None,
+                    "sent": "hd" if hd else "brouillon" if thumb else None})
     return out
 
 
