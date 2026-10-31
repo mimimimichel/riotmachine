@@ -35,10 +35,14 @@ Ne crée pas d'élément pour un détail qui n'apparaît qu'une fois et ne compt
 
 **Un élément = une image de référence.** Il n'y a pas d'« états ». Ce que fait un
 personnage ou un animal dans un plan (le chien aboie, les voleurs sont KO) va dans
-le prompt du plan, pas dans l'élément. Quand un lieu change vraiment d'aspect au
-fil de l'histoire (le jardin intact, puis le jardin vide après le vol), ce sont
-**deux décors** distincts, chacun avec sa fiche et son image : « Jardin de JJ » et
-« Jardin vide après le vol ». Michael pense en décors, pas en états.
+le prompt du plan, pas dans l'élément.
+
+**Un lieu = un seul décor**, même si ce qu'on y voit change au fil de l'histoire.
+Le jardin reste « Jardin de JJ » avant et après le vol : ce qui change, ce sont les
+objets présents ou absents (le vélo, le salon de jardin, le paillasson), qui sont des
+éléments `objet` à part. Le plan cite les objets présents ; le prompt du plan dit ce
+qui manque (« the bike is gone, only a pale mark in the gravel »). Ne crée jamais un
+second décor pour une version « vide », « après » ou « de nuit » du même lieu.
 
 ## 3. Écrire les fiches
 
@@ -54,14 +58,12 @@ Elle ne raconte **rien de l'histoire** : pas d'action, pas d'émotion, pas de sc
 rien à faire dans la fiche du chien : ces actions sont dans les prompts des plans.
 La fiche sert à générer **une image du chien**, rien d'autre.
 Respecte le dossier de Michael mot pour mot quand il décrit une apparence.
-Pour un décor qui existe en deux versions (avant et après), la seconde fiche dit
-ce qui manque ou a changé et rappelle que le reste est identique.
 
 ## 4. Relier les plans
 
 `riot element link <clip> <slug> --shots 1,2,4-5`
 
-Chaque plan est relié à son décor (la bonne version : jardin intact ou vide) et à ses objets et figurants
+Chaque plan est relié à son décor et aux objets et figurants qu'on y voit
 visibles. Un plan au bureau n'a pas le jardin. Vérifie avec `riot element list`.
 
 ## 5. Regarder les images de départ de Michael
