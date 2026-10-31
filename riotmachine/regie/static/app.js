@@ -1712,6 +1712,10 @@ function renderDossier(clip) {
         <p class="hint">La forme de la vidéo finale. Tous les visuels et vidéos sont générés dans ce format.${formatLocked ? " Il ne se change plus une fois la production lancée." : ""}</p>
         <div class="formats">${formats.map(([v, n, u, w, h]) => `<button class="format ${clip.aspect_ratio === v ? "on" : ""}" data-format="${v}" ${formatLocked ? "disabled" : ""}>
           <span class="shape" style="width:${w}px;height:${h}px"></span><b>${n} ${v}</b><span>${u}</span></button>`).join("")}</div>
+        <h3 style="margin-top:8px">Visuel HD avant la vidéo</h3>
+        <p class="hint">Facultatif. Sans, le visuel validé de chaque plan part tel quel comme image de départ de la vidéo.
+          Avec, il est d'abord agrandi en HD (payant, demande fal).</p>
+        <label class="row" style="gap:8px"><input type="checkbox" data-visualhd ${clip.visual_hd ? "checked" : ""}> Agrandir chaque visuel en HD avant la vidéo</label>
       </div>
       <div class="panel stack">
         <div class="panel-head"><h2>Budget de génération</h2></div>
@@ -1832,6 +1836,15 @@ function bindClip() {
     });
   }
   bindTimeline();
+  $view.onchange = async (e) => {
+    const t = e.target;
+    if (t.dataset && t.dataset.visualhd !== undefined) {
+      try {
+        await api(`/api/clips/${encodeURIComponent(clip.slug)}/visual-hd`, { json: { on: t.checked } });
+        toast(t.checked ? "Chaque visuel sera agrandi en HD avant la vidéo" : "Le visuel validé part tel quel vers la vidéo");
+      } catch (err) { toast(err.message, "err"); t.checked = !t.checked; }
+    }
+  };
   $view.oninput = (e) => {
     const t = e.target;
     if (t.dataset.sf) {
