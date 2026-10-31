@@ -407,7 +407,7 @@ function waitingText(shot) {
   return {
     spend: "En attente de validation : la dépense de ce visuel est dans l'onglet Dépenses.",
     decors_scan: "Attend le repérage des décors, objets et figurants.",
-    decors: "Attend une image de référence gardée pour ses décors (onglet Décors).",
+    decors: "Attend une image de référence gardée pour ses décors (onglet Références).",
   }[shot.waiting] || "";
 }
 
@@ -551,7 +551,7 @@ function renderClip() {
   const tabs = [
     ["plans", "Plans", c.review ? `<span class="count">${c.review}</span>` : ""],
     ["decoupage", "Découpage", clip.stage === "decoupage_review" ? `<span class="count">à valider</span>` : ""],
-    ["decors", "Décors", clip.decors_pending ? `<span class="count">${clip.decors_pending}</span>` : ""],
+    ["decors", "Références", clip.decors_pending ? `<span class="count">${clip.decors_pending}</span>` : ""],
     ["dossier", "Dossier", ""],
     ["journal", "Journal", ""],
   ];
@@ -1092,8 +1092,8 @@ function renderDrawer() {
   const freeChars = allChars.filter((c) => !inShot.has(c.slug));
   const elBox = `<div class="shot-els panel">
       <div class="panel-head"><h3>Personnages, décors, objets et figurants du plan</h3>
-        <a class="hint" href="#/clip/${encodeURIComponent(clip.slug)}/decors">tous les décors</a></div>
-      <p class="hint">Leur image sert de référence au visuel du plan. Pour en ajouter : touche ＋, ou tape @ dans le prompt détaillé.</p>
+        <a class="hint" href="#/clip/${encodeURIComponent(clip.slug)}/decors">toutes les références</a></div>
+      <p class="hint">Leur image sert de référence au visuel du plan. Pour en ajouter : touche ＋, ou tape @ dans le prompt détaillé. Tout se gère dans l'onglet Références.</p>
       <div class="eltiles2">
         ${shotChars.map((c) => charTile(c, "", `<button class="x" data-charunlink="${esc(c.slug)}" title="Retirer du plan" aria-label="Retirer du plan">✕</button>`)).join("")}
         ${(shot.elements || []).map((e) => elTile(e, "", `<button class="x" data-elunlink="${e.id}" title="Retirer du plan" aria-label="Retirer du plan">✕</button>`)).join("")}
@@ -2615,8 +2615,12 @@ function renderVersion(ch, v) {
     ${editable ? charPanel("Compléter par génération (facultatif)", `Des images en plus, générées à partir de la canon.`, genBody)
       : (packHtml ? charPanel("Images générées", "", packHtml) : "")}
     ${charPanel("Essais et tests",
-      `Ce qui a été réussi pour cette version en dehors du pack : tests de modèles concluants, vidéos d'essai, bonnes images. On le garde pour capitaliser sur l'identité du personnage.`,
-      v.essais.length ? mediaGrid(v.essais) : `<p class="hint">Aucun essai pour l'instant.</p>`)}
+      `Ce qui a été réussi pour ${esc(ch.name)} en dehors du pack : tests de modèles concluants, vidéos d'essai, bonnes images. On le garde pour capitaliser sur son identité.`,
+      (() => {
+        const others = ch.versions.filter((x) => x.version !== v.version && (x.essais || []).length);
+        const mine = v.essais.length ? mediaGrid(v.essais) : `<p class="hint">Aucun essai pour la version ${v.version}.</p>`;
+        return mine + others.map((x) => `<h3 style="margin:14px 0 8px">Essais de la version ${x.version}</h3>${mediaGrid(x.essais)}`).join("");
+      })())}
     ${looksSection(ch)}
     ${editable ? `<section class="panel row" style="margin-top:16px"><p class="hint" style="flex:1">Quand la canon, la fiche et le pack te conviennent, valide la version ${v.version}.
         Elle devient la référence de ${esc(ch.name)} pour les prochains clips.</p>
@@ -3002,7 +3006,7 @@ async function loadDecors(clip, keep = false) {
   const nDone = d.elements.filter((e) => e.step === "done").length;
   box.innerHTML = `
     <section class="panel stack">
-      <p class="hint helptext">Pour chaque décor, objet ou figurant : <b>1.</b> dépose des images et écris ce que tu veux,
+      <p class="hint helptext">Tout ce que les plans citent avec @ : décors, figurants, objets et tenues. Pour chaque décor, objet ou figurant : <b>1.</b> dépose des images et écris ce que tu veux,
         <b>2.</b> crée un brouillon gratuit (ou dépose le tien) et garde le bon, <b>3.</b> génère l'image HD et garde la bonne.
         L'image HD gardée sert de référence à tous les plans où l'élément apparaît. Dans un plan, tape <b>@</b> pour citer un élément.</p>
       <div class="row" style="gap:10px">
@@ -3276,7 +3280,7 @@ function mentionDraw() {
   mention.box.innerHTML = mention.items.map((e, i) => `<div class="mi ${i === mention.sel ? "on" : ""}" data-mi="${i}">
       ${e.thumb ? `<img src="${media(e.thumb)}" alt="">` : `<span class="none"></span>`}
       <span><b>${esc(e.name)}</b><span class="hint">${({ perso: "Personnage", tenue: "Tenue", decor: "Décor", objet: "Objet", figurant: "Figurant" })[e.kind]} · @${esc(e.slug)}</span></span></div>`).join("")
-    || `<div class="mi"><span class="hint">Rien de ce nom : crée le personnage (Personnages) ou l'élément (onglet Décors).</span></div>`;
+    || `<div class="mi"><span class="hint">Rien de ce nom : crée le personnage (Personnages) ou l'élément (onglet Références).</span></div>`;
   mention.box.hidden = false;
 }
 document.addEventListener("input", (ev) => {

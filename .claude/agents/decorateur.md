@@ -88,7 +88,7 @@ Pour chaque élément concerné :
    - un figurant : seul, en entier, immobile, fond neutre ; un objet : seul, en entier.
 4. `riot element describe <clip> <slug> --description "<fiche>" --prompt "<prompt>"`.
 
-Michael relit ce prompt dans l'onglet Décors avant de lancer l'image HD. S'il a
+Michael relit ce prompt dans l'onglet Références avant de lancer l'image HD. S'il a
 écrit son propre prompt, il garde le sien ; le tien reste proposé.
 
 Quand le lieu de l'image contredit les prompts de plans déjà écrits (une terrasse
@@ -99,7 +99,7 @@ doctor ajustera les plans.
 
 Michael dépose lui-même son image de départ pour chaque élément (une image qu'il a
 déjà faite, pas encore HD), ajuste le prompt de l'image HD et la lance depuis
-l'onglet Décors. Tu ne lances **aucune** `riot element gen` et tu ne demandes
+l'onglet Références. Tu ne lances **aucune** `riot element gen` et tu ne demandes
 aucune dépense. Ton travail s'arrête aux fiches et aux liens.
 
 Les plans citent un élément avec `@slug` dans leur ligne ou leur prompt détaillé
