@@ -120,6 +120,22 @@ function fitFor(clip, key, secs) {
     text: `Plan de ${s1} s, mais ${m.label} fait au moins ${gen} s : ${waste.toFixed(1).replace(".", ",")} s payées en trop (≈ ${money(waste * (m.price_s || 0))}).` };
   return { level: "ok", short: "", suggest, text: `${m.label} génère ${gen} s pour ce plan (≈ ${money(cur)}).` };
 }
+/* durée d'un plan face à tous les modèles vidéo branchés (le modèle se choisit dans le plan, pas ici) */
+function durationAlert(clip, secs) {
+  if (!(secs > 0)) return null;
+  const ms = (clip.video_models || []).filter((m) => m.usable);
+  if (!ms.length) return null;
+  const mins = ms.map((m) => Math.min(...(m.durations || [5])));
+  const maxs = ms.map((m) => Math.max(...(m.durations || [5])));
+  const minAll = Math.min(...mins), maxAll = Math.max(...maxs);
+  const s1 = secs.toFixed(1).replace(".", ",");
+  if (secs > maxAll + 0.05) return { level: "bad", short: "trop long pour les modèles",
+    text: `Plan de ${s1} s : aucun modèle branché ne fait plus de ${maxAll} s. Coupe-le en deux.` };
+  if (minAll - secs >= 1) return { level: "warn", short: `court : ${minAll} s minimum`,
+    text: `Plan de ${s1} s : aucun modèle branché ne fait moins de ${minAll} s, donc ${(minAll - secs).toFixed(1).replace(".", ",")} s seront générées en trop. Pas bloquant : au montage, on garde ${s1} s.` };
+  return null;
+}
+
 function fitHtml(f, key) {
   if (!f) return "";
   return `<span class="fit ${f.level}">${esc(f.text)}</span>${f.suggest ? `<div class="row" style="gap:8px;margin-top:6px">
@@ -1036,7 +1052,13 @@ function renderDrawer() {
   const settings = `<div class="shot-settings stack" style="gap:8px">
       <label class="field"><span>Modèle vidéo</span>
         ${locked ? `<b>${esc((shot.video_model || {}).label || "")}</b>` : modelSelect(clip, shot.model_key || "", `data-shotmodel="${shot.id}"`)}</label>
-      ${fitBadge(shot.fit)}
+      ${(() => {
+        const f = fitFor(clip, shot.model_key, shot.t_end - shot.t_start);
+        if (!f) return "";
+        return `<span class="fit ${f.level}">${esc(f.text)}</span>
+          ${!locked && f.suggest ? `<div class="row" style="gap:8px"><button class="btn small ghost" data-shotmodelpick="${shot.id}:${esc(f.suggest.key)}">Mieux adapté : ${esc(f.suggest.label)} · ≈ ${money(f.suggest.cost)} au lieu de ${money(f.suggest.from)}</button></div>` : ""}
+          ${f.level !== "ok" ? `<a class="hint" href="#/clip/${encodeURIComponent(clip.slug)}/decoupage" data-gocut="${shot.id}">Revoir la durée de ce plan dans le Découpage</a>` : ""}`;
+      })()}
       ${shot.lipsync && !shot.lipsync.native ? `<label class="field"><span>Lip-sync</span>
         <select data-shotlipsync="${shot.id}">
           <option value="">Par défaut</option>
@@ -1281,7 +1303,7 @@ function renderPlanVideo(shot, isGate) {
 }
 
 async function drawerClick(ev) {
-  const t = ev.target.closest("button, [data-zoom], input[data-model], [data-eladd], [data-charadd]");
+  const t = ev.target.closest("button, [data-zoom], input[data-model], [data-eladd], [data-charadd], [data-gocut]");
   if (ev.target.matches && ev.target.matches("select")) return;
   if (!t) return;
   const d = t.dataset;
@@ -1317,6 +1339,17 @@ async function drawerClick(ev) {
       const [sid, on] = d.refsok.split(":");
       await api(`/api/shots/${sid}/refs-ok`, { json: { ok: on === "1" } });
       return reload();
+    }
+    if (d.gocut) {
+      ev.preventDefault();
+      state.pendingFocus = +d.gocut;   // la carte du plan s'ouvre dans le Découpage
+      location.hash = `#/clip/${encodeURIComponent(clip.slug)}/decoupage`;
+      return;
+    }
+    if (d.shotmodelpick) {
+      const [sid, mk] = d.shotmodelpick.split(":");
+      await api(`/api/shots/${sid}/model`, { json: { model_key: mk } });
+      toast("Modèle changé"); return reload();
     }
     if (d.charadd || d.charunlink) {
       await api(`/api/shots/${state.shotId}/characters`, { json: { slug: d.charadd || d.charunlink, remove: !!d.charunlink } });
@@ -1416,7 +1449,7 @@ function renderDecoupageTab(clip) {
   if (!state.editor || !state.editorDirty) state.editor = editorFromClip(clip);
   let head = "";
   const allShots = state.editor.flatMap((b) => b.shots);
-  const fits = allShots.map((s) => fitFor(clip, s.model_key, parseTc(s.t_end) - parseTc(s.t_start)));
+  const fits = allShots.map((s) => durationAlert(clip, parseTc(s.t_end) - parseTc(s.t_start)));
   const nWarn = fits.filter((f) => f && f.level === "warn").length;
   const nBad = fits.filter((f) => f && f.level === "bad").length;
   const incomplete = (clip.incomplete || []).length;
@@ -1428,9 +1461,9 @@ function renderDecoupageTab(clip) {
         <span class="mono">Vidéo estimée : ~${money(clip.video_cost_usd)}</span>
       </div>
       <p class="hint" style="margin-top:6px">Un plan complet a « ce qu'on voit », son prompt détaillé, son cadrage et son mouvement.
-        ${nWarn ? `<b>${nWarn}</b> plan${nWarn > 1 ? "s" : ""} plus court${nWarn > 1 ? "s" : ""} que ce que le modèle génère (payé${nWarn > 1 ? "s" : ""} en trop).` : ""}
-        ${nBad ? `<b style="color:var(--red)">${nBad}</b> plan${nBad > 1 ? "s" : ""} trop long${nBad > 1 ? "s" : ""} pour son modèle.` : ""}
-        Veo ne sait pas faire plusieurs plans dans une même prise : fusionner deux plans courts voisins coûte moins cher.</p>
+        ${nWarn ? `<b>${nWarn}</b> plan${nWarn > 1 ? "s" : ""} plus court${nWarn > 1 ? "s" : ""} que ce que les modèles branchés savent faire (secondes générées en trop).` : ""}
+        ${nBad ? `<b style="color:var(--red)">${nBad}</b> plan${nBad > 1 ? "s" : ""} trop long${nBad > 1 ? "s" : ""} pour tous les modèles branchés.` : ""}
+        Le modèle de chaque vidéo se choisit dans le panneau du plan, au moment de la générer.</p>
     </div>` : "";
   if (clip.stage === "decoupage_review") {
     head = `<div class="actionbox" style="margin-bottom:16px"><h3>Découpage à valider</h3>
@@ -1473,7 +1506,7 @@ function renderDecoupageTab(clip) {
     const shotsHtml = b.shots.map((s, si) => {
       n++;
       const key = `${bi}:${si}`;
-      const fit = fitFor(clip, s.model_key, parseTc(s.t_end) - parseTc(s.t_start));
+      const dal = durationAlert(clip, parseTc(s.t_end) - parseTc(s.t_start));
       const tech = [FRAMING_FR[s.framing] || s.framing, s.motion && `mouvement ${MOTION_FR[s.motion] || s.motion}`, s.camera].filter(Boolean).join(" · ");
       const complete = s.detail && s.framing && s.motion;
       const pend = (s.pending || []).length;
@@ -1487,8 +1520,7 @@ function renderDecoupageTab(clip) {
           <span class="dshot-dur mono" data-dur="${key}">${durText(s)}</span>
           ${clip.song_path ? `<button class="iconbtn playmini" data-decplay="${key}" title="Écouter ce plan" aria-label="Écouter ce plan">▶</button>` : ""}
           ${s.singing ? `<span class="dshot-sing" title="Plan chanté : lip-sync">♪</span>` : ""}
-          <span class="dshot-model hint">${esc((modelOf(clip, s.model_key) || {}).label || "")}</span>
-          <span data-fit="${key}">${fit && fit.level !== "ok" ? `<span class="fit ${fit.level}">${esc(fit.short)}</span>` : ""}</span>
+          <span data-fit="${key}">${dal ? `<span class="fit ${dal.level}" title="${esc(dal.text)}">${esc(dal.short)}</span>` : ""}</span>
           <span class="spacer"></span>
           ${complete || pend ? "" : `<span class="pill review">à compléter</span>`}
           <span class="chev">›</span>
@@ -1498,8 +1530,7 @@ function renderDecoupageTab(clip) {
           ${tech ? `<p class="dshot-tech">${esc(tech)}</p>` : ""}
         </div>
         <div class="dshot-body">
-          <label class="field"><span>Modèle vidéo</span>${modelSelect(clip, s.model_key, `data-sf="${key}:model_key" aria-label="Modèle vidéo"`)}</label>
-          <div data-fitfull="${key}">${fitHtml(fit, key)}</div>
+          <div data-fitfull="${key}">${dal ? `<span class="fit ${dal.level}">${esc(dal.text)}</span>` : ""}</div>
           <div class="dshot-row">
             <label class="field"><span>Début</span><input class="tc" type="text" inputmode="decimal" value="${esc(s.t_start)}" data-sf="${key}:t_start" placeholder="0:00.0"></label>
             <label class="field"><span>Fin</span><input class="tc" type="text" inputmode="decimal" value="${esc(s.t_end)}" data-sf="${key}:t_end" placeholder="0:04.0"></label>
@@ -1853,6 +1884,10 @@ function renderJournal(clip) {
 function bindClip() {
   const clip = state.clip;
   drawWave();
+  if (state.tab === "decoupage" && state.pendingFocus) {
+    const id = state.pendingFocus; state.pendingFocus = null;
+    setTimeout(() => focusDecShot(id, true), 50);
+  }
   bindCompare($view);
   if (state.tab === "dossier" || state.tab === "decoupage") {
     if (state.tab === "dossier") loadLyrics(clip);
@@ -1888,11 +1923,11 @@ function bindClip() {
       if (f === "t_start" || f === "t_end" || f === "model_key") {
         const el = $view.querySelector(`[data-dur="${bi}:${si}"]`);
         if (el) el.textContent = durText(sh);
-        const fit = fitFor(clip, sh.model_key, parseTc(sh.t_end) - parseTc(sh.t_start));
+        const dal = durationAlert(clip, parseTc(sh.t_end) - parseTc(sh.t_start));
         const fe = $view.querySelector(`[data-fit="${bi}:${si}"]`);
-        if (fe) fe.innerHTML = fit && fit.level !== "ok" ? `<span class="fit ${fit.level}">${esc(fit.short)}</span>` : "";
+        if (fe) fe.innerHTML = dal ? `<span class="fit ${dal.level}" title="${esc(dal.text)}">${esc(dal.short)}</span>` : "";
         const ff = $view.querySelector(`[data-fitfull="${bi}:${si}"]`);
-        if (ff) ff.innerHTML = fitHtml(fit, `${bi}:${si}`);
+        if (ff) ff.innerHTML = dal ? `<span class="fit ${dal.level}">${esc(dal.text)}</span>` : "";
         const tcEl = $view.querySelector(`#dshot-${bi}\\:${si} .dshot-tc`);
         if (tcEl) tcEl.textContent = `${sh.t_start || "?"} → ${sh.t_end || "?"}`;
       }
