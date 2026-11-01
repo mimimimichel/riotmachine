@@ -1,0 +1,167 @@
+[00:00:00] Welcome back everyone. Today I brought
+[00:00:02] GLM 5.3 flash and deep seek version 4.1
+[00:00:05] flash for free. Zero AI, this platform
+[00:00:09] has posted that we will give daily usage
+[00:00:12] to everyone to use these two models
+[00:00:14] totally for free. So let's move to the
+[00:00:16] platform and where we can get the free
+[00:00:19] usage every day and we will get the API
+[00:00:22] key also. So the
+[00:00:24] let's come here to the click on the
+[00:00:26] link. So we will directly move to the
+[00:00:29] product hunt and here we will move to
+[00:00:31] their website. Click on this website.
+[00:00:34] So the platform is zero.
+[00:00:36] zero.moonmath.ai.
+[00:00:38] So after moving to this website, you can
+[00:00:41] see
+[00:00:42] fast inference, zero retention and here
+[00:00:44] you can see that it is totally for free.
+[00:00:46] Look at start for free. We can start it
+[00:00:48] for free. Just come here down and you
+[00:00:50] can read all about this.
+[00:00:52] So that's it. Come down. Find our coding
+[00:00:55] agent. These are the models, inference
+[00:00:58] and let's click start for free. Okay,
+[00:01:01] try zero. zero for free. Free daily
+[00:01:04] usage on GLM 5.3 flash and deep seek
+[00:01:07] version 4.1 flash. Resets every day. So
+[00:01:10] let's click on this start for free and
+[00:01:13] first of all we need to create our
+[00:01:14] account. Let me click on this Google. I
+[00:01:16] want to continue with Google. You can
+[00:01:18] continue with GitHub or your email. So I
+[00:01:20] will press on Google to create my
+[00:01:22] account and show you how much usage it
+[00:01:24] gives every day to the users to get to
+[00:01:26] these frontier open source models.
+[00:01:31] So after creating your account, you can
+[00:01:33] see directly overview, daily usage. Uh
+[00:01:37] 100% remained of today's free usage
+[00:01:40] left. Resets in 10 hour 26. Okay, in 10
+[00:01:43] hour it will reset your daily usage. So
+[00:01:46] to use their models, so we need to
+[00:01:49] create an API key. So let's move to the
+[00:01:52] API keys. Let click on the API key. So
+[00:01:55] after coming here, let's click on this
+[00:01:57] create API key and we will create our
+[00:01:59] first API. As you can see
+[00:02:01] uh Europe, United States and others. So,
+[00:02:04] don't care about that. Let me write a
+[00:02:05] name, testing. So, inference region, you
+[00:02:08] can select from which region you want.
+[00:02:10] So, here you can spend spend limit $25
+[00:02:14] and resets never and expiration never.
+[00:02:17] Let's create our API key and use that.
+[00:02:19] So, the API key has been created. Let me
+[00:02:22] just copy the API key.
+[00:02:24] So, from here we can copy the API key.
+[00:02:27] Let me show you. Yeah, here at the top
+[00:02:29] you can see we can copy this API key.
+[00:02:30] Let me click on this.
+[00:02:33] So, let me dismiss this. So, after
+[00:02:35] creating our API key, let's move on to
+[00:02:37] the documentation where we can get the
+[00:02:39] base URL and use that inside our own
+[00:02:41] agent. You can continue with Cloud Code,
+[00:02:43] CodeX and other agents. Click on this
+[00:02:46] and you can see the details like this.
+[00:02:48] You can continue like this also, but let
+[00:02:50] me move to the documentation. Come here
+[00:02:52] and click here on docs.
+[00:02:56] So, after coming to the documentation,
+[00:02:58] let's now click uh here on quick start.
+[00:03:01] Uh yeah, click on quick start and come
+[00:03:03] here to the quick start. And we need
+[00:03:04] this base URL. Look at this is the base
+[00:03:06] URL that we will use. Let me copy this
+[00:03:08] base URL.
+[00:03:11] And let's open Open Code
+[00:03:14] agent. You can uh use any other agent.
+[00:03:16] You can use Cloud Code, Kite, Kilo Code
+[00:03:19] or any other agent, but I would like to
+[00:03:20] use
+[00:03:21] um Open Code. You can install the Open
+[00:03:24] Code CLI also. So, come here to the main
+[00:03:27] menu, file and to the settings.
+[00:03:30] After coming to the settings, come here
+[00:03:31] to the providers. After coming to the
+[00:03:33] provider, come here down to the custom
+[00:03:35] provider. Press on connect button. And
+[00:03:37] here let's write the ID. So, this should
+[00:03:40] be a unique ID like zero.
+[00:03:43] Zero.
+[00:03:47] One minute, this should be a display
+[00:03:49] name for this provider.
+[00:03:51] So, come here down now to the base URL.
+[00:03:53] Let's copy now base URL. Yeah, the
+[00:03:55] website and copy this base URL and come
+[00:03:58] here back to the Open Code and paste
+[00:04:00] that here. Now, we need the API key. I
+[00:04:02] already copied the API key. We'll paste
+[00:04:04] that here.
+[00:04:06] So, let's paste that here.
+[00:04:08] Now, the [snorts] model ID. So, for the
+[00:04:10] model ID, let's go back to the website.
+[00:04:15] And we will move now to the models.
+[00:04:17] Let's come here to the Deep Seek version
+[00:04:19] 4.1 flash. You can see the model ID.
+[00:04:21] Let's copy this name
+[00:04:23] and use it here. And here, whatever you
+[00:04:25] want, so you can write like that. Deep
+[00:04:27] Seek
+[00:04:28] version 4.1. That's it. Let's add
+[00:04:31] another model.
+[00:04:32] So, that is GLM 5.3 flash, this one.
+[00:04:36] And let's copy this ID name.
+[00:04:41] Paste it here and write here
+[00:04:44] GLM 5.3
+[00:04:46] flash. That's it. Okay, and let's press
+[00:04:49] now the submit button. So, zero Moon
+[00:04:51] Math has been connected. After getting
+[00:04:53] the connection, now let's take a new
+[00:04:55] session
+[00:04:56] to start chatting with these models.
+[00:05:01] So, after taking the new session, let's
+[00:05:03] me move to this AI test directory. What
+[00:05:05] is inside that?
+[00:05:07] Let's me open that and show you.
+[00:05:10] So, that's it. That's empty right now.
+[00:05:12] And let's start now chatting with this.
+[00:05:13] Let's come here first of all to the plan
+[00:05:15] and I will send Yeah, first we should
+[00:05:17] select the model. Come here down to the
+[00:05:19] end where we can find our custom
+[00:05:21] provider. You can see zero
+[00:05:24] Moon Math Deep Seek version 4.1 flash.
+[00:05:26] And I will just send a hello query to
+[00:05:29] see the response.
+[00:05:30] So, you can see we got the response.
+[00:05:32] Hello, how can I help you today? Let's
+[00:05:34] test the second model also. I will take
+[00:05:36] a new session and select now GLM 5.3
+[00:05:38] flash. And I will send a query to this
+[00:05:41] one also to test it and show you the
+[00:05:43] result. So, we got the response from GLM
+[00:05:45] 5.3 flash also. So, that's it. Now,
+[00:05:47] let's go back to the website and where
+[00:05:50] we can
+[00:05:51] just show you the usage plan.
+[00:05:54] And come here to the overview and
+[00:05:57] let's refresh it once. How much Yeah,
+[00:06:00] 92% has been remained. I used it before
+[00:06:03] also. Yes, the free credit is too much
+[00:06:06] low, I think. I have used the total
+[00:06:09] token
+[00:06:11] 33 and output 668. Total eight requests.
+[00:06:15] For eight requests, we have used 8%. It
+[00:06:18] means for one request, it will use just
+[00:06:20] 1%. Total 100 requests. I think it is
+[00:06:22] like this.
+[00:06:24] And it will reset daily. So, that's it
+[00:06:26] for today. Yeah, the
+[00:06:28] free limit is low. I didn't expect like
+[00:06:31] this much, but for sometimes, for
+[00:06:33] students, and for free usage and
+[00:06:36] testing, it is good. Thanks for
+[00:06:37] watching. See you in the next one.

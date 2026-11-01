@@ -1,0 +1,895 @@
+[00:00:01] Z yes I just made this air agent system
+[00:00:05] that just CAU 0 to create and publish
+[00:00:08] vir AI videos like this getting
+[00:00:10] thousands or even millions of views and
+[00:00:13] I'm sharing the AI agent system to
+[00:00:15] everyone in case you haven't seen them a
+[00:00:18] videos like this are getting thousands
+[00:00:20] of millions of views you can actually
+[00:00:22] automate the creation of those videos
+[00:00:25] through Ai and no code tools like NN
+[00:00:29] these counter example
+[00:00:30] already has more than 95,000 followers
+[00:00:34] and this video's got more than a million
+[00:00:36] views so you can just imagine once this
+[00:00:39] process is automated how powerful this
+[00:00:42] could be what you can do is set up this
+[00:00:45] workflow just once just once and you can
+[00:00:48] let a do the rest of the work for you as
+[00:00:50] you watch your channel grow and here's
+[00:00:52] the best part you don't need to be a
+[00:00:55] software engineer to do this we build
+[00:00:57] this in NN a not code automation to so
+[00:01:00] if you know how to drag and drop you're
+[00:01:02] all set learning about air agents is
+[00:01:05] also one of the best uses of your time
+[00:01:08] given a huge demand for it so invest the
+[00:01:11] next few minutes or so learning about
+[00:01:14] air today and watch till the end because
+[00:01:16] this might just be one of the most
+[00:01:18] important skills that you will ever
+[00:01:20] learn by the way if you're new here my
+[00:01:23] name is Andy I have two key missions
+[00:01:27] first to bring you the most updated AI
+[00:01:30] tools and tutorials so you are always
+[00:01:32] ahead of the curve second to make AI as
+[00:01:36] easy to learn as possible especially if
+[00:01:38] you want to make a leaving from this way
+[00:01:40] now if you're thinking okay but how do I
+[00:01:43] do this myself no worries I got you I've
+[00:01:46] put together all the resources prompts
+[00:01:49] and workflow templates you need inside
+[00:01:51] our any no code Community this means you
+[00:01:54] don't have to start from scratch you can
+[00:01:56] literally import the blueprint template
+[00:01:59] into NN and start running it today we
+[00:02:03] also have a growing community of a
+[00:02:05] creators who are sharing new strategies
+[00:02:07] every day so if you want to connect with
+[00:02:10] others doing cool automation stuff
+[00:02:12] you'll love it here you can find the
+[00:02:14] link in the description below so let's
+[00:02:17] dive in in the na workflow step by step
+[00:02:19] now if you want a quick setup we can go
+[00:02:22] to any local community and click this
+[00:02:24] Google Drive Link and download this
+[00:02:27] template and then we can import from
+[00:02:30] file this one this are our workflow
+[00:02:34] let's click test workflow so we getting
+[00:02:35] the Youtube video um from the Google
+[00:02:38] spreadsheet these are the videos that we
+[00:02:40] just
+[00:02:41] input great we can see the internal path
+[00:02:44] is updated it means that these are the
+[00:02:48] files that are stored in our Local Host
+[00:02:50] so the next one is we are going to get
+[00:02:53] the YouTube music click test flow so
+[00:02:55] it's getting the YouTube music from the
+[00:02:57] Google spreadsheet here great let's take
+[00:02:59] take a look at the gole spreadsheet nice
+[00:03:02] the internal path are updated the status
+[00:03:06] are success great so it's working so
+[00:03:09] let's test our final workflow here all
+[00:03:11] right we are going to generate the
+[00:03:12] motivational video and upload to Youtube
+[00:03:14] on autopilot now so let's test this
+[00:03:18] workflow we're going to get all the
+[00:03:20] videos the music and also the quotes and
+[00:03:23] combine all of them and generate the
+[00:03:25] video great let's check so this is the
+[00:03:29] YouTube url so let's try to click
+[00:03:33] [Music]
+[00:03:39] this so that's it for the demo I will
+[00:03:41] share with you how we can build this
+[00:03:43] note by note and we will start from
+[00:03:45] Local Host settings and credentials
+[00:03:48] first all right we first go to
+[00:03:50] docket.com and then download dock
+[00:03:55] desktop and choose the correct version
+[00:03:59] for you so for us I would choose for too
+[00:04:01] for mac Apple silicon and then download
+[00:04:05] it all right then we're going to install
+[00:04:07] it open the file drag and drop here it's
+[00:04:13] installing great then we'll
+[00:04:18] find here we are going to open this
+[00:04:23] Docker and we'll go to Docker Hub search
+[00:04:27] for ning n
+[00:04:31] and we'll have the first one eding n io/
+[00:04:34] ning n and then we click
+[00:04:37] it and we'll click the pull
+[00:04:42] button all right let's go to
+[00:04:47] images we have this ready great so it's
+[00:04:51] installed all right after it's installed
+[00:04:54] we have the latest version and then we
+[00:04:56] go to
+[00:04:57] images we can click this run
+[00:05:01] button expand the optional settings for
+[00:05:04] the host Port we can uh input whatever
+[00:05:07] number we want for example 5 6 7
+[00:05:11] 8 it is for the host Port all right so
+[00:05:15] Ed is now accessible via this link so we
+[00:05:19] can actually click this link or we can
+[00:05:21] click here so basically this is the link
+[00:05:24] of uh our ning n in the Local Host so we
+[00:05:27] can register here and a low for example
+[00:05:32] this one next and then just like
+[00:05:36] this just choose the best options for
+[00:05:40] you select that all right skip so
+[00:05:44] basically we are able to assess NN now
+[00:05:47] so that's how it works for the setup for
+[00:05:50] NN in your Local Host all right so we
+[00:05:53] have successfully installed Docker and
+[00:05:54] NN in our local machine and now let's
+[00:05:57] try to install FFM pack in your dock
+[00:05:59] roer as well so we can go to Docker
+[00:06:03] containers and this is the container
+[00:06:05] that we have created we click into it
+[00:06:09] and when we hover over this this is the
+[00:06:12] containers ID and then we can copy to
+[00:06:16] clipboard and for example this is our
+[00:06:19] container ID we can just pay it paste it
+[00:06:22] somewhere first because we are going to
+[00:06:25] execute this command so I'm going to to
+[00:06:29] paste this container ID and replace
+[00:06:34] this container ID here so this is my
+[00:06:38] example command so what I'm going to do
+[00:06:41] next is that I'm going to copy this and
+[00:06:44] then uh command space and I'll search
+[00:06:48] for
+[00:06:49] terminal and then I'll just paste this
+[00:06:52] command and execute
+[00:06:54] it great and it's done we have
+[00:06:56] successfully installed FMC in your
+[00:06:58] docker
+[00:07:00] all right it's time for us to install
+[00:07:01] ytdl in your Docker as for downloading
+[00:07:04] YouTube videos so first of all we can go
+[00:07:06] to Docker containers we can go to the
+[00:07:11] container that having your
+[00:07:13] NN when we hover over this this is the
+[00:07:16] container ID so we can copy this and
+[00:07:19] paste it somewhere first because we're
+[00:07:21] going to execute this command line but
+[00:07:24] we have to replace the container ID here
+[00:07:27] first so this is the command line that
+[00:07:30] we are going to copy and then we are
+[00:07:33] going to search for terminal so command
+[00:07:35] space search for terminal and just paste
+[00:07:38] this command line and then
+[00:07:41] execute all right it's installing great
+[00:07:44] it's completed if you do not have the
+[00:07:47] template and you are starting from
+[00:07:49] scratch we can go to overview
+[00:07:52] credentials and we can click this drop-
+[00:07:55] down menu and click create credential we
+[00:07:58] can search for for YouTube O off to
+[00:08:02] API and we can click
+[00:08:04] continue that's where we can set up the
+[00:08:07] credentials I will share more details
+[00:08:09] later and if you have the template and
+[00:08:13] you'll be able to see this note create
+[00:08:16] YouTube link and we can click this let's
+[00:08:19] click create new credential we have all
+[00:08:22] Au redirect URL here and we need to
+[00:08:24] input the client ID and client R key
+[00:08:27] first of all let's copy the this all3
+[00:08:30] direct URL we can go back to Google
+[00:08:32] cloud counil and search for YouTube
+[00:08:34] dated API V3 and enable this then we are
+[00:08:39] going to click credentials click create
+[00:08:43] credentials here we choose o or Clan ID
+[00:08:45] or we can choose web application we can
+[00:08:49] rename any and
+[00:08:52] YouTube then we can click add URL paste
+[00:08:56] the URL that we just copied and we can
+[00:08:58] click create we have the clan ID and
+[00:09:02] Clan SEC key so we copy this clan ID
+[00:09:05] first and paste it here and then go back
+[00:09:09] to copy this client secret key
+[00:09:12] and select this one and paste it and we
+[00:09:16] can sign in with Google please sign in
+[00:09:18] with the Google account that you would
+[00:09:19] like to upload the YouTube videos to so
+[00:09:22] for example this account and read the uh
+[00:09:26] terms allow
+[00:09:29] connection successful so that's how we
+[00:09:31] can set up the credentials of the
+[00:09:34] YouTube again for Google Sheets
+[00:09:37] credentials if you do not have the
+[00:09:39] template we can go to overview
+[00:09:41] credentials and click this drop down
+[00:09:43] menu click create credential and search
+[00:09:46] for Google Sheets o off2
+[00:09:50] API and click continue and that's where
+[00:09:53] we can set up the credentials for Google
+[00:09:55] sheet and I'll share more details later
+[00:09:57] and if you have the template you can
+[00:10:00] click this Google sheet note and that's
+[00:10:03] where we can start with the credentials
+[00:10:06] here and then you can hover over this
+[00:10:09] pen icon and try to rename it and how
+[00:10:14] we're going to set uh we have the
+[00:10:16] tutorial in our community as well so I
+[00:10:19] can quickly share with you is in
+[00:10:22] classroom and then credential basic set
+[00:10:24] up and then we can scroll down to Google
+[00:10:26] Sheets API it's for local and end first
+[00:10:29] of all we'll go to Google Cloud um.com
+[00:10:34] copy and then we can paste it
+[00:10:38] here all right and then we go to
+[00:10:44] console
+[00:10:46] okay then we'll set up a new
+[00:10:49] project because we have already have a
+[00:10:51] new project we'll choose this or you can
+[00:10:53] just click this to uh create a new
+[00:10:57] project then what we can do is go to API
+[00:11:02] and service enabled API and services
+[00:11:04] here click this button API servfaces
+[00:11:08] enabled API
+[00:11:12] Services next step we are going to
+[00:11:14] search for Google Sheets
+[00:11:17] API Google
+[00:11:21] Sheets and then we will select the
+[00:11:23] school sheets
+[00:11:25] API the next St we are going to click
+[00:11:28] enable
+[00:11:30] as we have see we have already enabled
+[00:11:32] uh we don't need to click if not you
+[00:11:33] need to click this enable button after
+[00:11:37] that we'll go back we'll go to click
+[00:11:42] credentials and we'll click create
+[00:11:45] credentials here we'll choose o off
+[00:11:47] client ID as we see here okay then next
+[00:11:54] step then we can choose the application
+[00:11:57] type we can choose uh web application we
+[00:12:01] can rename it for example tutorial 16.1
+[00:12:04] version 3 like that and we can the next
+[00:12:08] step we are going to do is to add
+[00:12:10] authorized redirect uh youris here and
+[00:12:14] then um how we going to get the URL um
+[00:12:17] we are going back to NM this is the O
+[00:12:21] API uh for go sheets we are going to
+[00:12:24] click and copy this with direct
+[00:12:27] URL and paste it here
+[00:12:29] and we are going to click
+[00:12:31] create then we are going to have this uh
+[00:12:35] client ID and clent ser key first of all
+[00:12:37] we are going to copy this clan ID first
+[00:12:39] and paste it here and we will copy this
+[00:12:42] clan secret key and paste it here and
+[00:12:45] next we are going to sign in with Google
+[00:12:47] choose your Google account okay check
+[00:12:50] the settings authorizations then allowed
+[00:12:54] connection successful and that's it for
+[00:12:57] the Google Sheets API all right so let
+[00:13:00] me explain more about the Google Sheets
+[00:13:02] and what dos so we have three major um
+[00:13:06] sheets video pool music pool and video
+[00:13:09] locks video pool it means that um we are
+[00:13:13] going to use this kind of copyright
+[00:13:16] video as our background and for the
+[00:13:19] music pool we are going to use this
+[00:13:22] copyright free music as background music
+[00:13:27] as for video locks we you can see the
+[00:13:29] video title video transcript is for the
+[00:13:31] quotes that we are going to input in our
+[00:13:34] video and then we have output path
+[00:13:36] status YouTube link post time because
+[00:13:39] we're going to post uh to the YouTube uh
+[00:13:41] directly so we will have the YouTube
+[00:13:43] link here as well so let's take a look
+[00:13:45] at the feed path so for example this one
+[00:13:48] this are relative
+[00:13:50] free stop
+[00:13:52] footage all right for the music pool we
+[00:13:55] can try to search for Roy free or
+[00:13:58] copyright free music so that you can use
+[00:14:00] it for free in your video so for example
+[00:14:03] we can search in the YouTube audio
+[00:14:05] library this is a song called The
+[00:14:08] Awakening and this is the artist we got
+[00:14:11] this URL and this from his channel and
+[00:14:15] we can paste it to the music pool so we
+[00:14:18] can add more music here just a quick
+[00:14:20] note on the license side we can actually
+[00:14:22] check in um the YouTube audio library we
+[00:14:25] can click this license type you can use
+[00:14:28] this audio track in any of your videos
+[00:14:30] including videos that you monetize no
+[00:14:32] attribution is
+[00:14:33] required great and then next we are
+[00:14:37] going to uh have the video logs so
+[00:14:40] basically these are the video titles and
+[00:14:45] these are the video transcripts for the
+[00:14:47] titles it means um title it will be
+[00:14:49] appeared on the YouTube video and for
+[00:14:52] transcript it means that it will be the
+[00:14:53] words the quotes in the video and you
+[00:14:57] can generate all of them for free at
+[00:14:59] once with deep seek and I'm going to
+[00:15:02] show you how and now I'm going to share
+[00:15:04] with you how we can generate the video
+[00:15:06] title and also quots for free with dips
+[00:15:11] and I have prepared you the prompts here
+[00:15:13] so that you can just copy and paste to
+[00:15:15] dip
+[00:15:16] seek so we can just paste it
+[00:15:20] here nice so we have this ready we can
+[00:15:24] just click copy and go back to our
+[00:15:26] Google Sheets we can choose the we want
+[00:15:29] to paste and then we can click edit
+[00:15:32] paste special values
+[00:15:34] only done we all have the um f title and
+[00:15:39] also the transcript which is the quote
+[00:15:42] great so that's it so we have the video
+[00:15:45] ready Music Ready the quotes ready all
+[00:15:48] right let's start the tutorial and build
+[00:15:49] it together now first of all we are
+[00:15:51] going to create a new workflow and
+[00:15:53] rename it for tutorial
+[00:15:57] 16.2 okay the first step we will have
+[00:16:00] the schedule
+[00:16:02] trigger okay and then we can set it for
+[00:16:05] example each hour 1 hour so it will be
+[00:16:08] triggered every single hour and then we
+[00:16:11] are going to add the Google spreadsheets
+[00:16:15] we choose get rows in
+[00:16:17] sheets and then we'll rename it get
+[00:16:20] YouTube video for the document we choose
+[00:16:25] this for the sheets we choose the video
+[00:16:28] pool
+[00:16:29] and we will filter status which is empty
+[00:16:33] because we just want to make sure that
+[00:16:36] we are getting the
+[00:16:38] filled which are empty we we don't want
+[00:16:40] it to process the status with success so
+[00:16:45] we just want to process the status with
+[00:16:48] just empty value okay then we can click
+[00:16:52] test up okay so it's working we can link
+[00:16:56] it for the next step
+[00:16:59] we are going to add the limit
+[00:17:03] one is for restricting the number of
+[00:17:05] items so for example we are going to
+[00:17:09] process um five items each time the
+[00:17:12] reason why we need to set a limit here
+[00:17:14] because we are going to limit how many
+[00:17:16] videos that you're going to download per
+[00:17:18] hour if it is too many it may trigger an
+[00:17:21] alert to YouTube and it may ban your IP
+[00:17:24] so just to play save here all right so
+[00:17:26] we can run this note as well is working
+[00:17:31] then we are going to add another note we
+[00:17:33] are going to add the addit fils
+[00:17:36] note and rename it to generate file
+[00:17:42] name okay so this note we are going to
+[00:17:44] use this to generate file name for the
+[00:17:46] file that we are going to get from the
+[00:17:49] YouTube video okay so what we are going
+[00:17:52] to input here as file
+[00:17:57] name and and we can um choose expression
+[00:18:01] for the value here we can go to any note
+[00:18:04] code and copy
+[00:18:07] this and paste it here remember there
+[00:18:11] should be no space
+[00:18:13] afterwards and we can click add
+[00:18:16] field folder name
+[00:18:19] String and then input footage as a
+[00:18:24] value and test step okay is correct file
+[00:18:29] name for the name great
+[00:18:33] save for the next not next note we are
+[00:18:36] going to
+[00:18:37] add execute
+[00:18:42] command because we are going to run a
+[00:18:45] code to download the footage from
+[00:18:48] YouTube and because there are more than
+[00:18:50] one items we are going to disable
+[00:18:53] execute ones and we will choose
+[00:18:56] expression first of all we rename it as
+[00:18:58] well we down name it into
+[00:19:02] download video footage and then we are
+[00:19:06] going
+[00:19:07] to um ending note code copy
+[00:19:11] this and paste it here make sure
+[00:19:14] everything is green so let me explain
+[00:19:17] what it means this is YT DLP it's um um
+[00:19:23] library that we installed at the
+[00:19:25] beginning to download the YouTube video
+[00:19:28] all right
+[00:19:29] and this is the
+[00:19:32] footage basically is just try and drop
+[00:19:36] this
+[00:19:36] one for the file name should and drop
+[00:19:39] this
+[00:19:40] one so this is the path internal path
+[00:19:46] for the mp4 file for the
+[00:19:48] video and for this part basically is the
+[00:19:52] video path so we can try and drop this
+[00:19:55] and then we will have the MP4 a video so
+[00:19:58] it's ready
+[00:19:59] then we are going to run this and
+[00:20:03] test great and we'll add another note
+[00:20:07] Google
+[00:20:08] Sheets okay we are going to update
+[00:20:11] rows so for this time we are going to
+[00:20:17] update um video footage
+[00:20:22] detail
+[00:20:24] rame we'll
+[00:20:26] choose this Go sheet
+[00:20:29] and choose the video
+[00:20:31] pool we'll map each column manually
+[00:20:35] we'll match on row number for row number
+[00:20:38] we are going to try and drop this
+[00:20:41] one for the internal path basically we
+[00:20:45] can type dot
+[00:20:48] slash and we can drag this for the
+[00:20:52] name and then make sure there it's no
+[00:20:56] space and we add slash or dry and drop
+[00:20:59] the file name and we'll add np4 so we
+[00:21:02] have the name ready internal path for
+[00:21:06] status will input
+[00:21:10] success so we can click test step what
+[00:21:12] it means is that um once the videos are
+[00:21:15] downloaded it will update the internal
+[00:21:18] path and then the status will be shown
+[00:21:20] as success great so it's working we can
+[00:21:23] um click save next we are going to
+[00:21:26] download the copyright free music so we
+[00:21:30] can actually um select all this notes
+[00:21:33] and past it but this time we going just
+[00:21:37] uh trying to change everything for music
+[00:21:39] first of all for this note we will
+[00:21:41] change it to get YouTube music and then
+[00:21:45] for for the sheets we can choose music
+[00:21:48] pool um status again we are going to
+[00:21:50] choose the empty value and then we can
+[00:21:54] test up for limit we're going to choose
+[00:21:57] five and then for the Ile name basically
+[00:22:01] the same we can click test up okay and
+[00:22:04] we are going to change this music
+[00:22:07] footage all right so as you can see
+[00:22:11] there's something wrong here so we are
+[00:22:14] not actually using this try to remove
+[00:22:16] this and we can go to any note code and
+[00:22:18] copy this make sure it's expression and
+[00:22:21] try to enlarge
+[00:22:22] this again we're going to use YT DLP to
+[00:22:26] download the YouTube video and for the
+[00:22:29] format we're going to use MP3 so it's
+[00:22:32] different from the one that we used for
+[00:22:34] the
+[00:22:35] video and for this part basically is
+[00:22:38] this one we can drag and drop this
+[00:22:41] one and then we can add slash drag and
+[00:22:45] drop the file
+[00:22:47] name
+[00:22:49] MP3 and for this URL we can drag and
+[00:22:52] drop from this one get you to music and
+[00:22:55] paste it here great so that it works we
+[00:22:59] can click test up and see if it's
+[00:23:02] working great is working and then we can
+[00:23:06] change the last note as
+[00:23:10] for
+[00:23:11] updating um music footage rename change
+[00:23:16] to music pool okay we need to uh map
+[00:23:21] each column manually and then we are
+[00:23:23] going to change it to row number row
+[00:23:26] number we can just try and drop this one
+[00:23:28] again for the internal path we can uh
+[00:23:31] choose expression do slash we can drag
+[00:23:36] the folder name and then at slash I
+[00:23:40] direct the file name and then MP3 that's
+[00:23:43] it for the internal path and for this
+[00:23:46] status we will input success is the same
+[00:23:49] as the video one so we can click test
+[00:23:51] step great so uh when we check the
+[00:23:55] Google Sheets music pool sheets the
+[00:23:58] internet path is updated the status is
+[00:24:00] Success so it's working we can save it
+[00:24:05] and we add a sticky note you can um try
+[00:24:09] to label this downloading copyright free
+[00:24:13] video and music footage from video from
+[00:24:16] YouTube so let's save it all right so
+[00:24:18] the next step we are going to generate
+[00:24:20] the motivational videos and upload to
+[00:24:23] Youtube on autopilot First Step again
+[00:24:25] we're going to add the schedule trigger
+[00:24:27] for this one we can try to schedule on
+[00:24:30] daily basis instead of hourly basis for
+[00:24:32] example we can change it to 6:00 p.m.
+[00:24:35] 6:30 p.m. and then um we're going to add
+[00:24:38] the Google sheet note here get rows we
+[00:24:40] will choose the same document we're
+[00:24:44] going to choose the video pool and we
+[00:24:46] are going to choose status
+[00:24:49] column with success as a value because
+[00:24:53] we would we have already downloaded the
+[00:24:55] video we just want to compile all of
+[00:24:58] them and try to make the motivational
+[00:25:01] videos and we can rename it as get all
+[00:25:05] videos test step is working and let's TI
+[00:25:08] it for the next note we are going to add
+[00:25:11] the aggregate so as for combining the
+[00:25:14] fil from many items into a list in a
+[00:25:17] single item because we have more than
+[00:25:19] one items we going try to aggregate them
+[00:25:21] and we can rame this note as aggregate
+[00:25:25] video input field we put internal path
+[00:25:28] test step okay see it's working let TI
+[00:25:31] this as well and for the next note we
+[00:25:34] are going to get the music from the
+[00:25:37] Google Sheets okay get Rose document
+[00:25:40] choose the same and then we will have
+[00:25:42] music pull this time again for the
+[00:25:44] status we will
+[00:25:46] filter with success as a value test step
+[00:25:51] it's working we will add another
+[00:25:53] aggregate notes as
+[00:25:56] well so we will have internal path R
+[00:26:01] name this as aggregate music test step
+[00:26:05] is working and then we are going to get
+[00:26:09] the quote this time what I meant is this
+[00:26:13] the video title and the
+[00:26:15] quotes Okay so we're going to addit
+[00:26:20] here uh Google Sheets and then we are
+[00:26:24] going to get rols as well choose the
+[00:26:27] same
+[00:26:29] document and then this time we're going
+[00:26:32] to have the F locks sheets for status
+[00:26:36] this time we will choose empty because
+[00:26:39] we only want to process those rows not
+[00:26:43] not yet being processed so just like
+[00:26:47] this all right so we can click test app
+[00:26:50] it's
+[00:26:52] working and then we
+[00:26:55] can um try to rename it to get video or
+[00:27:01] actually video quotes all right so we
+[00:27:03] are going to add another note which is
+[00:27:07] called limit because we want to restrict
+[00:27:09] the number that we are going to process
+[00:27:11] each time so we can just use the default
+[00:27:13] setting test up an item each time
+[00:27:17] otherwise there are 238 items here so we
+[00:27:20] just want to limit this each time and we
+[00:27:23] will going we are going to add another
+[00:27:25] note called Ed field and we are going to
+[00:27:27] Ren name it as get pick video and music
+[00:27:33] and random okay at fil we have the music
+[00:27:37] path um for our members you can just go
+[00:27:41] to um community and copy
+[00:27:46] this if I make sure everything is green
+[00:27:49] let me quickly explain what it does
+[00:27:51] basically what we want to do is to um
+[00:27:53] randomly select any one of the internal
+[00:27:57] path so that we can choose one of the
+[00:27:59] music for example we can drag this when
+[00:28:02] we drag this we'll see all different
+[00:28:04] items here and when we choose one we see
+[00:28:09] the first item uh second item the F
+[00:28:12] first item should be
+[00:28:14] zero this one the third item should be
+[00:28:18] two okay so how are we going to generate
+[00:28:22] this number so we have come up with a
+[00:28:24] way first of all let me try to get at
+[00:28:28] this part I share this to you so when we
+[00:28:32] input dot length we will see how many
+[00:28:35] items in this path so in total there are
+[00:28:38] three for math random it means any
+[00:28:42] number between Z to
+[00:28:46] one for math
+[00:28:49] four when we add that so basically you
+[00:28:52] can see the number is rounded down okay
+[00:28:57] so what it is doing here first of all is
+[00:29:00] using any number between 0 to one and
+[00:29:02] times how many items in this internal
+[00:29:05] path and try to run it down to the
+[00:29:08] nearest whole number so that's how it
+[00:29:10] works okay try to test step and remove
+[00:29:13] the space this is wrong test them again
+[00:29:17] okay and then we are going to add n
+[00:29:20] paath for the uh video okay we are going
+[00:29:24] to add video path um the the logic is
+[00:29:27] the same
+[00:29:29] and we're going to
+[00:29:30] copy and paste it
+[00:29:33] here and again choose expression make
+[00:29:37] sure everything is correct um the logic
+[00:29:40] is correct it's just that we are using
+[00:29:42] um aggregate fedu instead of aggregate
+[00:29:44] music all right and then test
+[00:29:48] step make sure there's no space no new
+[00:29:52] line all right we are going to add
+[00:29:54] another item here edit fils uh is for
+[00:29:58] generating the file name again so we can
+[00:30:02] choose uh put it as uh two and we are
+[00:30:07] going to add
+[00:30:08] fil
+[00:30:10] fil file
+[00:30:12] name and
+[00:30:15] expression we can go
+[00:30:19] to copy this
+[00:30:22] again all right basically it's um again
+[00:30:26] 10 characters to generate U the file
+[00:30:29] name in random we click test step all
+[00:30:32] right it's working try to move it down
+[00:30:35] here for the next note we are going to
+[00:30:38] add a code note but don't worry um we
+[00:30:43] have prepared the code for you so that
+[00:30:45] you can just copy and paste all right we
+[00:30:48] can um rename it to generate text
+[00:30:52] overlay for video all right for the code
+[00:30:56] part we can remove this first for our
+[00:30:59] community members we can go to uh the
+[00:31:02] post and then we can search for Generate
+[00:31:05] text overlay for video and then we can
+[00:31:07] select this and copy paste for non-c
+[00:31:11] community members um you can just copy
+[00:31:14] and paste this okay or you can take a
+[00:31:16] screenshot here all right but please be
+[00:31:19] aware of that we need to use the correct
+[00:31:22] note because you may name the note in
+[00:31:24] the way that you want for example we are
+[00:31:27] using this get video quotes it is
+[00:31:30] referring to this if you are using
+[00:31:33] different name for the notes please make
+[00:31:36] sure that you're referring to the same
+[00:31:38] note here okay and then we have the font
+[00:31:43] file here you can just download your
+[00:31:46] font uh and then import to your local
+[00:31:49] host to your
+[00:31:51] Docker and how we are going to do this
+[00:31:54] let me show you I've put the instruction
+[00:31:56] in our community as well so first of all
+[00:31:59] we go to uh Docker
+[00:32:01] container files home node and then we
+[00:32:05] can just upload drag and drop defa here
+[00:32:09] okay so basically you can drag and drop
+[00:32:11] like this okay besides customizing the
+[00:32:14] font style we can also customize the
+[00:32:16] font color font size line height
+[00:32:19] multiplier video width average character
+[00:32:23] width Etc all
+[00:32:26] right uh but if you want everything the
+[00:32:29] same as uh here so you can just copy and
+[00:32:33] paste
+[00:32:34] everything okay we can click test
+[00:32:36] step okay it's uh completed
+[00:32:41] successfully then we are going to add
+[00:32:43] the next note let's save it first for
+[00:32:46] next note we are going to add execute
+[00:32:49] command is very
+[00:32:52] important um is for generating the video
+[00:32:55] so we can input generate video and and
+[00:32:58] disable is C once change it to
+[00:33:01] expression expand it for our community
+[00:33:05] members we can just go to the community
+[00:33:07] post and just copy this make sure
+[00:33:09] everything is green on your site if it's
+[00:33:12] red uh make sure that um you are
+[00:33:15] referring to the correct note for
+[00:33:18] example this is referring to the video
+[00:33:21] path you can go to your note and TR and
+[00:33:23] drop the video path this is referring to
+[00:33:26] the music path you can TR and drw the
+[00:33:28] music path here all right and this is a
+[00:33:32] scale you can change it in the scale
+[00:33:35] that you
+[00:33:36] want and then for the color we choose
+[00:33:41] black um 0.3 basically is means the
+[00:33:45] transparency we have a thin layer of
+[00:33:49] black color over the video background
+[00:33:53] okay for the volume we put uh 0.8 if you
+[00:33:57] want louder you can increase it if you
+[00:33:59] want it um um softer you can just lower
+[00:34:03] this number as well and this is the
+[00:34:05] ratio 9 to 16 and for this one is file
+[00:34:09] name we can go to this one and then drag
+[00:34:13] and drop here so basically everything is
+[00:34:15] ready you can just copy and paste this
+[00:34:17] as well so if you are following the step
+[00:34:20] same as mine you can just copy and paste
+[00:34:23] this um having everything green should
+[00:34:25] be all right and then we can click test
+[00:34:27] step
+[00:34:29] step great the notes executed
+[00:34:32] successfully we can save it all right
+[00:34:35] for the next note we are going to add
+[00:34:37] HTTP request and then we can rename it
+[00:34:44] into create YouTube link choose post
+[00:34:48] method change to expression for the URL
+[00:34:52] for our members we can just go to the
+[00:34:54] post and copy this and expand this paste
+[00:34:56] it
+[00:34:58] all right make sure there's no space for
+[00:35:01] the authentication we'll choose
+[00:35:04] predefined credential
+[00:35:06] type and then we choose YouTube or to
+[00:35:10] API as we have already connected to your
+[00:35:13] YouTube account you can just choose the
+[00:35:15] YouTube account that is connected
+[00:35:17] already and then we enable send
+[00:35:20] headers using fils below we input
+[00:35:25] content hi type and then we input
+[00:35:29] application SL SL Json and then we are
+[00:35:33] going to add another
+[00:35:36] parameter X hien upload hien content
+[00:35:41] hien
+[00:35:43] type but value will input
+[00:35:46] video/
+[00:35:48] webm we enable send
+[00:35:51] body Jason we'll choose raw instead of
+[00:35:55] Jason and then we'll have
+[00:35:58] content type we input raw slash
+[00:36:02] Json for the body we choose expression
+[00:36:05] expand that we go to the community and
+[00:36:09] then just copy this and paste it make
+[00:36:12] sure everything is correct game if your
+[00:36:15] Note is different than mine so make sure
+[00:36:18] that you are just referring to this
+[00:36:21] correct um note so this is the videoo
+[00:36:24] title fedo transcript so everything
+[00:36:27] ready and then we can click uh options
+[00:36:31] add options and then response will uh
+[00:36:35] include response here and then we can
+[00:36:37] click test app great it's done correctly
+[00:36:41] and save it then we add another note
+[00:36:44] called read or write files from disk it
+[00:36:48] is a note specialized for Local Host
+[00:36:52] yeah so you cannot find it on um Cloud
+[00:36:55] version so we are going to um read file
+[00:36:59] from disk and we can click
+[00:37:02] expression we can type do slash and then
+[00:37:05] we can search for Generate file name to
+[00:37:09] drag it and launch it and then type do
+[00:37:14] MP4 just like this and then click test
+[00:37:17] up it's working we can click View
+[00:37:29] great it's working and we can click save
+[00:37:33] all right just a few more notes to go
+[00:37:35] let's keep it up we will add another
+[00:37:38] note called HTTP request is for
+[00:37:41] uploading video so we rename it to
+[00:37:44] upload video so we are using put method
+[00:37:48] this time for the URL we can just go to
+[00:37:52] scammer create YouTube link and then we
+[00:37:56] can go to this location try and drop
+[00:38:00] here okay so this is their URL and we
+[00:38:03] are going to use predefined credential
+[00:38:05] type and search for YouTube or off to
+[00:38:09] API and you have the YouTube account
+[00:38:12] connected already and enable send
+[00:38:14] headers and using Fields below and then
+[00:38:17] we have
+[00:38:21] content hi type for the value we will
+[00:38:26] input feed video/ webm enable sand body
+[00:38:31] this time we are going to use NN binary
+[00:38:34] file for the data field name we put data
+[00:38:38] and then we click test step okay it's
+[00:38:41] working and then we can click save we
+[00:38:45] are going to update the Google sheet so
+[00:38:46] we're going to add Google Sheets and
+[00:38:49] update Row in
+[00:38:51] sheets okay so what we're going to do is
+[00:38:55] to choose the correct document
+[00:38:59] choose the video lock and then we're
+[00:39:02] going to map um the r uh according to
+[00:39:06] row number again we go to we uh we're
+[00:39:10] going to search for limit two this time
+[00:39:14] and then trck the r number here for the
+[00:39:17] output path click
+[00:39:19] expression dot
+[00:39:21] slash we can search for jic file name
+[00:39:26] you can drop this then we can type
+[00:39:29] MP4 then next we are going to input
+[00:39:33] success as the status for the YouTube
+[00:39:37] link we can inut
+[00:39:40] HTTP P okay
+[00:39:45] youtube.com/watch equal to the Jason ID
+[00:39:50] okay remember there should be no space
+[00:39:53] again uh double
+[00:39:56] check okay is correct for posting time
+[00:39:59] we can just input we choose expression
+[00:40:02] first and then we can choose now all
+[00:40:06] right everything's ready we can just
+[00:40:09] click test step and then we can double
+[00:40:11] check video
+[00:40:12] locks this is posted great and we can
+[00:40:17] rename this as
+[00:40:19] update video post okay for the last note
+[00:40:25] we are going to uh remove the file so
+[00:40:28] we're going to add another execute
+[00:40:31] command node we can rename it as remove
+[00:40:35] file disable the execute
+[00:40:38] ones and then we can have the command RM
+[00:40:43] space do slash let's find the file name
+[00:40:46] here okay we search for Generate file
+[00:40:49] name two and then no space again try to
+[00:40:54] have dot MP4 okay so that's it
+[00:40:58] and then click test St okay so basically
+[00:41:00] everything is set save it and last but
+[00:41:04] not least we can try to add a sticky
+[00:41:07] note to make it look better so okay all
+[00:41:12] right so that's how it works right with
+[00:41:13] this workflow we can successfully
+[00:41:15] automatically download the copyright
+[00:41:18] free video and music footage and also
+[00:41:21] generate motivational video with a quote
+[00:41:24] upload to Youtube on autopilot for the
+[00:41:26] quotes I just um share with you guys you
+[00:41:29] can um create all the title and video
+[00:41:34] quotes or transcript with deep seek
+[00:41:36] manually but what if we can do it
+[00:41:40] automatically and this is the bonus
+[00:41:42] worth that we prepared for you guys so
+[00:41:45] first of all we have the schedule
+[00:41:47] trigger uh we can choose hourly bases as
+[00:41:51] well Trigger or 30
+[00:41:54] minutes okay and then we can click test
+[00:41:57] step save then next we are going to add
+[00:42:00] edit fields we name it to number of
+[00:42:04] video
+[00:42:05] generation for Manu mapping we are going
+[00:42:08] to add
+[00:42:09] fils number of video
+[00:42:14] generation so for example five and then
+[00:42:17] we can remove this that means that's
+[00:42:19] mean that means how many number of
+[00:42:22] videos that we're going to generate and
+[00:42:24] then for the next note we're going to
+[00:42:26] add the code and we are going to rename
+[00:42:29] it into
+[00:42:34] aniz video
+[00:42:37] generation list run once for all items
+[00:42:42] JavaScript and enlarge it try to select
+[00:42:47] all and remove all and for our Comm
+[00:42:49] community members we can go to the Post
+[00:42:52] copy this and then just paste it here
+[00:42:55] and let me try to label this as well as
+[00:42:59] for initialize video generation
+[00:43:02] list okay we can click test step
+[00:43:06] successful and we can click save for the
+[00:43:10] next note we're going to split turn a
+[00:43:13] list inside items to separate
+[00:43:15] items uh we will have the
+[00:43:18] execution list basically this one no
+[00:43:22] other fils and then let me make sure
+[00:43:26] that this correct
+[00:43:28] execution okay test step okay it's
+[00:43:32] correct then we will have a LM here
+[00:43:36] basic LM chain so it's for um generate
+[00:43:41] video text we can choose Google Sheets
+[00:43:45] as we're going to update the Google
+[00:43:47] Sheets update row and we're going to
+[00:43:50] choose a pen roll this time and we'll
+[00:43:53] choose document the same document choose
+[00:43:56] the fedal lock this okay for the video
+[00:43:59] title we are going to track and
+[00:44:04] drop this one and then for the um video
+[00:44:09] transcript we just try and drop this one
+[00:44:11] all right so everything set we can click
+[00:44:15] uh test step great and we can check here
+[00:44:19] so we can keep this running and running
+[00:44:22] every single day automatically and we
+[00:44:24] can rename this uh video post
+[00:44:27] up the video post again we can keep this
+[00:44:31] um bonus
+[00:44:33] workflow automatically every single day
+[00:44:36] um as per the interl that you want um
+[00:44:39] again we can create a sticky note all
+[00:44:42] right so you can use this bonus workflow
+[00:44:45] to generate all different motivational
+[00:44:49] quotes into your Google spreadsheet
+[00:44:51] instead of doing it this manually yeah
+[00:44:53] so you can have this three items
+[00:44:57] set so that you can have your video
+[00:45:01] music and also the quotes
+[00:45:04] or set up or or generate it
+[00:45:07] automatically so that's it for today's
+[00:45:09] tutorial if you let me know what you
+[00:45:11] think about this in the video comment
+[00:45:13] below so if you are looking for more
+[00:45:14] templates Tex support and Community
+[00:45:17] Insight feel free to join any note code
+[00:45:19] community and you can go to Faces video
+[00:45:22] generation item 7 we have everything
+[00:45:25] here so hope you enjoy the video
+[00:45:27] tutorial today hope to see you inside
+[00:45:29] our community bye

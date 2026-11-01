@@ -1,0 +1,473 @@
+[00:00:00] Here's how to create a realistic studio
+[00:00:01] quality music video using AI.
+[00:00:10] Most tutorials only show you basic lip
+[00:00:12] sync on top of a plastic and lifeless
+[00:00:14] looking character, but AI can now make
+[00:00:16] music videos that rival million-dollar
+[00:00:18] productions. So in this tutorial, you'll
+[00:00:20] learn how to make a [music]
+[00:00:21] hyperrealistic AI artist that actually
+[00:00:23] performs a song with perfect lip sync
+[00:00:26] singing with real expression and
+[00:00:27] emotion. I'll also show you a new method
+[00:00:29] to generate [music] unlimited camera
+[00:00:31] angles of your AI singer using a single
+[00:00:33] prompt.
+[00:00:38] So I already have the audio for the song
+[00:00:41] I'm going to use in the music video.
+[00:00:45] &gt;&gt; [singing]
+[00:00:47] &gt;&gt; Now at the end of this tutorial, I'll
+[00:00:49] show you how you can generate a song
+[00:00:51] completely using AI, but right now let's
+[00:00:53] dive straight into how to generate an AI
+[00:00:55] music video for this song. So first,
+[00:00:58] I've generated a prototype image for the
+[00:01:01] singer I'm going to use in the music
+[00:01:02] video. The first thing I'm going to do
+[00:01:04] is generate a character sheet for her,
+[00:01:06] which is going to show her from all
+[00:01:07] sorts of different camera angles. And
+[00:01:09] this is going to let me preserve the way
+[00:01:11] that she looks throughout the entire
+[00:01:13] music video as we rotate between
+[00:01:14] different camera angles and movements.
+[00:01:16] The image model I'm going to use is
+[00:01:18] OpenAI's GPT image two, and the platform
+[00:01:21] I'm using is called OpenArt. And then in
+[00:01:23] the prompt, I'm going to describe the
+[00:01:25] character reference sheet I want to
+[00:01:27] create. I'm going to put this prompt in
+[00:01:29] the description of the video so you can
+[00:01:30] go and use it for yourself. When I
+[00:01:32] generate the character reference image,
+[00:01:34] I like to create it in 4K resolution so
+[00:01:36] I can get the highest quality AI
+[00:01:37] characters possible. So here's what the
+[00:01:39] character reference sheet looks like,
+[00:01:41] and using the character reference like
+[00:01:42] this, I can put her in a variety of
+[00:01:44] different environments, wear in
+[00:01:46] different costumes, while keeping her
+[00:01:48] appearance exactly the same.
+[00:01:51] So for the foundational shots of the
+[00:01:53] music video, I want to create this cool
+[00:01:54] effect of my character stuck inside a
+[00:01:57] glass cage while there are all of these
+[00:01:59] different glass statues that dance
+[00:02:00] around her. So, I have this reference
+[00:02:02] image of a glass cage, and I'm going to
+[00:02:05] put my character inside of here for the
+[00:02:08] music video. So, what I'm going to do is
+[00:02:09] put this reference into my image
+[00:02:11] generator, and I've also putting my
+[00:02:14] character reference sheet as well. And
+[00:02:16] then in the prompt, I'm going to combine
+[00:02:17] these two elements together. And this
+[00:02:20] prompt is pretty simple. I just told AI
+[00:02:22] to put the woman inside of the glass
+[00:02:24] cage, and I've also told AI to change
+[00:02:26] her clothing to a bright red satin
+[00:02:28] dress. And here is the shot. So, this is
+[00:02:31] a good starting point for the music
+[00:02:33] video, but to make this work, I actually
+[00:02:35] need a variety of different camera
+[00:02:38] angles. Some of them can be full body
+[00:02:40] shots showing her dancing to the song,
+[00:02:42] but for other ones, I actually want
+[00:02:43] close-up shots on her face where she's
+[00:02:45] singing all the lyrics to the song. So,
+[00:02:48] what I'm going to do is actually use
+[00:02:49] this method called burst mode. And what
+[00:02:51] burst mode lets me do is generate a
+[00:02:53] bunch of different camera angles in
+[00:02:55] rapid succession inside of the same
+[00:02:57] video clip. And what we can do is take
+[00:02:59] all of those key frames from that burst
+[00:03:01] mode video and use them as the
+[00:03:03] individual shots inside of the complete
+[00:03:05] music video. So, to create all of those
+[00:03:08] different camera shots, first, you'll
+[00:03:10] need to use the video generation feature
+[00:03:13] inside of OpenArt. And from here, I'm
+[00:03:15] going to use this text with reference
+[00:03:16] feature, which lets me direct the AI
+[00:03:19] video with a lot of control. And then
+[00:03:20] I'm going to use a C-Dance 2.0 AI video
+[00:03:23] model.
+[00:03:25] And then I just need to drag in that
+[00:03:26] shot of my AI singer along with the
+[00:03:29] character sheet that I generated of her.
+[00:03:31] This way I can generate multiple shots
+[00:03:32] of my singer inside this glass cage
+[00:03:34] environment, as well as seeing her from
+[00:03:38] all sorts of different camera angles.
+[00:03:40] And in the prompt, I'm going to say
+[00:03:41] generate 20 shots in rapid fire inside a
+[00:03:44] music video of the scene of the woman
+[00:03:46] stuck inside the glass cage. She is
+[00:03:48] wearing a bright red satin dress. So, a
+[00:03:51] few key parts of this prompt. First of
+[00:03:54] all, I'm tagging the reference images.
+[00:03:57] That way the AI knows what I'm referring
+[00:03:59] to when I'm describing the scene. And in
+[00:04:01] order to tag a reference image, you just
+[00:04:03] type at and the AI will let you select
+[00:04:07] from the reference images which you've
+[00:04:09] uploaded. So, in this case, I want to
+[00:04:11] tag the reference image of image one,
+[00:04:14] which is going to be the scene of my
+[00:04:15] performer inside the glass cage. And
+[00:04:17] I've also tagged the character reference
+[00:04:19] shot of her to make sure the AI knows
+[00:04:21] what she looks like from all the
+[00:04:23] different camera angles. Beneath that,
+[00:04:24] what I've done is I've included a huge
+[00:04:28] list of different camera angles I want
+[00:04:31] the AI to generate. Now, the AI won't be
+[00:04:33] able to generate all of these different
+[00:04:34] camera angles exactly. It's going to
+[00:04:37] make some mistakes, but it'll still be
+[00:04:38] able to give us plenty of different
+[00:04:40] shots to work with. I'm going to put
+[00:04:42] this list of camera shots inside the
+[00:04:44] description as well, but you'll need to
+[00:04:46] make adjustments to it to fit your exact
+[00:04:48] scenes. So, inside the settings, we have
+[00:04:52] the option of generating it in 4K now,
+[00:04:55] which is going to give us the highest
+[00:04:56] quality shots to work with later on. And
+[00:04:59] I'm only going to leave the duration at
+[00:05:01] 7 seconds. Each of the 20 shots is going
+[00:05:03] to be generated super super quickly,
+[00:05:05] which is fine because I'm only going to
+[00:05:08] use them as image references.
+[00:05:11] &gt;&gt; [music]
+[00:05:16] [music]
+[00:05:17] &gt;&gt; So, right now the music that she's
+[00:05:20] performing to is complete gibberish. In
+[00:05:21] the next step, I'm actually going to
+[00:05:23] have her lip-sync to the song I'm going
+[00:05:24] to make the music video for. But right
+[00:05:27] now, all we're trying to do is get these
+[00:05:28] rapid-fire shots of her from all sorts
+[00:05:30] of different camera angles. So, now
+[00:05:32] let's download this video that's going
+[00:05:34] to have all the camera angles of our
+[00:05:35] character. Then to extract all the key
+[00:05:37] frames, I just uploaded that MP4 file
+[00:05:41] into Claude AI, and then I prompted for
+[00:05:44] it to extract 20 key frames from this
+[00:05:46] video. And then what Claude did for me
+[00:05:49] is it extracted all of the 20 different
+[00:05:51] key frames from this 7-second video
+[00:05:54] clip. So, there's going to be a little
+[00:05:56] bit of repetition side here. The AI
+[00:05:58] isn't perfect. It won't be able to
+[00:06:00] generate every single camera shot
+[00:06:02] exactly like you want. However, this is
+[00:06:04] going to give us more than enough
+[00:06:05] different camera angles and shots to
+[00:06:07] fill out the entire AI music video. Now
+[00:06:09] that we have all the different shots of
+[00:06:11] our character, we're going to turn these
+[00:06:13] shots into an expressive AI performer
+[00:06:15] who's going to sing our song with
+[00:06:16] expressive movements and emotions. This
+[00:06:19] is the most important part of making an
+[00:06:21] engaging AI music video.
+[00:06:23] &gt;&gt; [music]
+[00:06:28] &gt;&gt; So, the first thing I've done is I've
+[00:06:29] just overlaid all of those different key
+[00:06:32] frames onto my timeline. And this is
+[00:06:33] going to give me an idea of how all of
+[00:06:35] the different shots fit together in the
+[00:06:37] completed music video. And once I've
+[00:06:39] settled on the order of the different
+[00:06:41] key frames, the next step is to export
+[00:06:43] the audio file that goes along with each
+[00:06:46] clip. So, for example, I'm going to
+[00:06:48] export a segment of my audio that's
+[00:06:50] going to go with the first full body
+[00:06:52] shot of her
+[00:06:53] and one of a close-up shot of her
+[00:06:56] singing. And the reason why we're
+[00:06:58] exporting individual segments is I found
+[00:07:01] that the lip sync works much better when
+[00:07:03] we export smaller segments of the audio
+[00:07:06] because we have just have so much more
+[00:07:07] control in the prompt over how the
+[00:07:09] performer is going to move. So, here's
+[00:07:11] the trick. For the audio file, what
+[00:07:14] we're going to use is actually a blank
+[00:07:16] black MP4 file that looks like this.
+[00:07:24] &gt;&gt; [music]
+[00:07:26] &gt;&gt; The AI tool that we're going to use to
+[00:07:27] do the lip sync just works much better
+[00:07:30] when you just use a blank black MP4 file
+[00:07:34] as the audio instead of an MP3 file. So,
+[00:07:36] what I'm going to do is actually hide
+[00:07:38] the
+[00:07:39] image track. So, now it's just a blank
+[00:07:42] black screen.
+[00:07:43] And then I'll go to export the video.
+[00:07:46] And here's what my photo looks like with
+[00:07:48] all of the different audio segments that
+[00:07:50] I've used. Now, again, like I said, it's
+[00:07:53] a good idea to have a little bit of
+[00:07:54] overlap. So, the first audio segment is
+[00:07:56] 0 to 6 seconds, and the second would be
+[00:07:59] 5 to 14, and the third one is 13 to 23.
+[00:08:02] And so, there's a little bit of overlap
+[00:08:04] in the different audio segments. So, now
+[00:08:06] it's time to combine these audio files
+[00:08:08] with the shots of our character to make
+[00:08:11] her give a performance of the song. So,
+[00:08:14] back inside OpenArt, once again, I'm
+[00:08:16] going to be using the Seedance 2.0 AI
+[00:08:18] video model to do the lip sync. The
+[00:08:20] first thing I'm going to do is upload
+[00:08:22] one of those key frames of my character.
+[00:08:24] And this time we're going to go with a
+[00:08:25] close-up shot of her performing the
+[00:08:27] song. And then I'm going to put in that
+[00:08:30] initial 0 to 6-second audio file. And
+[00:08:34] then in the prompt, I'm going to
+[00:08:35] instruct the AI to do the lip sync. So,
+[00:08:38] we're going to start with the close-up
+[00:08:39] shot of the woman wearing a red dress
+[00:08:41] who dances and sings the song from the
+[00:08:44] video. And in this case, the video one
+[00:08:48] is going to actually be that blank black
+[00:08:51] video of the first 6 seconds of the
+[00:08:53] song. Now, very importantly, you also
+[00:08:56] want to include the lyrics that are
+[00:08:58] inside of your audio segment. This way,
+[00:09:00] the lip sync is going to be much more
+[00:09:01] accurate than if you don't. And finally,
+[00:09:03] I also want this to be a single
+[00:09:05] continuous shot. I don't want it to
+[00:09:07] randomly cut to like a different camera
+[00:09:09] angle over because I want to be able to
+[00:09:10] control that myself. And also, I'm going
+[00:09:13] to tell it to not include any subtitles.
+[00:09:16] And then for the settings, for me, a
+[00:09:19] 1080p is going to work fine. And then
+[00:09:21] the duration, you want to leave this a
+[00:09:23] little bit longer than whatever your
+[00:09:26] audio file is. So, I think mine is
+[00:09:28] around 6 seconds, so I'm going to make
+[00:09:29] this just a little bit longer at 7
+[00:09:31] seconds to give the AI a little more
+[00:09:32] room to work with. So, here's the result
+[00:09:34] that we got.
+[00:09:38] &gt;&gt; There's a storm in the hill my tree is
+[00:09:39] shaking.
+[00:09:40] &gt;&gt; [music]
+[00:09:43] &gt;&gt; First, you can see that her mouth is
+[00:09:44] kind of open in the beginning of the
+[00:09:46] video because in that segment there
+[00:09:49] isn't any song being played, which is
+[00:09:51] fine. I'm actually going to replace
+[00:09:53] these first few seconds with a clip of
+[00:09:55] her dancing to the song. Now, the
+[00:09:58] movements in this video clip aren't as
+[00:09:59] expressive as I wanted. So, what I'm
+[00:10:02] going to do is actually adjust the
+[00:10:03] prompt. So, back inside the prompt, I
+[00:10:06] added this single line, "She gestures
+[00:10:09] with her hands." And what this going to
+[00:10:11] do is tell the AI to add a little bit
+[00:10:13] more expressiveness into the video
+[00:10:15] itself.
+[00:10:17] &gt;&gt; [music]
+[00:10:24] &gt;&gt; And I think this is a much more
+[00:10:25] expressive-looking clip with her hand
+[00:10:27] motions added in there. I'm going to put
+[00:10:29] a link to OpenArt in the description so
+[00:10:31] you can go and make your own
+[00:10:32] high-quality AI music videos yourself.
+[00:10:35] Next up, I wanted to generate some full
+[00:10:37] body shots of her dancing inside of the
+[00:10:39] glass cage and have all of the statues
+[00:10:41] also dancing around her. So, using a
+[00:10:43] very, very similar process, I just said,
+[00:10:46] "The woman wearing the red dress inside
+[00:10:47] the glass cage dances and sings the song
+[00:10:50] from the video." So, you don't need to
+[00:10:52] do anything complicated, just roughly
+[00:10:54] describe what's happening inside the
+[00:10:56] scene and the AI will take it from
+[00:10:58] there. Now, you always want to be
+[00:11:00] including the lyrics to the song to make
+[00:11:03] sure that the lip sync is on point.
+[00:11:08] &gt;&gt; [singing]
+[00:11:16] &gt;&gt; Now, here's a very important tip. When
+[00:11:18] you're trying to generate different
+[00:11:20] camera angles, for example, a side
+[00:11:22] profile shot of her singing and
+[00:11:23] performing the song, inside the prompt
+[00:11:25] you need to be very, very specific about
+[00:11:28] the exact camera angle. So, in the
+[00:11:31] prompt I'm going to say start with a
+[00:11:33] side profile of the woman wearing the
+[00:11:35] red dress inside the glass cage. Even
+[00:11:38] though all of this information is
+[00:11:40] already included in the reference image,
+[00:11:43] you still need to give the AI video a
+[00:11:45] description of how the shot looks. And
+[00:11:48] the reason why this is important is for
+[00:11:50] example, let's say I changed this
+[00:11:52] prompt. And in this case, instead of
+[00:11:54] specifically defining the camera angle,
+[00:11:57] all I'm going to say is that the woman
+[00:11:59] wearing the red dress inside the glass
+[00:12:01] cage dances and sings to the song. If I
+[00:12:03] generate a video without defining the
+[00:12:05] exact camera angle, here's what happens.
+[00:12:19] So, the AI generates something that
+[00:12:20] looks good and lip syncs to the song.
+[00:12:23] However, it's going to make up its own
+[00:12:25] mind on what camera angle is going to
+[00:12:27] fit the video you're trying to generate
+[00:12:28] the best. And if we want to be able to
+[00:12:30] control exactly which camera angle we're
+[00:12:33] seeing things from, you need to clearly
+[00:12:35] define that in the prompt. Sometimes the
+[00:12:37] movements it generates can be a little
+[00:12:38] repetitive. So, in this case, she's like
+[00:12:41] pumping her arms up and down multiple
+[00:12:42] times through the video. But since I'm
+[00:12:44] generating multiple different camera
+[00:12:46] angles for each audio segment, I'm going
+[00:12:48] to be able to combine different parts of
+[00:12:50] different clips together and it's going
+[00:12:51] to end up looking seamless. So, once I
+[00:12:54] have all of my video clips generated,
+[00:12:56] all I have to do is a drag and drop them
+[00:12:59] onto my timeline. Now, you'll need to
+[00:13:00] make sure that everything is in sync.
+[00:13:02] So, the lip sync video clip of the
+[00:13:04] performance and also the audio file from
+[00:13:06] the song should be aligned.
+[00:13:11] &gt;&gt; [music]
+[00:13:15] &gt;&gt; All right, so that's pretty close. You
+[00:13:17] can hear just a little bit of an echo.
+[00:13:19] So, I'm actually going to delete the one
+[00:13:21] from the AI lip sync video. Then I'm
+[00:13:24] just going to put multiple different
+[00:13:26] video clips together inside the final
+[00:13:29] edit.
+[00:13:38] &gt;&gt; [music]
+[00:13:41] &gt;&gt; But for most music videos, there's
+[00:13:42] multiple different environments for your
+[00:13:44] performers, where they're wearing
+[00:13:46] different costumes and outfits in
+[00:13:48] different situations. And for my music
+[00:13:50] video, I also wanted to generate this
+[00:13:52] scene of her performing backstage at a
+[00:13:55] cabaret club while wearing a different
+[00:13:56] outfit. So to do that, I just generated
+[00:13:59] another reference shot of my character,
+[00:14:02] this time wearing a different outfit
+[00:14:04] backstage. And then I used this burst
+[00:14:07] mode technique I showed earlier to
+[00:14:09] generate a bunch of different camera
+[00:14:11] shots of her in rapid fire.
+[00:14:14] &gt;&gt; [music]
+[00:14:21] &gt;&gt; I extracted all of the different key
+[00:14:22] frames from that burst mode video. And
+[00:14:25] using the same exact lip sync process as
+[00:14:27] I showed earlier, I made my character
+[00:14:29] give a performance of the song. Now, I'm
+[00:14:31] going to show you another method to
+[00:14:33] create AI music videos that uses an AI
+[00:14:36] assistant that picks which AI models to
+[00:14:38] use and what all the different scenes
+[00:14:40] are going to look like. But first, let's
+[00:14:42] take a look at this AI video that I put
+[00:14:44] together.
+[00:14:51] &gt;&gt; [music]
+[00:14:59] [music]
+[00:15:17] &gt;&gt; So now I want to show you an alternative
+[00:15:19] way to create a music video where you
+[00:15:21] can use an AI assistant that works
+[00:15:23] alongside you as you create your AI
+[00:15:25] video. So, they have a bunch of
+[00:15:28] pre-generated templates, and one of them
+[00:15:31] is for a music video. Inside here, you
+[00:15:33] just have to upload your song, and also
+[00:15:37] the image of your character. And with
+[00:15:39] those components uploaded, I'll just
+[00:15:41] need to provide a visual direction for
+[00:15:45] the video as well. So, I'm going to try
+[00:15:46] and create something that's pretty close
+[00:15:48] to the music video I already made, so we
+[00:15:51] can compare between the two different
+[00:15:53] methods. And then, you can just tell the
+[00:15:55] AI to direct your music video. The AI
+[00:15:57] director is going to analyze the song,
+[00:16:00] also the image of your character, and
+[00:16:02] it's going to start planning out what
+[00:16:03] the video looks like. It'll give you
+[00:16:05] suggestions for different options you
+[00:16:07] can pick. I'll just tell it to go with
+[00:16:09] your defaults, and see what it comes up
+[00:16:12] with. Now, along the way, it's going to
+[00:16:14] ask you for feedback, any changes that
+[00:16:17] you want to make. I just told the AI to
+[00:16:19] go with whatever defaults it came up
+[00:16:21] with, because I wanted to see what it
+[00:16:23] could create on its own.
+[00:16:25] So, let's take a look at this music
+[00:16:27] video which the AI director has created
+[00:16:30] for us.
+[00:16:35] &gt;&gt; [music]
+[00:16:46] [music]
+[00:17:04] &gt;&gt; So, honestly, not as expressive as the
+[00:17:07] one that I created originally. I kind of
+[00:17:10] wish that there were more parts of it
+[00:17:12] where she was singing the song. Also,
+[00:17:15] some of these transitions don't look
+[00:17:16] quite as good, but the good news is you
+[00:17:18] can actually go into the individual
+[00:17:21] clips that the AI has generated for you
+[00:17:23] and look at the exact prompts that the
+[00:17:25] AI used to create these shots. So if I
+[00:17:27] hit recreate video, it's actually going
+[00:17:30] to show me the exact model that the AI
+[00:17:33] used along with all of the different
+[00:17:35] image references. Now if you want to
+[00:17:36] create the highest quality stuff, I'd
+[00:17:38] recommend using the first method which I
+[00:17:41] showed where you're generating the
+[00:17:42] individual shots and doing the lip sync
+[00:17:45] using C Dance 2.0 yourself. But this AI
+[00:17:48] director is way faster and easier and
+[00:17:51] the video clips that it makes can serve
+[00:17:53] as a good starting foundation. So the
+[00:17:55] song that I used for the music video was
+[00:17:58] also 100% generated using AI. I used
+[00:18:01] this tool called Suno which generates AI
+[00:18:04] music for you. All you have to do is
+[00:18:06] putting a description of the song. I
+[00:18:08] went with a pop song with some jazz
+[00:18:11] undertones to it. I didn't write this
+[00:18:13] exact prompt myself. I told Google
+[00:18:15] Gemini to enhance my prompt a little bit
+[00:18:17] and have it be inspired by Dua Lipa.
+[00:18:20] There's a lot more options you can use
+[00:18:22] inside Suno, but this is basically all I
+[00:18:24] did. So now you know how to make a
+[00:18:26] studio quality music video completely
+[00:18:28] using AI. I also made a guide which
+[00:18:31] shows you the only three tools you need
+[00:18:33] to make any AI video and inside I show
+[00:18:36] you how to use Claude as an AI assistant
+[00:18:39] to automate writing all of your prompts.
+[00:18:41] Go watch that tutorial right here.
+[00:18:45] &gt;&gt; There's a storm in the hammer of my
+[00:18:47] dress
+[00:18:50] and a spark in the corner of my eye.
+[00:18:53] Yeah,
+[00:18:54] I want the fall,
+[00:18:56] but I want it kind.

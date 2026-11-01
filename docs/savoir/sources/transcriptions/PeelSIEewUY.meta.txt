@@ -1,0 +1,61 @@
+TITLE: How I Used $0 to Create 1000+ Videos on Autopilot With This AI Agent System (No Paid API Needed)
+CHANNEL: Andy Lo (95100 abonnés)
+DATE: 20250312
+DURATION: 45:32
+VIEWS: 287796
+
+DESCRIPTION:
+📌 The AndyNoCode AI Ecosystem — Start. Build. Scale with AI.
+🆕 AI Video Lab — AI Video, UGC & Marketing Automation
+https://aivideolab-track-1.site/join
+
+🎓 Premium — Build Your One-Person AI Agency
+https://www.skool.com/andynocode-premium/about
+
+👥 Free AI Community — Guides, Prompts & YouTube Builds
+http://skool.com/andynocode/about
+
+🤝 1-on-1 Project Help
+https://api.leadconnectorhq.com/widget/form/g9It27FRxnxj4AFQBlg5
+
+🛠️ Resources/Links Mentioned:
+n8n: https://n8n.partnerlinks.io/dx7m59h2279k
+
+Want to automate content creation and scale your YouTube channel effortlessly? In this tutorial, I’ll show you how I used $0 and an AI Agent System to generate 1000+ videos on autopilot—without needing any paid APIs!
+
+✅ AI-Powered Video Generation: Automate content creation using n8n, DeepSeek, and Google Sheets
+✅ Free & Scalable Workflow: Generate videos without spending on expensive APIs
+✅ Automated Uploading: Seamlessly publish to YouTube with AI-driven title optimization
+✅ Step-by-Step n8n Workflow: Build a fully automated video creation system from scratch
+
+Watch now to learn how to automate your YouTube channel like a pro! 🚀
+
+TIMESTAMPS
+00:00 How I Used $0 and This AI Agent System to Create 1000+ Videos on Autopilot (No Paid API Needed)
+01:44 Andynocode Community Introduction
+02:19 Workflow Demonstration
+03:11 Video Generation Demonstration
+03:44 How to Setup Local n8n through Docker
+07:45 How to Setup Youtube API
+09:35 How to Setup Google Sheet API
+12:59 Google Sheet Schema Explanation
+15:47 Live Build Auto Download Youtube License Free Video
+21:24 Live Build Auto Download Youtube License Free Music
+24:18 Live Build Auto Video Generation and Upload to Youtube
+41:13 Live Build Bonus Video Idea Auto Generation
+45:13 Wrap Up Summary
+
+CHAPTERS:
+0:00 How I Used $0 and This AI Agent System to Create 1000+ Videos on Autopilot (No Paid API Needed)
+1:44 Andynocode Community Introduction
+2:19 Workflow Demonstration
+3:11 Video Generation Demonstration
+3:44 How to Setup Local n8n through Docker
+7:45 How to Setup Youtube API
+9:35 How to Setup Google Sheet API
+12:59 Google Sheet Schema Explanation
+15:47 Live Build Auto Download Youtube License Free Video
+21:24 Live Build Auto Download Youtube License Free Music
+24:18 Live Build Auto Video Generation and Upload to Youtube
+41:13 Live Build Bonus Video Idea Auto Generation
+45:13 Wrap Up Summary

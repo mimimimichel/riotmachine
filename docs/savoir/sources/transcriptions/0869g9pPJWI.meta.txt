@@ -1,0 +1,57 @@
+TITLE: I Built My Own AI Studio on the Higgsfield API (No Coding)
+CHANNEL: AI VIDEOS (34100 abonnés)
+DATE: 20260930
+DURATION: 7:04
+VIEWS: 11791
+
+DESCRIPTION:
+Get your Higgsfield API key: https://higgsfield.ai/s/higgsfield-api-yt-aivideos-26-qBeWnG
+Everyone gets 15% off just for signing up, and you can unlock up to 50% off on 1 image + 2 video models plus $15 in free credits when you verify with a business email.
+
+What if you didn't need an AI subscription at all? The Higgsfield API puts every top image and video model behind one API key — Seedance 2.5, Kling 3.0, MiniMax H3, Higgsfield Soul and more — billed per generation. No subscription, no plan, no credits that vanish at the end of the month. You top up a wallet and pay only for what you generate, which makes it the simplest pay-as-you-go AI setup I've used.
+
+In this video I set up the Higgsfield API from zero on console.higgsfield.ai (use a desktop, it's built for a big screen): sign up, add funds, check the prices per image and per second, compare them with other providers, and create one key for every model. Then, without writing code myself, I ask Claude Code to build my own mini AI studio on top of it. The first real request goes out on screen: the estimate endpoint prices it before anything is spent ($0.004 for a Higgsfield Soul image), the request comes back queued with a request ID, and a few seconds later the image is ready. Then the app sends that image to Kling 3.0 Turbo and turns it into a five-second video for about thirty cents, with the 45% discount applied.
+
+If you want to build an AI video app, this is a real AI video API and AI image API in one integration: same auth header, same request shape, same webhook for image and video. You get the Kling API, the MiniMax H3 API, Seedance and Higgsfield Soul — which you can't get on other API platforms — through the same AI video generator API. Looking for a fal.ai alternative? The console has a "Compare prices with others" button so you can check the numbers yourself. Failed generations are not charged, Higgsfield doesn't train on your API data, and there's no extra Higgsfield filter on top of the models.
+
+In your first week you can pick your discounted models, and if you contact the Higgsfield sales team during that week, they'll lock your price for a whole year.
+
+Docs: https://docs.higgsfield.ai
+
+Chapters
+0:00 Intro
+0:34 The Higgsfield API console
+1:08 A wallet, not a subscription
+1:23 Prices per image and per second
+2:19 Lock your price for a year
+2:26 Create your API key
+3:10 Claude Code builds my app
+3:43 The first real API call
+4:19 My own Higgsfield: Soul image
+4:44 Kling 3.0 video
+5:07 The bill
+5:21 Why builders care
+5:43 Official Higgsfield API launch video
+6:32 How to start
+
+Music: original background track made with Suno.
+
+Get your key and build something: https://higgsfield.ai/s/higgsfield-api-yt-aivideos-26-qBeWnG
+
+#HiggsfieldPartner #HiggsfieldAPI #AIVideoAPI #aivideos26
+
+CHAPTERS:
+0:00 Intro
+0:34 The Higgsfield API console
+1:08 A wallet, not a subscription
+1:23 Prices per image and per second
+2:19 Lock your price for a year
+2:26 Create your API key
+3:10 Claude Code builds my app
+3:43 The first real API call
+4:19 My own Higgsfield: Soul image
+4:44 Kling 3.0 video
+5:07 The bill
+5:21 Why builders care
+5:43 Official Higgsfield API launch video
+6:32 How to start

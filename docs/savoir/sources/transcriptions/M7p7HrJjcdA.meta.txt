@@ -1,0 +1,65 @@
+TITLE: How to Make a Professional Music Video with AI (Full Guide)
+CHANNEL: Tao Prompts (198000 abonnés)
+DATE: 20260706
+DURATION: 18:58
+VIEWS: 67998
+
+DESCRIPTION:
+🔖👉Create Your AI Music Video Here:  https://openart.ai/home?ref=AIMusicVid
+Song Generated in Suno AI
+
+Prompt for Character Sheet
+Create a professional character reference sheet of of a young balkan woman with long, pin-straight dark hair and a middle part. Thick natural eyebrows, sharp black winged eyeliner. Wearing a sleek black western-inspired outfit featuring a fitted tank top, a fringe mini skirt with a studded belt, layered silver jewelry. Plain empty landscape in the background. Soft diffused lighting.
+Arrange into four vertical columns, each representing one viewing angle. Each column contains a full-body view on top and a matching close-up portrait directly beneath it.
+Columns (left → right):
+Column 1: front view (full body above, front portrait below)
+Column 2: left profile (fullbody character facing left) with portrait facing left below
+Column 3: right profile (fullbody character facing right) with portrait facing right below
+Column 4: back view, with matching portrait below.
+Maintain even spacing and framing around the character portraits. Clean silhouette, consistent alignment, and clean panel separation.
+Cinematic photo, muted colors, shot on 35mm film. No Text. Thin borders.
+
+Camera Angles for Burst Mode:
+1. Medium front shot, she sings directly into camera.
+2. Close-up as she performs.
+3. Tight close-up on her eyes looking through the crystal glass.
+4. Profile close-up with crystal reflections across her face.
+5. Three-quarter full-body shot inside the crystal cage.
+6. Medium shot as she gently places a hand against the glass.
+7. Close-up of her hand resting on the crystal wall.
+8. Three-quarter angle as she turns toward camera.
+9. Tight close-up as she closes her eyes during an emotional lyric.
+10. Low-angle medium shot emphasizing the towering crystal cage.
+11. Wide shot centered on the cage with crystal statues dancing around her.
+12. Side profile as she leans against the crystal wall.
+13. Medium front shot maintaining direct eye contact with camera.
+14. Close-up framed through the edge of the crystal with soft refractions.
+15. Medium full-body shot as she walks inside the cage.
+16. Over-the-shoulder shot looking toward the crystal statues.
+17. Low-angle full-body shot inside the crystal cage.
+18. Tight close-up as she sings with a subtle head tilt.
+19. Medium shot with her forehead resting against the crystal glass.
+20. Wide shot revealing the full crystal cage surrounded by dancing crystal statues.
+
+PDF Prompt Guides, Tutorials, etc:
+https://taoprompts.gumroad.com/
+My Instagram:
+https://www.instagram.com/taoprompts/
+
+Chapters:
+00:00 Create a Professional Music Video with AI
+00:57 Character and Set Design
+02:32 Create Different Camera Angles with Burst Mode
+06:10 Create AI Singer with Lip Sync
+14:44 Music Video Version 1
+15:17 Create Music Video with AI Agent
+17:57 Making an Song with AI
+
+CHAPTERS:
+0:00 Create a Professional Music Video with AI
+0:57 Character and Set Design
+2:32 Create Different Camera Angles with Burst Mode
+6:10 Create AI Singer with Lip Sync
+14:44 Music Video Version 1
+15:17 Create Music Video with AI Agent
+17:57 Making an Song with AI

@@ -24,7 +24,7 @@ crew:
     déplacements et sens des regards, lumière d''une même scène) et à la cohérence de toutes les références @.'
   quand: Quand tu envoies ton dossier, demandes une modif sur le découpage ou un plan, ou ajoutes des sources.
   lit:
-  - direction-artistique-et-prompts.md
+  - createurs-methodes-et-prompts.md
   departement: Écriture
 - key: decorateur
   fichier: decorateur
@@ -48,8 +48,9 @@ crew:
     décors, objets).
   quand: Pour chaque plan d'un bloc validé.
   lit:
-  - personnages-canon-et-feuille.md
   - banque-camera.md
+  - createurs-methodes-et-prompts.md
+  - personnages-canon-et-feuille.md
   departement: Image
 - key: routeur
   fichier: routeur
@@ -60,6 +61,7 @@ crew:
   quand: Quand un plan passe au plan vidéo.
   lit:
   - economiser-les-credits.md
+  - fournisseurs-a-tester.md
   departement: Vidéo
 - key: prompteur
   fichier: prompteur
@@ -69,7 +71,7 @@ crew:
   quand: Après le routeur, avant que tu valides le plan vidéo.
   lit:
   - banque-camera.md
-  - direction-artistique-et-prompts.md
+  - createurs-methodes-et-prompts.md
   departement: Vidéo
 - key: finition
   fichier: finition

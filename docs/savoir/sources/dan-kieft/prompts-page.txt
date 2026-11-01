@@ -1,0 +1,474 @@
+
+
+All my prompts — How to Make AI Music Videos | Dan Kieft
+
+      Dan Kieft 
+      300K subscribers
+
+    Subscribe
+
+  Join NextGenAI on Skool
+
+      Suno + Seedance 2.5 is NUTS at Making AI Music Videos
+
+      HERE ARE ALLMY PROMPTS
+
+      Okay so this one's a bit different. Everything from the music video is on here: the Suno prompts, the characters, the sets, the camera stuff. Steal whatever you want, make your own version, and drop it in the NextGenAI community so I can see it 😊
+
+    Tools01Making the music02Creating your characters03Building the sets04Camera angles05Camera movement06One-shot prompt07Lip sync
+
+      Tools I used
+
+        SunoFor the music. Make the beat here, add your lyrics, remix the style.Open Suno →
+        HiggsfieldFor every image and video. All the Seedance 2.5 stuff runs in here.Open Higgsfield →
+        Claude or ChatGPTTo help write the prompts. Use whichever one you like, both work.Open Claude →
+        Seedance 2.5 Prompt BuilderMy skill file (.md). Drop it into your LLM and it follows my prompt structure.Download the .md →
+
+  01Making the music
+
+  How I did it in Suno
+
+Make the beat first, the idea can change later
+Download the beat, upload it under Audio as a reference, add your lyrics
+Remix the style and hit Create
+
+The beat
+
+  Copy prompt
+
+  Tech house. 126 BPM, G minor, 4/4 time. A heavy, saturated kick drum drives the rhythm alongside a crisp, high-frequency closed hi-hat on the off-beats. A syncopated, percussive synth bassline plays a repetitive two-bar pattern, emphasizing the root note with short, staccato envelopes. A dark, resonant synth lead enters with a rhythmic, three-note motif that uses a band-pass filter sweep. Shaker loops provide additional high-end energy. A metallic, industrial-sounding percussion hit occurs on the second beat of every fourth bar. The arrangement features a minimalist build-up where a high-pass filter is applied to the drums, followed by a sudden drop where the sub-bass frequencies return in full.
+
+  Show full prompt
+
+My lyrics
+
+  Copy prompt
+
+  [Intro]
+(Ah-ah, ah-ah)
+Voguing, voguing
+Look at me, look at me now
+
+[Verse 1]
+Strut in the dark, spotlight on my face
+Every single move, I'm setting the pace
+Diamonds on my wrist, fire in my eyes
+Runway is mine, watch me claim the prize
+
+[Pre-Chorus]
+Bass hit heavy, heart beat faster
+Ain't no other, I'm the master
+One, two, step, don't test me
+Voguing hard, can't arrest me
+
+[Chorus]
+G-A-L-A mode, I'm unstoppable
+Hyperpop heart, unmistakable
+Catwalk queen, watch me dominate
+Every single frame, I calculate
+
+[Post-Chorus / Chant]
+(Left, right, strike a pose)
+(Left, right, watch it close)
+Voguing, voguing, ah-ah
+
+[Verse 2 - RAP]
+Yeah, step in the room, I'm the one they whisper
+Cold shoulder flex, watch the room get stiffer
+Every angle sharp, every word a blade
+Built this whole empire, watch it never fade
+Runway's my battlefield, heels like weapons
+Every single glance is a lesson, no exception
+Vogue in the smoke, camera catch the shine
+Y'all still catching up, I'm three steps in time
+
+[Chorus]
+G-A-L-A mode, I'm unstoppable
+Hyperpop heart, unmistakable
+Catwalk queen, watch me dominate
+Every single frame, I calculate
+
+[Bridge]
+(Whispered/half-sung)
+Slow it down... watch me now...
+Every move calculated, take a bow
+(Build back up)
+Bass drop— now
+
+[Final Chorus / Outro]
+G-A-L-A mode, unstoppable
+Hyperpop heart, unmistakable
+(Ad-libs, vocal chops fade out)
+Voguing... voguing... ah
+
+  Show full prompt
+
+The style remix
+
+  Copy prompt
+
+  k pop girl group trap funk fusion hard 808 sub bass rolling trap hi hats Electronic, Hip Hop, House, R&B, Funk inspired groove warm funky bassline jazzy chord stabs filtered disco samples syncopated swing rhythm vocal chops pitched ad libs unison chant vocals smooth autotune lead runway voguing catwalk energy glossy colorful production groovy bounce confident female vocal harmonies danceable dark pop 128 136 bpm
+
+  Show full prompt
+
+  02Creating your characters
+
+  Face → outfit → character sheet
+
+Think about looks, makeup and personality before you prompt
+Paste the prompt director into ChatGPT or Claude, describe your character, it writes the prompt
+For the character sheet, give it two images: the close-up and the full body
+
+Universal Prompt Director (for the face)
+
+  Copy prompt
+
+  You are an image-prompt director for photoreal AI character face locks (for tools like Nano Banana / Banana Pro, GPT-image, Higgsfield-style generators).
+
+CORE PHILOSOPHY:
+Every output must read as a real photograph of a real human — never CGI, never plastic, never 3D-render, never "AI-generic" skin. Real pore texture, peach fuzz, hair flyaways, subsurface scattering, matte skin finish.
+
+FLATTERING-REALISM CEILING (always on):
+Full skin realism (pores, peach fuzz, subsurface scattering) but NEVER unflattering — no acne, no blemishes, no scarring, no enlarged pores, no harsh dermatology-photo detail. Texture is fine, soft, even, natural. Resolve any conflict toward "fine, even, flattering" — the face should always look good.
+
+FACE LOCK SETUP (new character, identity-only stage — no outfit styling, no environment):
+- Backdrop: mid-gray seamless studio (locked default; pure white only if explicitly requested) — even neutral mid-gray, no seam line, no gradient, no falloff to black/white
+- Wardrobe: plain black camisole (women) / plain black ribbed tank (men) — nothing else, no styling
+- Lighting: one broad diffused source from camera-left or camera-right, slightly above; soft triangle of light on the shadow cheek; gentle wrap on the face; no hard shadow edges, no rim light, no hair light, no kicker
+- Skin: matte and velvety, zero shine on forehead/nose bridge/cheekbones/temples/chin, no oily T-zone, low-contrast milky look; warmth preserved and natural — never pale, washed-out, or cool-shifted
+- Camera: 50mm prime, wide aperture, natural round bokeh, even sharpness, soft natural film grain
+- Close every prompt with: "Photographed not generated."
+
+CHARACTER DESCRIPTION RULES:
+- Describe: bone structure, eye shape/color, brow shape, nose, lip shape, skin tone/finish, hair (color nuance, length, texture, style), body build/proportions/posture, default expression, identity markers (piercings, scars, beauty marks, tattoos)
+- No teeth-showing smile unless explicitly requested — default is neutral, subtle, closed-lip
+
+UNIVERSAL OUTPUT RULES:
+1. No real names, no brand names — generic visual descriptors only
+2. No @image tags or placeholder syntax — reference attachment happens in the tool's UI
+3. No meta-commentary ("this is the shot," "the read is...") — pure visible description only
+4. No negative prompt blocks
+5. No aspect ratio specs in the prompt text (no "3:4," "16:9," etc.) — framing described in plain language only ("chest-up portrait," "full body")
+6. Deliver the full prompt as ONE continuous block, ready to copy-paste
+7. Before writing the full prompt, give a short bullet-point confirmation of what's about to be built (character traits, backdrop, framing) and wait for a go-ahead — unless it's a minor tweak to an already-approved prompt, in which case just deliver the revision directly
+
+When the user gives you a character description (or asks you to invent one), lock the spec first, confirm it, then produce the face-lock prompt following the structure above.
+
+  Show full prompt
+
+Character sheet prompt
+
+  Copy prompt
+
+  You are a character-sheet prompt writer. Analyze the images I upload and write one complete text-to-image prompt matching the exact format, paragraph order, descriptive density, and photographic treatment of the template below.
+
+Your deliverable is the written prompt only. Do not generate an image or call image-generation tools.
+
+Analyze the references silently. Replace every bracketed instruction in the template with detailed descriptions of the actual character and outfit. No brackets or placeholders may remain in your output.
+
+REFERENCE RULES
+- Preserve the character's identity, facial proportions, apparent age, skin tone, eyes, hairstyle, makeup, facial hair, build, and visible defining features.
+- Use ethnicity or nationality only if I specify it; otherwise describe visible appearance.
+- If separate identity and outfit images are supplied, use each for its intended purpose. Do not copy the outfit model's identity.
+- My written changes override the images.
+- Describe the actual garments, materials, colors, construction, fit, layering, accessories, and footwear precisely.
+- Do not carry over the example character's pink hair, blue eyes, Korean identity, feminine physique, couture clothing, or other details unless supported by my references or instructions.
+- Keep asymmetrical features on the correct anatomical side across views.
+- Infer only the simplest necessary continuation of details not visible in the references.
+- Preserve image-reference tags if I supply them, incorporating them naturally into the Identity and Wardrobe paragraphs.
+- Keep the exact three-panel arrangement: headless front body, rear body with head attached, frontal face close-up.
+- Preserve all fixed background, lighting, shadow, color, skin-finish, and camera wording below. Do not summarize, shorten, soften, or replace these paragraphs.
+- Adapt anatomical language only when the supplied character requires it.
+- Output the finished prompt as plain paragraphs. No introduction, explanation, bullet points, code fence, or additional headings. Keep only "Identity:", "Wardrobe:", and the three panel labels shown in the template.
+
+OUTPUT TEMPLATE
+
+A three-panel character reference sheet composed as one horizontal frame, divided into three equal vertical panels side by side, thin clean separation between panels, the same figure and the same outfit rendered identically across all three. No text, no labels, no numbering anywhere in the image.
+
+Identity: [Write a detailed description of the specific character from the identity references. Include apparent age, overall facial structure, cheekbones, jawline, eye color and shape, eyebrows, nose, lips, natural skin tone, makeup where present, hairstyle, hair color, length, hairline, facial hair where present, physique, and visible distinguishing features. Preserve tattoos, piercings, or other defining features when present rather than automatically excluding them. Use flowing descriptive sentences at the same level of detail as the supplied example. Keep the identity fully realistic and photographic.]
+
+Wardrobe: [Describe the exact outfit in detailed flowing prose, progressing from the upper body through the lower body to footwear. Include each layer, its color, material, shape, volume, fit, neckline, collar, sleeves, seams, closures, draping, hems, and visible decorative details. Describe worn jewelry and accessories where present and permitted by my instructions. Explain how pieces overlap and where they sit on the body. Preserve the reference design without adding unrelated fashion elements.]
+
+LEFT PANEL — full body front view, headless. The full figure stands squared to camera from the shoulders down to [the actual footwear, or feet if barefoot], arms relaxed at the sides, hands open and loose, weight even across both feet. There is no head and no hair — no hair falls across the chest or shoulders. The neck rises a short way from the shoulders and terminates in a clean, flat, sharply defined horizontal edge at the base of the throat, exactly like a headless dress-form mannequin — a crisp sculptural cut with a clean visible edge, not blurred, not faded, not dissolving, no wisps, no smoke, no ghosting, no transparency, no blood, no anatomy detail at the cut. Above that clean edge there is only empty field. The panel keeps full headroom so the figure sits at the same scale and position in the frame as a normal full-body portrait, [describe the actual full outfit silhouette and its key front-facing details] all clearly readable.
+
+CENTER PANEL — full body rear, head attached. The complete figure from above the crown down to [the actual footwear, or feet if barefoot], seen directly from behind, standing squared away from camera, weight even, arms relaxed at the sides. [Describe the character's actual hair or head appearance from behind, followed by the outfit's back construction, silhouette, layers, seams, drape, accessories, and footwear. Match the front view's body scale, shoulder height, foot baseline, proportions, and garment lengths. Preserve the hairstyle's actual length and volume.]
+
+RIGHT PANEL — tight chest-up face lock. Framed from just above the crown down to the collarbones with the face filling the panel, squared to camera, head level, eyes directly to camera, neutral model face-card expression, lips closed and relaxed. [Describe the actual neckline, collar, upper garment, and any relevant worn accessories entering the bottom of frame.] Every facial plane, the full eye construction, brow, nose, lip shape, and hairline read at maximum detail, [restate the character's specific eye appearance and relevant defining facial details] clearly visible.
+
+Skin renders at its true natural skin tone, identical in value and hue across the face, arms, hands, back, and body in every panel, never darkened, never tanned, never pale or washed-out or cool-shifted.
+
+The background is a single flat 18% neutral gray field — one uniform value at every pixel corner to corner, identical directly beside the subject and in the far corners, with no seam line, no gradient, no hotspot, no vignette, and no falloff to lighter or darker anywhere in the frame. It is a flat color field, not a photographed backdrop — no surface, no floor, no wall, no corner, no horizon, and no plane the figure stands on or in front of.
+
+Relight from scratch overriding any reference lighting, applied uniformly across all three panels: completely flat shadowless illumination — one enormous soft frontal source at camera position wrapping the subject evenly, matched equal fill from camera-left and camera-right at identical intensity, matched fill from above and below, so both sides of the face read at exactly the same brightness. No key-and-fill ratio, no modelling, no shadow side, no cheek triangle, no nose shadow, no under-chin shadow, no rim light, no hair light, no kicker, no specular hotspot. Extremely low contrast, even, milky, catalogue-flat. Form is described by bone structure, hair strands, and fabric folds alone, not by light and shadow.
+
+Absolutely zero shadow anywhere outside the subject in any panel. No cast shadow, no contact shadow, no floor shadow, no drop shadow, no ambient occlusion where the body meets the background, no soft darkening behind the shoulders or beneath the hem, no halo, no edge darkening, and no rim separating the figure from the field. Shading exists only on the subject and stops cleanly at the silhouette. Absolutely zero light bleed outside the subject — no spill, no glow, no bounce, no reflected color cast thrown from the skin or the wardrobe onto the background, and no brightening anywhere behind the figure.
+
+Skin reads matte and velvety — zero shine on forehead, nose bridge, cheekbones, temples, and chin, no oily T-zone. Skin renders at its true natural skin tone and wardrobe at its true natural color, warmth preserved and natural against the neutral gray, never pale or washed-out or cool-shifted by the background. Real peach fuzz at the jaw and hairline, real soft fine even pore texture, subsurface scattering reading as semi-translucent biology, real hair rendered strand by strand with fine flyaways at the hairline, [insert a detailed sequence of material-realism descriptions specific to the actual outfit: the weave, tailoring, knit, leather grain, metal reflections, faceted sparkle, embroidery, gloss, or other surface properties that are genuinely present], never plastic, never waxy, never glass-skin, never harsh — fine flattering texture that keeps the face looking good, no acne, no blemishes, no rough pores.
+
+Even sharpness edge to edge across the entire frame in every panel. No depth-of-field falloff, no bokeh, no background blur, no lens vignette, no lens distortion, no flare, no bloom, no chromatic aberration, no atmospheric haze, no air between the subject and the background. Photographed on a 50mm prime, soft natural film grain. Photographed not generated.
+
+  Show full prompt
+
+  03Building the sets
+
+  Two ways to do it
+
+Simple set? Add a location line to your Seedance 2.5 prompt and let it build it
+Want more control? Generate the set as an image first and use that as a reference
+Use my Seedance 2.5 prompt builder skill in your LLM → download
+
+Red set (location line)
+
+  Copy promptGenerate on HiggsfieldCopy & open Higgsfield
+
+  Location: a bare cinematic set — a deep, saturated red backdrop gradating smoothly into black toward the edges and upper frame, no visible floor line or props, pure atmospheric color and shadow. A single hard spotlight moves erratically through the sequence, never settling into a full frontal reveal — always a graze, a rim edge, a sliver, or a sweep that clips only part of her.
+
+  Show full prompt
+
+White set (location line)
+
+  Copy promptGenerate on HiggsfieldCopy & open Higgsfield
+
+  Location: a bright, minimal white studio — seamless white cyclorama floor and walls, soft even shadowless light, no visible props or set dressing, pure clean white space extending back into a soft white infinity behind the walking figure.
+
+  Show full prompt
+
+Full prompt with the white set
+
+  Copy promptGenerate on HiggsfieldCopy & open Higgsfield
+
+  [GOAL]
+K-pop performance shot, extreme close-up foreground of Kai at a Dutch angle lip-syncing directly to camera, while the same version of her walks in the background of a bright white studio. Duration: 11s (full length of @Video 1's audio).
+
+[CONTINUITY]
+Character: Kai corresponds to @Image 1 for identity and wardrobe — sleek dark hair parted center and pulled back, sharp graphic black winged eyeliner, and the sculptural white couture look: a high-collar draped white gown with a red-veined membrane wing structure spanning the shoulders and back, a spiked white-and-red crown radiating from the hairline. Both the foreground and background figures are the exact same version of Kai — same identity, same hair, same wardrobe, same crown — appearing twice in the same frame as one continuous character, not two different people.
+Location: a bright, minimal white studio — seamless white cyclorama floor and walls, soft even shadowless light, no visible props or set dressing, pure clean white space extending back into a soft white infinity behind the walking figure.
+Audio: @Video 1 provides the audio track for this shot — use its music and vocal only. Do not use any visual content, subject, or setting from @Video 1.
+
+[STAGE 1 | 0-11s | Foreground lip sync, background walk]
+Initial state: the frame is held at a Dutch angle tilt. Kai's face fills roughly two-thirds of the foreground in extreme close-up, her features cropped tight and off-axis with the tilt, direct to camera, composed expression. Well behind her and offset to the opposite side of the frame, the same Kai appears small and distant, standing at the start of a diagonal walking path in the white studio.
+Primary event: the foreground Kai lip-syncs directly to camera with sharp, confident playback energy, her expression shifting between lines — a smirk, a sharper stare — while the background Kai walks steadily across the white space along the diagonal, unaware of the foreground, her full silhouette crisp and small against the bright white studio, continuing to walk at a natural pace for the full duration of the shot.
+End state: foreground Kai holds a final direct stare on the last line, still filling most of the tilted frame; background Kai now much further along her walking path, smaller and near the edge of frame.
+Cut type: NO CUT, continuous locked Dutch-angle composition throughout.
+
+[VISUAL STYLE]
+Clean high-key editorial music-video look: soft even white studio light on the background figure, slightly harder directional key on the foreground face to separate her from the white space, cool-neutral color balance, fine film grain, subtle diffusion bloom on the whites, crisp contemporary grade — fashion-campaign polish with a deliberate off-kilter Dutch tilt.
+
+[CAMERA AND PERFORMANCE]
+Locked-off camera held at a fixed, pronounced Dutch angle tilt for the full shot — no cuts, no reframing. Two depth layers held simultaneously in one continuous composition: a large, tightly cropped foreground face and a small, distant full-body figure walking through the background, both the same character. The foreground face stays large and static in frame while the background figure's walk provides the only major motion, crossing the white space at a steady confident runway pace along a diagonal line for the full 11 seconds.
+
+[AUDIO]
+(Hyperpop-leaning dance-pop track plays throughout, driving playback energy — full 11s length of @Video 1.)
+Dialogue language: American English. The foreground Kai lip-syncs with full playback energy, matched to the vocal in @Video 1's audio: {G-A-L-A mode, I'm unstoppable. Hyperpop heart, unmistakable. Catwalk queen, watch me dominate.}
+The background Kai does not lip-sync — mouth neutral, focus is on her walk.
+No on-screen subtitles.
+
+[EXCLUSIONS]
+No on-screen text, logos, or watermarks. No other characters — only the two instances of Kai in frame, foreground and background. No cuts — single locked Dutch-angle composition for the full 11s. No wardrobe or hair difference between the foreground and background Kai — identical in both.
+
+[MAINTAIN CONSISTENCY]
+One character, Kai, appearing twice in the same frame — foreground close-up and background walking figure — both matching @Image 1's identity and wardrobe exactly, same white studio location throughout, same locked Dutch-angle framing held for the entire shot.
+
+  Show full prompt
+
+  04Camera angles
+
+  How to get the angle you want
+
+Upload your character sheet, the skill file, the audio and the start image to your LLM
+Describe the angle, it writes the full prompt for Seedance 2.5
+Not sure yet? Let Seedance cut between 15 angles and screenshot the ones you like
+
+What I told the LLM (Dutch angle)
+
+  Copy prompt
+
+  Using the md file and strictly follow it's prompt structure, with the 2 references, @image1 as the character and @video1 as the lip sync audio
+
+Create an extreme close up fixed Dutch angle of her in the foreground lip-syncing directly to camera. the initial state starts off at a dutch angle with her face filling the foreground in an extreme closeup.
+
+While the same version of her walks in the far background of a bright white studio at the opposite side of the frame
+
+  Show full prompt
+
+15 angles in one go
+
+  Copy promptGenerate on HiggsfieldCopy & open Higgsfield
+
+  Music video insert sequence, 15 hard-cut angles, featuring one female performer @Image 1 in a dark industrial motorcycle hangar @Image 2 lip syncing and dancing to the song @Video 1.
+
+The camera cuts to a completely different angle every second, so there's 15 different and unique from each other camera angles, with her doing different things on each shot. Use cinematic angles that is shown in a hollywood movie
+
+  Show full prompt
+
+  05Camera movement
+
+  My favourite moves for music videos
+
+Zoom out, crash zoom in, handheld, tracking shot, orbit
+Not sure what's out there? This site shows every move with its prompt
+Want to swap the character but keep the move? Use Higgsfield's character swap
+
+  06One-shot prompt
+
+  A full 30 second music video from one prompt
+
+Upload your character sheet, the skill file and your audio (max 30 seconds)
+Describe what you want to see
+Paste the prompt you get back into Seedance 2.5
+
+What I told the LLM
+
+  Copy prompt
+
+  use the skill file and follow the prompt structure using the stages structure to give me a 30 sec prompt for seedance 2.5.
+
+I want to make a 30-second video based on the @audio1 I just sent you. use the guy @image1 as the character. I want something pretty simple, ultra cinematic.
+
+I want a guy who's in a car, driving his car. We have some POV of the car, like an action rig. Then we have some side shots. Then he gets out of the car, medium shot, he moves forward. When he gets out of the car, he goes to a friend. The friend checks him. Then he looks at the camera, does his playback. Then cut, we have another shot where he's lying on his bed, it's a bit blurry. He does his playback. Cut.
+
+He's outside, leaning against a wall. There are guys on the right doing something, he's focused. He does his playback.
+
+So that's pretty much the idea I have. Really add shots to make it more aesthetic. It's something blurry. And I specify in the prompt that he does the lip sync throughout the video, so you don't need to specify which line he's going to say at each cut.
+
+  Show full prompt
+
+The prompt I got back
+
+  Copy promptGenerate on HiggsfieldCopy & open Higgsfield
+
+  [GOAL]
+Music-video sequence, 30 seconds, single male performer. The man from @image1 lip-syncs continuously to the bound audio track across four locations — a daytime drive, a street arrival with a friend, a bed, an exterior wall. No plot, no resolution: pure performance, atmosphere and texture.
+
+[REFERENCE BINDING]
+@image1 = the sole character and wardrobe reference for the man. Use the close-up for his exact facial identity and the front and back views for his outfit and body proportions. These are views of the same man, not separate characters. Do not reproduce the reference sheet layout.
+@video1 = the complete 30s music track. It is the ONLY audio source and plays uncut from 0s to 30s.
+The man's mouth, jaw, breath and micro head movement must stay locked to the vocal performance in @video1 for the ENTIRE runtime — in every single stage, including inside the moving car, including when he is lying down, including when he is not facing camera. He is never silent. Never generate additional speech, narration or dialogue.
+
+[SUBJECT PROFILE]
+The man: exactly the man shown in @image1. Young adult, lean build, medium-brown skin, dark asymmetrical locs swept to one side with closely cropped sides, brown eyes, faint moustache and light facial stubble, small teardrop tattoo beneath his right eye, silver hoop earrings, and a silver chain with green oval accents.
+Outfit, fixed and never changed: the exact muted grey-olive cropped zip jacket from @image1, with its oversized pale beige collar and pale ribbed cuffs and waistband, worn open over a white ribbed tank top; charcoal-grey wide-leg pleated trousers, black belt with a silver buckle, and grey-and-white low-top sneakers. Preserve the reference's garment shapes, fit, materials, colours and accessories. No logos, no graphics, no branding anywhere on the clothing.
+@image1 defines him in all eight stages. Face, skin tone, locs, hairline, facial hair, tattoo, earrings, chain and outfit must be identical from the first frame to the last — do not re-interpret his features between cuts.
+
+[CONTINUITY]
+FRIEND B: second young man, Stage 5 only. Taller, heavier build, cropped hair, olive canvas jacket. Never lip-syncs, never looks at camera.
+BACKGROUND PAIR: two figures, Stage 8 only, screen right, deep and out of focus. They never approach, never face camera.
+THE CAR: one single vehicle across Stages 1–4 — a dark grey older sedan, worn fabric interior, no badges, no visible license plate. Same model, same colour, same interior every time it appears.
+THE STREET: Stages 3, 4, 5, 6 and 8 all take place on the same stretch of street — same pale concrete wall, same damp asphalt, same low grey buildings. It must read as one continuous location.
+THE BED: Stage 7 only, interior, unmade pale grey sheets, daylight from an unseen window.
+
+[STAGE 1 | 0–2s | COLD OPEN]
+Initial state: black frame.
+Primary event: hard cut in on an extreme close-up insert — rain beads scattered across a windshield, a wiper blade sweeping through frame, the blown-out white sky glaring through the glass behind them. The man's face is only half-readable in the reflection, broken by water and light.
+End state: frame dominated by out-of-focus water and white sky; the face has NOT yet been clearly revealed.
+Cut type: HARD CUT in from black.
+
+[STAGE 2 | 2–6s | ACTION RIG POV]
+Initial state: interior of the car, overcast daylight, in motion.
+Primary event: hood-mounted action rig, low, wide, rigidly locked to the car body — the man sits static and perfectly stable in frame while the grey city smears and rushes behind him through the windshield. Flat white sky reflected across the glass in a soft milky sheet. One hand hangs at the top of the wheel. He is already lip-syncing, jaw loose, chin low, barely moving his head.
+End state: rig framing unchanged, wet road and grey buildings streaking behind the glass.
+Cut type: NO CUT within the stage. The rig never detaches from the car.
+
+[STAGE 3 | 6–10s | SIDE / LATERAL]
+Initial state: same drive, continuous.
+Primary event: cut to the exterior side. Door-mounted rig looking in through the open driver window at his profile, lit flat and shadowless by the overcast sky, the reflection of passing buildings sliding across the door panel. Then a lateral tracking shot from a parallel vehicle, medium wide, the car sliding through frame right to left over wet asphalt.
+End state: the car slows and pulls to the curb, suspension dipping as it settles.
+Cut type: HARD CUT between the two angles, on the beat. No dissolves.
+
+[STAGE 4 | 10–14s | THE EXIT]
+Initial state: car stationary at the curb, engine off.
+Primary event: the driver door swings open. The man steps out into a MEDIUM SHOT and walks forward toward camera. The camera retreats ahead of him on a slow dolly-back, handheld weight, holding him at chest height as he closes distance. He keeps lip-syncing while he walks.
+End state: he has cleared the car and is walking in open street, the car soft and out of focus behind him.
+Cut type: HARD CUT on the beat at 10s.
+
+[STAGE 5 | 14–17s | THE DAP]
+Initial state: the man walking forward, FRIEND B waiting ahead against the wall.
+Primary event: FRIEND B pushes off the wall and they meet — a quick dap: hand clasp pulling into a half-shoulder embrace, one beat of contact, then release. Shot from a low three-quarter angle behind FRIEND B's shoulder, his back and arm occluding the left third of frame in heavy foreground blur.
+End state: the clasp releases; the man's face clears the foreground occlusion.
+Cut type: CUT.
+
+[STAGE 6 | 17–20s | FACE CAMERA]
+Initial state: the man standing in the street, FRIEND B now out of frame.
+Primary event: he turns his head and locks eyes directly into the lens. Locked-off medium close-up, very slow almost imperceptible push in. Full playback, direct address, no smile, jaw working, eyelids heavy. A soft out-of-focus foreground element — a parked car roof, a railing — crosses the bottom edge of frame and partially breaks the clean read of his face.
+End state: he is still holding the lens as the stage ends.
+Cut type: CUT.
+
+[STAGE 7 | 20–25s | THE BED]
+Initial state: new location, interior, daytime.
+Primary event: the man lies on his back on an unmade bed, head turned toward the lens on the pillow, flat window daylight washing the sheets. Overhead high angle, camera very close, lens wide open — his eyes are in focus and the rest of the frame collapses into blur. He lip-syncs lying down, quieter, smaller movement, one arm behind his head.
+End state: he holds the gaze upward, motionless apart from his mouth.
+Cut type: HARD CUT into the stage. Deliberately the softest, dreamiest frame of the film.
+
+[STAGE 8 | 25–30s | THE WALL]
+Initial state: back outside, same street as Stages 3–6.
+Primary event: the man leans back against the pale concrete wall, shoulder blades flat to it, one foot up against the surface. Screen right, deep in the background and heavily out of focus, two figures move and talk among themselves. He ignores them entirely — locked forward, focused, unbothered, still lip-syncing. Slow lateral dolly right to left, foreground poles and parked cars wiping through frame.
+End state: the dolly settles; he is still against the wall, still performing, holding until the frame ends.
+Cut type: HARD CUT in on the beat at 25s. The film ends on this shot — no fade to black, hard out on the last frame.
+
+[VISUAL STYLE]
+Ultra-cinematic, anamorphic, overcast daylight throughout. Shot as if on Kodak Vision3 250D, rated slightly over and printed flat. Single light source: a solid white overcast sky acting as one enormous softbox — completely shadowless, no sun, no direction, no hard edges anywhere. Desaturated cool palette of concrete grey, damp asphalt, pale sky, muted olive and black. Blacks are lifted and milky, never crushed. Contrast is low and the whole image sits slightly cool.
+Softness is the signature of this film: shoot everything wide open with extremely shallow depth of field. Foreground objects, shoulders, poles, glass and fabric constantly drift through frame out of focus and occlude the man. Focus is human, not perfect — it lands slightly late, breathes, and occasionally misses before settling. Long shutter, so any movement leaves a smear of motion blur. Where the white sky enters frame it blooms and softly veils the lens.
+Fine organic film grain, visible in the flat mid-tones. Restrained and premium, never flashy. No spectacle. Composition stays calm even when the track is at its loudest.
+Preserve the man's identity and wardrobe from @image1. Keep supporting characters and locations original, with no visible branding.
+
+[CAMERA AND PERFORMANCE]
+Cut on the beat, always hard cuts, never dissolves or morphs.
+The man's performance is contained, not theatrical: heavy eyelids, minimal blinking, jaw doing the work while the head stays relatively still, shoulders low and relaxed, weight always on one leg, hands mostly idle. Confidence read as stillness. He never smiles, never gestures wide, never mouths silently — his articulation is precise and locked to @video1.
+Only the man ever addresses the lens. Every other person in frame stays in their own world.
+
+[AUDIO]
+(@video1 — the bound music track plays continuously and uncut across all eight stages. It is the only music.)
+<Diegetic sound is minimal and sits far under the track: muffled engine hum in Stages 2–3, tyres on wet road, a door latch in Stage 4, distant traffic in Stages 6 and 8.>
+{No dialogue. The man never speaks a spoken line — his mouth movement is lip-sync to @video1 only. FRIEND B and the background pair are silent.}
+[No subtitles. No lyrics on screen. No text of any kind.]
+
+[EXCLUSIONS]
+No sunlight, no hard shadows, no blue sky, no golden hour, no lens flare from a sun source, no night, no neon, no streetlights.
+No on-screen text, lyrics, titles, logos, brand marks, license plates or watermarks.
+No second person ever looking into the lens. No crowd, no extras beyond the three named figures.
+No slow-motion ramping, no speed ramps, no dissolves, no whip-pan transitions, no light-leak wipes, no colour-shift transitions.
+No drone or aerial shots. No fisheye. No saturated colour.
+No smiling to camera, no phone screens, no visible weapons, no smoke or vape.
+No wardrobe change, no location that contradicts the four established ones.
+
+[MAINTAIN CONSISTENCY]
+One performer, one friend, two background figures — headcount never changes. The man matches @image1 and the [SUBJECT PROFILE] exactly in all eight stages: same face, skin tone, locs, hairline, facial hair, tattoo, earrings, chain and outfit. The car is the same single vehicle throughout. Stages 3, 4, 5, 6 and 8 read as one continuous street. Light stays flat overcast daylight from first frame to last. Lip-sync to @video1 is unbroken from 0s to 30s with zero silent frames.
+
+  Show full prompt
+
+  07Lip sync
+
+  How to get it right
+
+Use an MP4 with a black video as the audio reference, not an MP3
+Lip syncing to the ad-libs? In Suno go to Download → Stems and split the vocals
+Pick the vocal you want, render it as an MP4 and use that instead
+
+    Contents
+Tools I used
+01Making the musicThe beat
+My lyrics
+The style remix
+
+02Creating your charactersUniversal Prompt Director (for the face)
+Character sheet prompt
+
+03Building the setsRed set (location line)
+White set (location line)
+Full prompt with the white set
+
+04Camera anglesWhat I told the LLM (Dutch angle)
+15 angles in one go
+
+05Camera movement
+06One-shot promptWhat I told the LLM
+The prompt I got back
+
+07Lip sync
+
+  © Dan Kieft · DK Media BV
+  skool.com/nextgenai  ·  youtube.com/@Dankieft
+
+Copied
+
+

@@ -1,0 +1,654 @@
+[00:00:00] Unfortunately, most AI music videos
+[00:00:02] absolutely suck. And the tutorials that
+[00:00:04] come with them, they do too. And that's
+[00:00:06] why in this video, I will teach you
+[00:00:08] everything I know about making AI
+[00:00:09] videos. And we will be combining that
+[00:00:11] with a bit of music. I'll be going over
+[00:00:13] the complete setup from making your
+[00:00:15] music to designing and creating your
+[00:00:18] characters with their own personality.
+[00:00:20] I'll show you how to build custom sets
+[00:00:21] and locations, and I will teach you how
+[00:00:23] to manipulate the camera to get unique
+[00:00:26] looking angles and camera movement. So
+[00:00:28] by the end of this you can compose your
+[00:00:30] own music and make your own cool looking
+[00:00:32] AI music video with that. There are
+[00:00:34] three tools that we'll be using
+[00:00:36] throughout this video. First one is Suno
+[00:00:38] for the music. The second one is
+[00:00:40] Hicksfield for all of the generations
+[00:00:42] that we use and the third one is an LLM.
+[00:00:44] Could be Clot, could be GPT, whatever
+[00:00:46] you prefer just to help us a little bit
+[00:00:48] with the prompting. I will leave the
+[00:00:50] link to all of the tools in the
+[00:00:51] description down below. But first, let
+[00:00:53] me present to you my AI music video.
+[00:00:58] Look at me. Look at me now. [music]
+[00:01:01] [singing]
+[00:01:08] [music]
+[00:01:11] Look at me. Look at me now. Strut in the
+[00:01:13] dark. Spotlight in my face. Every single
+[00:01:16] move I'm setting the pace. Diamonds in
+[00:01:17] my wrist. [music] Fire in my eyes. Now
+[00:01:19] watch me claim the prize. Race it.
+[00:01:21] Heartbeat faster. Ain't no other. I'm
+[00:01:23] the master [music]
+[00:01:25] step. Don't test me. Ven heart can
+[00:01:27] arrest me a l I'm unstoppable
+[00:01:31] hyper pop heart [music] unmistakable
+[00:01:35] cat queen watch me dominate [music]
+[00:01:38] every single frame I calculate
+[00:01:43] right strike a pose left Watch your
+[00:01:46] [music]
+[00:01:59] &gt;&gt; cut.
+[00:02:07] &gt;&gt; Okay, that was good.
+[00:02:10] You did a good job.
+[00:02:11] Yes,
+[00:02:14] &gt;&gt; that was my idea first.
+[00:02:19] &gt;&gt; There will be seven different steps that
+[00:02:21] we will cover throughout this video. The
+[00:02:23] first one is the most important one,
+[00:02:25] which is the music. Now, for this, we're
+[00:02:27] going to start out with Suno. So, I'd
+[00:02:28] recommend you grab your headphones. Now,
+[00:02:30] the first thing I want you to know that
+[00:02:32] making music and even making art with AI
+[00:02:35] is still highly customizable. So, I'm
+[00:02:38] not going to give you a complete
+[00:02:39] breakdown on how to do this stuff with
+[00:02:41] Chetup tea and all of that. Just
+[00:02:42] experiment. The way I did it is I
+[00:02:44] started with my beat first. So, my idea
+[00:02:47] evolved over time. I started with a
+[00:02:49] prompt like this where I was more
+[00:02:51] focused on like a tech house kind of
+[00:02:53] like style. I played a bit around with
+[00:02:55] what I wanted to have and then I had
+[00:02:56] like enhanced it a little bit with
+[00:02:58] chachuk and it made me this like lyric
+[00:03:01] which is purely instrumental and that's
+[00:03:03] what I would recommend you to do. So,
+[00:03:04] let's play it like this was the song
+[00:03:06] that it made.
+[00:03:13] Okay, so the beat is fire. Now we just
+[00:03:15] got to add a bit of lyrics. And then it
+[00:03:17] kind of hit me like how am I going to
+[00:03:19] make a music song of a tech or [music]
+[00:03:21] like house type of song. So then I was
+[00:03:24] thinking like what is the most
+[00:03:26] over-the-top looking industry where you
+[00:03:28] can make crazy AI videos for? And then I
+[00:03:31] was thinking like it has to be K-pop. So
+[00:03:33] now I started to think of how can I use
+[00:03:36] this beat into a K-pop song. So then I
+[00:03:38] downloaded the clip right here using
+[00:03:41] download. Then I went over to audio and
+[00:03:43] then I uploaded my clip which is this
+[00:03:45] one. So now I have my audio reference
+[00:03:47] uploaded in here. Then I'm going to add
+[00:03:49] in the lyrics. Again I could not teach
+[00:03:52] you how to write your own lyrics so I'm
+[00:03:54] not going to. And here we're going to
+[00:03:55] remix the style. So, I'm going to do a
+[00:03:58] K-pop girl group trap funk fusion heart
+[00:04:01] 808 sub bass rolling trap I had. You
+[00:04:04] could chat like a little bit like with
+[00:04:06] JPT to get the exact style that you're
+[00:04:09] going for. But that of course is if you
+[00:04:11] don't know how to describe it again,
+[00:04:13] music, taste, all of that is personal.
+[00:04:15] You could even go into the studio right
+[00:04:17] here and like make your own beat. And
+[00:04:19] that's what I would love for you to try
+[00:04:21] out. That's why I'm not going in depth
+[00:04:22] on showing you how to do it with AI or
+[00:04:25] LLMs because that's more boring than
+[00:04:27] doing this yourself and experimenting
+[00:04:29] with these tools.
+[00:04:31] So then all I did was hit create and
+[00:04:34] that got me this result.
+[00:04:40] [music]
+[00:04:44] totally
+[00:04:54] different song, but I still hear like a
+[00:04:57] few references from the original. So,
+[00:04:59] we're going with this. And now we have
+[00:05:01] the bass and we can move on to the
+[00:05:03] generation aspect. Now that you got your
+[00:05:05] music ready, you can now start thinking
+[00:05:07] of what your character or characters
+[00:05:09] look like that are singing that music.
+[00:05:12] So, I got a three-step workflow for you
+[00:05:14] for this. First, we're going to be
+[00:05:16] creating the face. Second, we're going
+[00:05:18] to be creating the outfits. And then
+[00:05:20] third, we're going to be creating the
+[00:05:21] character sheets. You might be wondering
+[00:05:23] why we're using that workflow. It is
+[00:05:25] because we got the most flexibility
+[00:05:27] while getting the best details on our
+[00:05:29] characters. So, for my K-pop song, I got
+[00:05:31] these three female characters. The thing
+[00:05:33] you got to keep in mind when creating
+[00:05:35] these characters is first the physical
+[00:05:37] appearance, second, the makeup, and
+[00:05:39] third, their personality. Essentially,
+[00:05:41] you're making yourself an actor. So, you
+[00:05:44] got to think how that person is
+[00:05:45] behaving. You got to think the whole
+[00:05:46] backstory behind it. If you want to do
+[00:05:48] this like more often and you want to
+[00:05:50] have the same characters play in
+[00:05:52] different music videos, you want to make
+[00:05:54] them famous. You want to build like a
+[00:05:55] whole universe around them, then you
+[00:05:57] have to think what they're like, how
+[00:05:59] they behave, how they're acting, what
+[00:06:01] are some personality traits that they
+[00:06:03] have. So, those are the things you want
+[00:06:04] to write down first before you start
+[00:06:06] prompting. Okay, let's make a character
+[00:06:08] life together. So, first we're going to
+[00:06:09] use this universal prompt director. I've
+[00:06:12] made this prompt. You can just copy
+[00:06:14] this. I will leave this in the free
+[00:06:15] school community where you can just join
+[00:06:17] the club. You can hang out, ask advice
+[00:06:19] to other people, and you can also find
+[00:06:21] all of the assets from my YouTube
+[00:06:22] videos. So, you're going to use this
+[00:06:24] prompt and you're going to go over to
+[00:06:25] Chetup or Clot or whatever model you
+[00:06:27] use. You're going to put it in there and
+[00:06:29] now you can just start filling out the
+[00:06:31] details. You're going to explain what
+[00:06:32] your character looks like and then it's
+[00:06:34] going to verify the details for you. So
+[00:06:36] if you agree with these characters, then
+[00:06:38] you just simply say yes and then it
+[00:06:40] gives you a prompt. The more details you
+[00:06:42] put into the beginning, the more of a
+[00:06:44] backstory, the more of like your own
+[00:06:46] version you can create. So I would just
+[00:06:48] recommend to you to either use this
+[00:06:50] voice dictation mode or to use whisper
+[00:06:53] flow to just write out exactly what you
+[00:06:55] want and then it will formulate a
+[00:06:57] goodlooking prompt for you which you can
+[00:06:59] then go over, copy this. You then go
+[00:07:02] over to Hicksfield. You click images and
+[00:07:04] then you paste in your prompt right
+[00:07:07] here. Now you might be wondering like
+[00:07:09] what image model should I use? Well, the
+[00:07:11] answer to that is it doesn't really
+[00:07:13] matter. The only thing that matters is
+[00:07:15] your taste. So I will generate three
+[00:07:17] different examples of this prompt and
+[00:07:19] I'll put them on the screen right now.
+[00:07:21] Out of the three that you're seeing, I
+[00:07:23] liked GPT 2.5 the most. So I'm going to
+[00:07:26] go with that one. For my other
+[00:07:28] character, I did the same thing. So here
+[00:07:29] we have three different options to
+[00:07:31] choose from and it's all up to your
+[00:07:33] preference. So I liked the first one the
+[00:07:35] most which happened to be GPT 2.5
+[00:07:38] Sunburst again. But if Cream 5.0 is more
+[00:07:41] your style or the Nano Man Pro one then
+[00:07:43] just use that. That's why I wouldn't
+[00:07:45] limit yourself to just using one model.
+[00:07:47] And that's why having like all of these
+[00:07:48] models available through a platform like
+[00:07:50] Hickfield is super useful. Now that we
+[00:07:53] got our face shot, we need to get him a
+[00:07:54] good looking outfit that matches this
+[00:07:57] music video. So, the way I did this with
+[00:07:59] the K-pop video is I just browsed a
+[00:08:02] little bit on Pinterest and I found a
+[00:08:03] few images that I found interesting and
+[00:08:05] then I used them as a reference. So, for
+[00:08:07] this one, I'm going to do the same. And
+[00:08:09] I found this outfit of this dude and it
+[00:08:11] looks super cool. So, I'm going to
+[00:08:13] download this. And the more references
+[00:08:14] you have, the better because then you
+[00:08:16] can mix and match these references, put
+[00:08:18] your own spin on it, and then you're
+[00:08:20] making something new and unique. But for
+[00:08:22] this example, to keep it briefly, we're
+[00:08:24] just going to use this as a reference.
+[00:08:26] Then you're just going to go over to
+[00:08:27] Chachi. You drop in the image outfit
+[00:08:30] that you'd like. And then you ask it to
+[00:08:32] recreate the prompt for this outfit.
+[00:08:34] Then you use the original reference.
+[00:08:36] Then you add in the prompt. And then you
+[00:08:38] just hit generate. And then you can get
+[00:08:40] a result like this. Now we got the
+[00:08:42] outfit ready. And the next step is
+[00:08:44] making the carrot sheet. Here I'm just
+[00:08:46] going to keep it super simple. Instead
+[00:08:47] of me just using this image to create a
+[00:08:50] reference sheet by using the recreate
+[00:08:51] button, we're going to be using this
+[00:08:53] image together with this image because
+[00:08:56] this image has way more detail on his
+[00:08:58] face and the other one has way more
+[00:09:00] detail on his outfit. So that's what you
+[00:09:02] want to be using when you're making
+[00:09:03] character sheets. Don't just use the
+[00:09:05] full body image. To get your own
+[00:09:07] character sheet, I would recommend going
+[00:09:08] into an LLM. Here I got two references.
+[00:09:10] So I got the close-up and the full body.
+[00:09:12] Then I described it with a prompt. This
+[00:09:15] is a super detailed prompt. You can find
+[00:09:17] this prompt again in the school
+[00:09:18] community and then it literally goes
+[00:09:20] over it. It spits out a new prompt for
+[00:09:23] you which we then can then copy. Then we
+[00:09:25] go back to Hicksfield. We upload both of
+[00:09:27] these images. Then we paste in the
+[00:09:28] prompt that we just got. And then you
+[00:09:30] hit generate. And then you get a
+[00:09:32] character sheet like this. You do this
+[00:09:33] for each of the characters that you
+[00:09:35] have. But maybe this is not the most
+[00:09:37] important thing. I think with a music
+[00:09:39] video when I think of cool looking music
+[00:09:40] video is the location, the set. So now
+[00:09:43] I'm going to show you how you can build
+[00:09:45] your very own cool looking and unique
+[00:09:48] looking set. What kind of location or
+[00:09:50] set that you need really depends on the
+[00:09:52] type of music video that you have. If
+[00:09:54] you have a really simple countrylike
+[00:09:56] song, you don't need something
+[00:09:57] complicated. But with K-pop, they have
+[00:09:59] like million of dollar budgets when it
+[00:10:01] comes to producing these music videos.
+[00:10:03] So that's what I wanted to challenge
+[00:10:04] myself to if I could make something
+[00:10:06] cool. So you need to set yourself these
+[00:10:08] requirements. For me, I wanted to create
+[00:10:10] like a high budget production. I wanted
+[00:10:12] it to look professional and I wanted it
+[00:10:14] to look unique. Now using AI, there are
+[00:10:17] two methods that you can use to create
+[00:10:19] your set. One is true AI video
+[00:10:21] generation and the other one is through
+[00:10:23] AI images. I mix and match both of
+[00:10:26] these. So for this AI video generated
+[00:10:28] set, these two shots I let Cense 2.5
+[00:10:31] come up with the location. As you can
+[00:10:33] see, these locations are super simple.
+[00:10:35] It's just a red set and a white set. All
+[00:10:39] I do here with my prompting format,
+[00:10:41] which I'm also going to give you, don't
+[00:10:42] worry, is I include a location prompt.
+[00:10:45] And here I'm describing what I want to
+[00:10:47] see. And again, this is enhanced with
+[00:10:49] LLMs that like that's part of the
+[00:10:51] workflow. Now, so I basically used a
+[00:10:54] prompting format that is like a skill MD
+[00:10:57] file that I put into an LLM. Then I
+[00:11:00] described by saying that I wanted to be
+[00:11:03] in a bright, minimal, white studio. and
+[00:11:05] then it added some details for me
+[00:11:07] because ain't no way I came up with this
+[00:11:08] word myself. So that's how it helped me.
+[00:11:11] So that's the location prompt. Now for
+[00:11:13] this location, I use the exact same
+[00:11:15] method by just prompting it what I want
+[00:11:17] to have in the location, which is this.
+[00:11:20] So that's what you can do with simple
+[00:11:21] locations. You can just let Cedense 2.5
+[00:11:24] come up with that. But if you want to
+[00:11:25] have more control and you want to make
+[00:11:27] more advanced locations and backgrounds,
+[00:11:29] then I would recommend this next method.
+[00:11:31] For this we will be using image
+[00:11:33] generated sets like these. So how I come
+[00:11:36] up with this is again using a similar
+[00:11:38] method which I use all the time.
+[00:11:40] Basically if you are inspired by
+[00:11:42] something and you like that style or
+[00:11:44] vibe of it you can take a screenshot of
+[00:11:46] that play around with it in the LLM and
+[00:11:49] ask it to write a prompt. That's
+[00:11:50] basically what I did for this image. So
+[00:11:52] I got inspired from this Pinterest pin.
+[00:11:54] Then I thought that looked super cool.
+[00:11:57] And then I basically chatted a little
+[00:11:58] bit with LLM and then it gave me a
+[00:12:00] prompt and that's how I made this image.
+[00:12:02] And this is again completely
+[00:12:04] customizable just like the music
+[00:12:06] depending on what your video is about,
+[00:12:08] how you wanted to describe, but I would
+[00:12:10] just recommend playing around with this.
+[00:12:11] The other thing you can do here and also
+[00:12:13] images are super cheap to generate. I
+[00:12:15] would recommend trying and playing
+[00:12:17] around with using different models
+[00:12:19] because here I used Cream 5.0 Nano Pro
+[00:12:22] because the result came out way more
+[00:12:24] creative than some of the other models.
+[00:12:26] For example, I also tried Hickfield
+[00:12:27] Soul. Completely different type of vibe.
+[00:12:30] And then I also did it with Nano Banana.
+[00:12:32] Again, looks super cool. This could be
+[00:12:34] used to whatever you prefer. Okay, so we
+[00:12:37] got the foundation ready. Now we can go
+[00:12:39] full creative mode. And what I think
+[00:12:41] about mostly when it comes to making
+[00:12:43] music videos is fast cuts and a lot of
+[00:12:46] interesting, cool looking camera angles
+[00:12:48] and movement. So, we're going to start
+[00:12:50] off with the camera angles because here,
+[00:12:52] if you know what angles are out there,
+[00:12:54] you can make some pretty interesting
+[00:12:56] shots. Let me just show you a few of the
+[00:12:57] ones that I like the most. So, we got
+[00:12:59] low angle, where the camera is more down
+[00:13:01] below looking at your character. Then,
+[00:13:04] you can also do high angle, which could
+[00:13:06] also make for some interesting shots.
+[00:13:07] Then, we have Dutch angle, and it's not
+[00:13:09] Dutch angle because I'm Dutch. It's
+[00:13:11] basically a shot where the camera is
+[00:13:12] tilted sideways, so that the horizon
+[00:13:14] line is not parallel to the bottom of
+[00:13:16] the frame. You can also do ground level
+[00:13:18] shots, and I love this to mix and match
+[00:13:21] different angles together. Another one I
+[00:13:23] like a lot is overhead or bird's eye
+[00:13:25] shot. Then we have over the shoulder
+[00:13:27] shot, which could make for some
+[00:13:28] interesting shots where you're following
+[00:13:30] the character over the shoulder. And
+[00:13:32] lastly, we have side profile. So, how
+[00:13:34] can you direct the AI to use these type
+[00:13:37] of camera angles? Well, of course, I got
+[00:13:38] you again. We're using the MD file, the
+[00:13:41] skill that I have again here. So, I'm
+[00:13:43] uploading this to Chetchup T. I'm
+[00:13:45] uploading my character sheet. I'm
+[00:13:46] uploading the MD file. Then I'm
+[00:13:48] uploading the audio file for the lip
+[00:13:50] sync. And then this is the image that
+[00:13:52] we're using right here. Then I'm
+[00:13:53] basically describing to use the MD file
+[00:13:56] and to strictly follow its prompt
+[00:13:57] structure with the two references, the
+[00:13:59] image as the character and video one as
+[00:14:01] the lip-s sync audio. Then we create a
+[00:14:03] extreme close-up to a fixed Dutch angle.
+[00:14:06] Like that's the angle that I want to go
+[00:14:07] for. And I want it to write the prompt
+[00:14:09] for me. So we're using the Dutch angle
+[00:14:10] of her in the foreground lip syncing
+[00:14:12] directly into the camera. The initial
+[00:14:13] state starts off with a Dutch angle with
+[00:14:15] her face filling the foreground in an
+[00:14:17] extreme close-up. Again, this is just me
+[00:14:19] adding in details. Don't just think that
+[00:14:22] AI can do it for you. I mean, it can do
+[00:14:25] a pretty decent job at that. Like, don't
+[00:14:26] get me wrong, but there's no fun in
+[00:14:28] that. Like, the fun is to customize
+[00:14:30] this, to play around with this, to
+[00:14:31] explore, to try out different things,
+[00:14:33] and to come up with different and unique
+[00:14:35] techniques. Like, I'm basically teaching
+[00:14:37] you my techniques, but I would love for
+[00:14:39] you to come up with your own after
+[00:14:41] watching this video. So the other thing
+[00:14:43] I added here is I wanted to have a
+[00:14:45] duplicate or clone of her walking in the
+[00:14:48] background in the opposite direction. So
+[00:14:50] now using all of these details using my
+[00:14:52] MD file and again that skill like helps
+[00:14:55] the AI to follow a structure. If you
+[00:14:57] don't like it then you can just change
+[00:14:59] it by typing in a prompt. So we're then
+[00:15:02] going to copy this. We're then heading
+[00:15:04] over into Cense 2.5 in the video tab
+[00:15:07] which you can find right here. You can
+[00:15:08] try this out using different models.
+[00:15:10] Again, I would recommend if you're not
+[00:15:12] sure about your prompt, I would
+[00:15:14] recommend going with a lower setting
+[00:15:16] first. And if you don't like it, then
+[00:15:18] tweak it and then generate with the
+[00:15:20] higher version. So then you're going to
+[00:15:21] upload your references. I already have
+[00:15:23] done it. So this is the carrot sheet.
+[00:15:25] This is the audio file. And then I also
+[00:15:28] added in the prompt. And make sure you
+[00:15:30] have everything linked. Make sure the
+[00:15:31] duration of your video matches with what
+[00:15:33] you have prompted. And then once you're
+[00:15:35] happy with everything, you can hit
+[00:15:36] generate. Using that method, we just
+[00:15:38] generated this Dutch angle of our
+[00:15:41] character. So, as you can see, we now
+[00:15:43] have a cool looking angle, which is the
+[00:15:44] Dutch angle, which we prompted for. And
+[00:15:46] this is just one of the results. But if
+[00:15:48] you want to have multiple angles in one
+[00:15:51] video, then you got to change up your
+[00:15:53] prompting style a little bit. So, this
+[00:15:54] technique I specifically put together
+[00:15:56] for you so you can easily get multiple
+[00:15:59] different angles of your location. If
+[00:16:00] you're unsure like what angles you need
+[00:16:02] to choose from, what you need is one,
+[00:16:04] your character sheet, and two, a picture
+[00:16:06] of your background or your location or
+[00:16:08] your set, whatever we can call it. Then
+[00:16:10] we're uploading all of our reference
+[00:16:11] into CN 2.5 or I tried Cinema Studio 4.0
+[00:16:15] for this just to experiment a little
+[00:16:17] bit. Again, that's what I would
+[00:16:18] recommend you to do. So, I'm just going
+[00:16:20] to tag them. music video insert sequence
+[00:16:23] 15 hardcut angles featuring one female
+[00:16:25] performer and that is image one in a
+[00:16:28] dark industrial motorcycle hanger which
+[00:16:30] is image two that's the reference that
+[00:16:32] I'm going to use lip syncing and dancing
+[00:16:34] to the song of video one the song I will
+[00:16:36] get to that is a MP4 style with a black
+[00:16:40] background and then you're just going to
+[00:16:41] include this prompt super simple the
+[00:16:43] camera cuts to a completely different
+[00:16:45] angle every second so there's 15
+[00:16:47] different and unique from each other
+[00:16:49] camera angles with her doing different
+[00:16:51] things on each shot. Use cinematic
+[00:16:53] angles that is shown in a Hollywood
+[00:16:54] [music] movie. Again, have some fun with
+[00:16:56] it. Try out different things. If you're
+[00:16:58] inspired by something, just say it out
+[00:17:00] loud and have the AI help you with
+[00:17:02] generating that. Let's just take a look
+[00:17:04] at the result that this generated for
+[00:17:06] me.
+[00:17:10] [music]
+[00:17:21] So yeah, this is super cool. Like that
+[00:17:23] it came up with this close-up of the
+[00:17:25] hand gesture that it came up with this
+[00:17:27] overhead shot. The one I like the most
+[00:17:30] is this shot. Like this shot is awesome.
+[00:17:32] Like I wouldn't have come up with this
+[00:17:34] myself. That's the fun of it. Like this
+[00:17:36] is how you are using it to experiment
+[00:17:38] and and play around with it. And then if
+[00:17:40] you like something like this, you can
+[00:17:42] again take a screenshot. You can
+[00:17:43] reference this and you can use it again
+[00:17:45] and that's how you create. The main
+[00:17:47] thing that you need to understand to
+[00:17:48] keep things interesting is that you use
+[00:17:50] the right angle and the right angle
+[00:17:52] combinations. Let me first explain to
+[00:17:54] you why I think switching up the angles
+[00:17:56] and knowing how to cut them is so
+[00:17:58] importantly. So, here's an example of
+[00:17:59] where we mix and match different looking
+[00:18:01] angles.
+[00:18:08] If I just use the same wide angle
+[00:18:10] throughout all of these shots, it would
+[00:18:12] have looked like this. Like this feels
+[00:18:14] super static. Unless that's the style
+[00:18:16] you're going for, I wouldn't recommend
+[00:18:17] it. So that's why you sometimes want to
+[00:18:19] ask the LLM to generate the same shot,
+[00:18:22] but this time try and switch up the
+[00:18:23] angles. And then in the editing, you can
+[00:18:26] cut exactly what you do want and what
+[00:18:28] you don't want. One thing though, make
+[00:18:29] sure that you have some kind of visual
+[00:18:31] anchor going on that doesn't distract
+[00:18:33] the viewer too much from viewing your
+[00:18:35] videos. Like here in this example, you
+[00:18:37] can see that your eyes are drawn to the
+[00:18:38] middle. Now, camera angles is one thing,
+[00:18:41] but you need to combine that with camera
+[00:18:43] movement. Those two combined make for
+[00:18:45] some cool interesting shots. If you're
+[00:18:47] unsure what kind of camera movement is
+[00:18:49] out there, then I would recommend you
+[00:18:51] checking out this website where you can
+[00:18:53] see all kind of different camera angles
+[00:18:55] that you can use and you can see the
+[00:18:56] prompt for that. These are some of my
+[00:18:58] favorite camera movements that I would
+[00:19:00] use in AI music videos. So, first of
+[00:19:02] all, we have the zoom out. Then we have
+[00:19:04] the crash zoom in. Another one you must
+[00:19:07] use is handheld. You can combine
+[00:19:09] handheld with everything. Then we have
+[00:19:11] tracking shot. And here we have orbit.
+[00:19:13] In post-prouction, you can also mimic
+[00:19:15] the handheld effect by just adding in
+[00:19:18] some camera shake. So, for example, in
+[00:19:21] this intro where we can see it
+[00:19:22] transitioning to each of the different
+[00:19:24] characters, we use one continuous
+[00:19:26] acceleration, then deceleration, then
+[00:19:29] acceleration again. In post-prouction,
+[00:19:31] we also added a little bit of camera
+[00:19:33] shake, like a little bit of camera
+[00:19:35] wobble. There's literally an effect for
+[00:19:36] that that you can just add to your
+[00:19:38] video. One tip I have is if you want to
+[00:19:40] change your character or if you want to
+[00:19:42] change the background or you want to
+[00:19:43] preserve that camera angle and movement,
+[00:19:46] what you can do is you can use Hickfield
+[00:19:48] Jenjutsu. Basically what you do is you
+[00:19:50] upload your video. Then you make sure
+[00:19:52] that you confirm the style. Then you
+[00:19:54] also upload your character and then you
+[00:19:56] hit generate. So that just turned our
+[00:19:58] main character into this. Like I
+[00:20:00] apologize to bro for doing him like
+[00:20:02] that. It's super good. This is insane if
+[00:20:05] you just want to change your character,
+[00:20:06] which I did quite often in the video.
+[00:20:09] Okay, let me just make it up to this guy
+[00:20:10] and show you a different technique that
+[00:20:12] you could use to also make cool looking
+[00:20:14] AI music videos. I call it the oneshot
+[00:20:17] prompt technique. Basically what it does
+[00:20:19] is using one prompt you get a 30-cond
+[00:20:22] music video which you can then use for
+[00:20:24] promoting your video on social media for
+[00:20:26] example. The way it works is quite
+[00:20:27] simple. All you do is you upload your
+[00:20:30] character sheet together with the
+[00:20:31] cedance 2.5 prompt builder skill that I
+[00:20:34] already have given you. Then you add in
+[00:20:35] your music, your audio. This can be only
+[00:20:37] up to like 29 or like 30 seconds max.
+[00:20:40] And that's basically it. Then you give
+[00:20:42] it a prompt and you're describing what
+[00:20:44] you want to have happen. So you're
+[00:20:45] describing literally what you want. So,
+[00:20:48] I basically described a bit of a UK rap
+[00:20:50] video that I just was curious to see how
+[00:20:52] good it is. And using that entire
+[00:20:54] prompt, I literally just gave all of the
+[00:20:56] same assets again into Hicksfield and
+[00:20:59] gave this prompt to Cance 2.5. And then
+[00:21:02] it made me this
+[00:21:05] whole thing. I don't sleep when I built
+[00:21:09] the souls. If you know I'm over the
+[00:21:11] souls
+[00:21:15] in the room and the whole thing shift, I
+[00:21:17] don't check the list. They were sleeping
+[00:21:19] while I built the ship. Built it. Now
+[00:21:20] they want to know how the current flips
+[00:21:23] but my chain not freeze black on black I
+[00:21:24] don't do the beige man's go
+[00:21:28] [music]
+[00:21:29] look at me look at me everything
+[00:21:33] &gt;&gt; so that technique is mostly for people
+[00:21:35] that don't have much time but if you
+[00:21:37] want to have the best results you need
+[00:21:38] to pay attention to the lip sync and
+[00:21:40] that's why we're going to dive into that
+[00:21:42] in this segment so the best way as I
+[00:21:45] already kind of like revealed is instead
+[00:21:47] of using an MP3 audio file as a
+[00:21:49] reference You want to be using a MP4
+[00:21:52] file with a black video as a reference.
+[00:21:55] And the other thing you might want to do
+[00:21:56] if you're running into issues with it
+[00:21:58] lip syncing to the ad lips, you want to
+[00:22:01] go back to the place where you
+[00:22:02] downloaded your song. So if I go from
+[00:22:04] this song and I click on download, you
+[00:22:06] go to stems, then you click on manage.
+[00:22:08] And here you can dissect all of your
+[00:22:11] different stems. So you can see the lead
+[00:22:14] vocal. So if I just play this and I turn
+[00:22:16] off the lead vocal.
+[00:22:19] But if we compare that to the ad lips or
+[00:22:21] the backing vocals
+[00:22:25] or especially maybe in the beginning of
+[00:22:27] this song
+[00:22:30] like I had the issue that it was lip
+[00:22:32] syncing to this like beginning of the
+[00:22:34] song and I didn't want it. So that's why
+[00:22:36] you can download all of these different
+[00:22:37] stems and you can put that into your
+[00:22:40] editor like Dainci or Premiere. Then you
+[00:22:42] can select the exact vocal that you want
+[00:22:44] to use. You render that out as an MP4.
+[00:22:47] And then you use that when lip syncing
+[00:22:49] that specific part or that specific
+[00:22:51] character. And then later you fix it in
+[00:22:53] post while you add in like all of the
+[00:22:55] different stamps together to formulate
+[00:22:58] the entire song. And this way you don't
+[00:22:59] get something like this where she is
+[00:23:01] lip-syncing on the words that I don't
+[00:23:04] want her to lip sync on like she's doing
+[00:23:05] here. [music]
+[00:23:08] So that is the complete guide to how you
+[00:23:11] can make your own AI music videos.
+[00:23:14] Again, the process of making AI videos
+[00:23:16] in general is completely custom. So I'm
+[00:23:18] hoping that this tutorial is useful to
+[00:23:20] you so that you're learning various
+[00:23:22] different techniques that you can use to
+[00:23:24] make something creative yourself. If you
+[00:23:26] have any questions, leave them in the
+[00:23:28] comments down below. And if you want to
+[00:23:29] learn more about this, then click the
+[00:23:30] video that's on the screen right now.
