@@ -2749,12 +2749,17 @@ async function showCrew(doc) {
   }
   $view.innerHTML = `<div class="pagehead"><h1>Crew</h1>
       <span class="sub">L'équipe de Riot Machine : qui fait quoi, quand, et ce que chacun connaît. Toi, tu écris, tu choisis, tu valides.</span></div>
-    <div class="clips" style="grid-template-columns:repeat(auto-fill,minmax(300px,1fr))">${d.crew.map((a) => `<div class="panel stack" style="gap:6px">
+    ${(d.departements.length ? d.departements : [{ nom: "", role: "" }]).map((dep) => {
+      const members = d.crew.filter((a) => !dep.nom || a.departement === dep.nom);
+      if (!members.length) return "";
+      return `${dep.nom ? `<h2 style="margin:20px 0 4px">${esc(dep.nom)}</h2><p class="hint" style="margin-bottom:8px">${esc(dep.role)}</p>` : ""}
+    <div class="clips" style="grid-template-columns:repeat(auto-fill,minmax(300px,1fr))">${members.map((a) => `<div class="panel stack" style="gap:6px">
         <div class="row"><b style="font-size:17px">${esc(a.titre)}</b><span class="spacer"></span><span class="pill wait">${esc(String(a.modele))}</span></div>
         <p>${esc(a.role)}</p>
         <p class="hint"><b>Quand :</b> ${esc(a.quand || "")}</p>
         ${(a.lit || []).length ? `<p class="hint"><b>Connaît :</b> ${a.lit.map((n) => `<a href="#/crew/${encodeURIComponent(n)}">${esc((d.library.find((x) => x.name === n) || {}).title || n)}</a>`).join(", ")}</p>` : ""}
-        <p class="hint mono">Consignes : ${esc(a.consignes)}</p></div>`).join("")}</div>
+        <p class="hint mono">Consignes : ${esc(a.consignes)}</p></div>`).join("")}</div>`;
+    }).join("")}
     <section class="panel stack" style="margin-top:18px"><div class="panel-head"><h2>Bibliothèque</h2>
         <span class="hint">Ce que l'équipe a appris : bonnes pratiques, prompts éprouvés, ressources des créateurs. Les agents s'en servent.</span></div>
       ${d.library.map((x) => `<a class="file" href="#/crew/${encodeURIComponent(x.name)}" style="text-decoration:none;color:inherit">

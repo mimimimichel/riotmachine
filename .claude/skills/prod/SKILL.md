@@ -54,7 +54,7 @@ plans passent par les étapes 4 à 8, même si le clip est encore à l'étape
    bloc après l'autre (plusieurs agents en parallèle si besoin). Donne-leur le slug
    du clip, le nom du bloc et les ids. Lance d'abord le premier plan de chaque bloc :
    une fois validé par Michael, son visuel sert de référence de lumière aux autres.
-8. **Plans `prompt_todo`** → agent `routeur` sur tout le lot (un plan dont
+8. **Plans `prompt_todo`** → agent `routeur` (le directeur technique) sur tout le lot (un plan dont
    `route_reason` vaut « Choisi par Michael » garde son modèle), puis agent
    `prompteur` sur le même lot, puis `riot shot submit <id>` pour chaque plan qui a
    un modèle et un prompt vidéo. Le plan passe en `video_review` : Michael valide

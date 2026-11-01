@@ -240,7 +240,7 @@ def crew() -> dict[str, Any]:
         intro = next((l.strip() for l in text.splitlines()[1:] if l.strip() and not l.startswith("#")), "")
         lib.append({"name": p.name, "title": title, "intro": intro[:240],
                     "readers": [a["titre"] for a in cfg.get("crew", []) if p.name in (a.get("lit") or [])]})
-    return {"crew": out, "library": lib}
+    return {"crew": out, "library": lib, "departements": cfg.get("departements", [])}
 
 
 @app.get("/api/savoir/{name}")
