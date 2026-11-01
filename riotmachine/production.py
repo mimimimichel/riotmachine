@@ -25,7 +25,8 @@ from .settings import get_settings, load_models
 
 IMAGE_EXT = {".png", ".jpg", ".jpeg", ".webp"}
 # sheet : feuille de personnage (plusieurs vues sur une image), souvent faite par Michael lui-même
-REF_KIND_ORDER = ["canon", "sheet", "turnaround", "fullbody", "expressions", "lighting", "details"]
+# canon : la tête (gros plan neutre) ; canon_body : en pied, dans la tenue de référence (les deux font foi)
+REF_KIND_ORDER = ["canon", "canon_body", "sheet", "turnaround", "fullbody", "expressions", "lighting", "details"]
 PACK_KINDS = REF_KIND_ORDER
 
 
@@ -346,6 +347,8 @@ def launch_character_asset(conn: sqlite3.Connection, slug: str, version: int, ki
         ch = conn.execute("SELECT canon_version FROM characters WHERE slug=?", (slug,)).fetchone()
         base_version = version if own_canon or not (ch and ch["canon_version"]) else ch["canon_version"]
         refs = character_refs(conn, slug, base_version, limit=int(mcfg.get("max_refs", 6)))
+    if not routing.provider_usable(mcfg.get("provider", "fal")) and not providers.simulated(mcfg.get("provider", "fal")):
+        return _launch_free_character(conn, v, kind, label, prompt, [p for p in refs if p.is_file()])
     image_urls = [fal.to_data_uri(p) for p in refs if p.is_file()]
     payload = routing.build_payload(mcfg, prompt=prompt, image_urls=image_urls, mode="final",
                                     aspect_ratio=_casting_aspect(kind))
@@ -370,8 +373,49 @@ def launch_character_asset(conn: sqlite3.Connection, slug: str, version: int, ki
     return {"asset_id": cur.lastrowid, "request_id": sub["request_id"], "refs": [rel(p) for p in refs], "cost_usd": cost}
 
 
+FREE_CHAR_SIZE = {"canon": (896, 1152), "canon_body": (768, 1344), "turnaround": (1344, 768), "fullbody": (768, 1344)}
+
+
+def _launch_free_character(conn: sqlite3.Connection, v: dict, kind: str, label: str, prompt: str,
+                           refs: list[Path]) -> dict:
+    """Image de personnage gratuite (mêmes modèles que les brouillons), quand aucun modèle payant n'est branché."""
+    from . import elements
+    if not elements.draft_backends():
+        raise ProductionError("Aucun modèle d'image branché, payant ou gratuit (page Fournisseurs)")
+    out = absp(v["dir"]) / kind / f"{slugify(label) or kind}-{db.now()[11:19].replace(':', '')}.png"
+    with db.tx(conn):
+        cur = conn.execute(
+            "INSERT INTO character_assets (version_id, kind, label, path, prompt, model_key, cost_usd, funding, status, "
+            "created_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+            (v["id"], kind, label, rel(out), prompt, "gratuit", 0, "free", "generating", db.now()))
+    asset_id = cur.lastrowid
+    w, h = FREE_CHAR_SIZE.get(kind, (1024, 1024))
+    import threading
+    threading.Thread(target=_run_free_character, args=(asset_id, prompt, refs[:4], out, w, h), daemon=True).start()
+    return {"asset_id": asset_id, "cost_usd": 0, "free": True, "refs": [rel(p) for p in refs[:4]]}
+
+
+def _run_free_character(asset_id: int, prompt: str, refs: list[Path], out: Path, w: int, h: int) -> None:
+    from . import elements
+    from .providers._http import ProviderError
+    conn = db.connect()
+    errors = []
+    for b in elements.draft_backends():
+        try:
+            elements._draft_one(b, prompt, refs, out, w, h)
+        except (ProviderError, OSError, subprocess.CalledProcessError, ValueError) as exc:
+            errors.append(f"{b[2]} : {exc}")
+            continue
+        conn.execute("UPDATE character_assets SET status='proposed', model_key=? WHERE id=?", (f"{b[0]}:{b[1]}", asset_id))
+        conn.commit()
+        return
+    conn.execute("UPDATE character_assets SET status='failed', error=? WHERE id=?",
+                 (("Aucun modèle gratuit n'a pu le faire. " + " · ".join(dict.fromkeys(errors)))[:2000], asset_id))
+    conn.commit()
+
+
 def _casting_aspect(kind: str) -> str:
-    return {"fullbody": "9:16", "turnaround": "16:9"}.get(kind, "3:4")
+    return {"fullbody": "9:16", "canon_body": "9:16", "turnaround": "16:9"}.get(kind, "3:4")
 
 
 def review_character_asset(conn: sqlite3.Connection, asset_id: int, decision: str) -> None:
@@ -384,6 +428,9 @@ def review_character_asset(conn: sqlite3.Connection, asset_id: int, decision: st
         return
     if decision == "keep":
         conn.execute("UPDATE character_assets SET status='kept' WHERE id=?", (asset_id,))
+        return
+    if decision == "canon_body":
+        make_canon(conn, asset_id, "canon_body")   # échange de rôle, sans copie
         return
     if decision == "canon":
         src = absp(a["path"])
@@ -425,6 +472,7 @@ def review_character_asset(conn: sqlite3.Connection, asset_id: int, decision: st
                 "UPDATE character_assets SET kind='canon', label='canon', path=?, status='kept' WHERE id=?",
                 (rel(dest), asset_id),
             )
+            _advance_canon(conn, a["version_id"])
         return
     raise ProductionError(f"Décision inconnue : {decision}")
 
@@ -706,22 +754,43 @@ def _put_canon(conn: sqlite3.Connection, v: dict, src: Path) -> str:
     return rel(dest)
 
 
-def make_canon(conn: sqlite3.Connection, asset_id: int) -> None:
-    """Une image du pack devient la canon ; l'ancienne canon reprend la place de celle-ci dans le pack.
-    Aucune copie : les deux images échangent seulement leur rôle."""
+def _advance_canon(conn: sqlite3.Connection, version_id: int) -> dict:
+    """Après un choix de canon : la tête choisie, le directeur de casting fait le corps à partir d'elle ;
+    les deux choisies, la canon est finie."""
+    v = db.row(conn.execute("SELECT * FROM character_versions WHERE id=?", (version_id,)).fetchone())
+    has = lambda k: conn.execute("SELECT 1 FROM character_assets WHERE version_id=? AND kind=? AND status='kept'",
+                                 (version_id, k)).fetchone()
+    if v.get("canon_status") in ("requested", "review"):
+        conn.execute("UPDATE character_versions SET canon_status=? WHERE id=?",
+                     ("done" if has("canon") and has("canon_body") else "requested", version_id))
+    return v
+
+
+def make_canon(conn: sqlite3.Connection, asset_id: int, role: str = "canon") -> None:
+    """Une image devient la canon tête (role=canon) ou la canon en pied (role=canon_body) ; l'ancienne
+    reprend la place de celle-ci dans le pack. Aucune copie : les images échangent seulement leur rôle.
+    Une candidate (proposée par le directeur de casting) est gardée au passage."""
+    if role not in ("canon", "canon_body"):
+        raise ProductionError("Rôle de canon : canon (tête) ou canon_body (en pied)")
     a = db.row(conn.execute("SELECT a.*, v.status AS vstatus, v.id AS vid FROM character_assets a "
                             "JOIN character_versions v ON v.id=a.version_id WHERE a.id=?", (asset_id,)).fetchone())
-    if a is None or a["status"] != "kept":
+    if a is None or a["status"] not in ("kept", "proposed") or not a["path"]:
         raise ProductionError("Image inconnue")
     if a["vstatus"] != "draft":
         raise ProductionError("Une version validée ne se modifie plus : crée une nouvelle version")
-    if a["kind"] == "canon":
+    if a["kind"] == role and a["status"] == "kept":
         return
+    back = a["kind"] if a["kind"] not in ("canon", "canon_body", "canon_draft") or a["status"] != "kept" else "sheet"
     with db.tx(conn):
-        conn.execute("UPDATE character_assets SET kind=? WHERE version_id=? AND kind='canon' AND status='kept'",
-                     (a["kind"] if a["kind"] != "canon_draft" else "sheet", a["vid"]))
-        conn.execute("UPDATE character_assets SET kind='canon' WHERE id=?", (asset_id,))
-        db.log_event(conn, None, "casting", "Nouvelle canon choisie par Michael")
+        conn.execute("UPDATE character_assets SET kind=? WHERE version_id=? AND kind=? AND status='kept'",
+                     (back if back not in ("canon", "canon_body") else "sheet", a["vid"], role))
+        # les autres candidates de ce rôle sont écartées
+        conn.execute("UPDATE character_assets SET status='rejected' WHERE version_id=? AND kind=? AND status='proposed' "
+                     "AND id!=?", (a["vid"], role, asset_id))
+        conn.execute("UPDATE character_assets SET kind=?, status='kept' WHERE id=?", (role, asset_id))
+        v = _advance_canon(conn, a["vid"])
+        db.log_event(conn, None, "casting", f"{v['character_slug']} v{v['version']} : canon "
+                     f"{'tête' if role == 'canon' else 'en pied'} choisie par Michael")
 
 
 def add_pack_images(conn: sqlite3.Connection, slug: str, version: int, kind: str, srcs: list,
@@ -736,18 +805,18 @@ def add_pack_images(conn: sqlite3.Connection, slug: str, version: int, kind: str
             src = Path(src)
             if src.suffix.lower() not in IMAGE_EXT:
                 raise ProductionError("Une image est attendue (png, jpg, webp)")
-            folder = "sheet" if kind == "canon" else kind
+            folder = "sheet" if kind in ("canon", "canon_body") else kind
             dest = _free_name(absp(v["dir"]) / folder / f"{slugify(src.stem) or folder}{src.suffix.lower()}")
             dest.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy(src, dest)
             cur = conn.execute(
                 "INSERT INTO character_assets (version_id, kind, label, path, status, created_at, comment) "
-                "VALUES (?,?,?,?,?,?,?)", (v["id"], "sheet" if kind == "canon" else kind, label or src.stem, rel(dest),
+                "VALUES (?,?,?,?,?,?,?)", (v["id"], "sheet" if kind in ("canon", "canon_body") else kind, label or src.stem, rel(dest),
                                            "kept", db.now(), "image de Michael"))
             out.append(db.row(conn.execute("SELECT * FROM character_assets WHERE id=?", (cur.lastrowid,)).fetchone()))
         db.log_event(conn, None, "casting", f"{slug} v{version} : {len(out)} image(s) de Michael ajoutée(s) au pack ({kind})")
-    if kind == "canon" and out:
-        make_canon(conn, out[-1]["id"])   # la dernière image déposée comme canon le devient, sans copie
+    if kind in ("canon", "canon_body") and out:
+        make_canon(conn, out[-1]["id"], kind)   # la dernière image déposée comme canon le devient, sans copie
     return out
 
 
@@ -920,6 +989,23 @@ def set_instructions(conn: sqlite3.Connection, slug: str, version: int, text: st
     (absp(v["dir"]) / "instructions.md").write_text(text.strip() + "\n", encoding="utf-8")
 
 
+def request_canon(conn: sqlite3.Connection, slug: str, version: int, note: str = "") -> None:
+    """Michael demande au directeur de casting de préparer la canon : la tête d'abord, puis le corps
+    en pied à partir de la tête choisie. Sa note précise ce qu'il veut (facultatif)."""
+    v = _draft_version(conn, slug, version)
+    if note.strip():
+        (absp(v["dir"]) / "canon-demande.md").write_text(note.strip() + "\n", encoding="utf-8")
+    with db.tx(conn):
+        conn.execute("UPDATE character_versions SET canon_status='requested' WHERE id=?", (v["id"],))
+        db.log_event(conn, None, "casting", f"{slug} v{version} : canon demandée au directeur de casting")
+
+
+def canon_waiting(conn: sqlite3.Connection, slug: str, version: int) -> None:
+    """Le directeur de casting a déposé ses propositions : Michael choisit."""
+    v = character_version(conn, slug, version)
+    conn.execute("UPDATE character_versions SET canon_status='review' WHERE id=?", (v["id"],))
+
+
 def request_pack(conn: sqlite3.Connection, slug: str, version: int) -> None:
     """Michael lance la génération du pack d'après ses instructions (agent directeur-casting)."""
     v = _draft_version(conn, slug, version)
@@ -948,9 +1034,13 @@ def characters_needing_agent(conn: sqlite3.Connection) -> list[dict]:
     """Versions brouillon dont Michael a demandé le pack (le worker réveille /casting)."""
     out = []
     for v in db.rows(conn.execute(
-            "SELECT * FROM character_versions WHERE status='draft' AND pack_status='requested'").fetchall()):
-        fp = hashlib.sha1(json.dumps([v["id"], v.get("instructions"), "pack"]).encode()).hexdigest()[:16]
-        out.append({"slug": v["character_slug"], "version": v["version"], "fingerprint": fp})
+            "SELECT * FROM character_versions WHERE status='draft' AND (pack_status='requested' "
+            "OR canon_status='requested')").fetchall()):
+        kept = [r[0] for r in conn.execute("SELECT kind FROM character_assets WHERE version_id=? AND status='kept' "
+                                           "AND kind IN ('canon','canon_body')", (v["id"],))]
+        what = "canon demandée" if v.get("canon_status") == "requested" else "pack demandé"
+        fp = hashlib.sha1(json.dumps([v["id"], v.get("instructions"), what, sorted(kept)]).encode()).hexdigest()[:16]
+        out.append({"slug": v["character_slug"], "version": v["version"], "fingerprint": fp, "what": what})
     return out
 
 

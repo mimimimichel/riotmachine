@@ -2560,33 +2560,55 @@ function renderVersion(ch, v) {
     : (v.adn ? `<details class="fold"><summary>Lire la fiche (${nWords(v.adn)} mots)</summary><div><pre class="text">${esc(v.adn)}</pre></div></details>${v.resume ? `<h3>Résumé visuel</h3><pre class="text">${esc(v.resume)}</pre>` : ""}` : `<p class="hint">Pas de fiche écrite pour cette version.</p>`);
 
   const packHtml = packSection(v, editable);
-  const KLABEL = { canon: "canon", sheet: "référence (feuille, photo)", turnaround: "angle", fullbody: "en pied",
+  const KLABEL = { canon: "canon tête", canon_body: "canon en pied", sheet: "référence (feuille, photo)", turnaround: "angle", fullbody: "en pied",
     expressions: "expression", lighting: "lumière", details: "détail", canon_draft: "à classer" };
   const mine = v.assets.filter((a) => a.status === "kept" && a.path && a.kind !== "canon"
     && (a.comment === "image de Michael" || a.kind === "canon_draft"));
+  const canonBodyA = v.assets.filter((a) => a.kind === "canon_body" && a.status === "kept").pop();
+  const candOf = (k) => v.assets.filter((a) => a.kind === k && ["proposed", "generating", "failed"].includes(a.status));
+  const slot = (title, hint, cur, cands, role) => `<div class="canonslot stack" style="gap:8px">
+      <div class="row"><b>${title}</b><span class="hint">${hint}</span></div>
+      ${cur ? `<img class="canonbig" src="${media(cur.path)}" data-zoom="${media(cur.path)}" alt="">
+          ${cur.model_key && !String(cur.model_key).includes(":") ? "" : `<span class="pill wait" title="Ton image ou un brouillon gratuit sert telle quelle">pas en HD</span>`}`
+        : `<p class="empty">À faire</p>`}
+      ${cands.length ? `<p class="hint">Propositions du directeur de casting : choisis la bonne.</p><div class="packgrid">${cands.map((a) => `<div class="packitem">
+          ${a.status === "generating" ? `<div class="none" style="aspect-ratio:3/4;display:grid;place-items:center">${led("work")} en cours</div>`
+            : a.status === "failed" ? `<div class="none" style="aspect-ratio:3/4;display:grid;place-items:center;padding:8px;font-size:12px">${esc(a.error || "Échec")}</div>`
+            : `<img src="${media(a.path)}" data-zoom="${media(a.path)}" alt="">`}
+          <div class="pi">${a.status === "proposed" && editable ? `<div class="row" style="gap:6px">
+            <button class="btn small ok" data-makecanon="${a.id}:${role}">Choisir</button>
+            <button class="btn small" data-pickasset="${a.id}:reject">Écarter</button></div>` : a.status === "failed" ? `<button class="btn small ghost" data-pickasset="${a.id}:reject">Retirer</button>` : ""}</div></div>`).join("")}</div>` : ""}
+    </div>`;
+  const cst = v.canon_status || "none";
+  const canonAsk = editable ? `<div class="elsub">
+      <b>Faire préparer la canon par le directeur de casting</b>
+      <span class="hint">Il fait d'abord deux propositions de tête (gros plan neutre sur fond gris, d'après tes images et la fiche).
+        Tu choisis, puis il fait deux propositions en pied à partir de la tête choisie : les deux restent cohérentes. Gratuit tant que fal n'est pas branché.</span>
+      ${cst === "requested" ? `<div class="agentbar">${led("work")}Le directeur de casting prépare ${canon ? "le corps en pied, à partir de la tête choisie" : "la tête"}.</div>`
+        : cst === "review" ? `<div class="agentbar">${led("review")}Ses propositions sont arrivées : choisis ci-dessus.</div>` : ""}
+      ${cst !== "requested" ? `<textarea id="canon-note" rows="2" placeholder="Facultatif : ce que tu veux (ex. regard plus doux, pelage plus clair)"></textarea>
+        <div class="row"><button class="btn ${canon && canonBodyA ? "" : "go"}" data-canonask>${canon && canonBodyA ? "Refaire la canon" : canon ? "Faire le corps en pied" : "Préparer la canon"}</button></div>` : ""}
+    </div>` : "";
   const refsBody = `<div class="two-col">
-      <div>${canon ? `<img class="canonbig" src="${media(canon.path)}" data-zoom="${media(canon.path)}" alt="Canon">
-          <p class="hint">La canon : l'image principale, envoyée en premier à chaque génération.
-            ${canon.model_key ? "" : `<span class="pill wait" title="Ton image sert telle quelle ; une version HD est facultative">pas en HD</span>`}</p>
-          ${editable ? `<div class="row" style="gap:8px"><button class="btn small" data-canonhd ${ch.canon_hd.usable ? "" : "disabled"}>Générer une version HD réaliste · ${money(ch.canon_hd.cost_usd)}</button>
-            <span class="hint">${ch.canon_hd.usable ? "Facultatif. Elle arrive dans les candidates : tu choisis ensuite laquelle est la canon." : `Facultatif : ton image sert telle quelle. La version HD (${esc(ch.canon_hd.model)}) demandera une clé fal.`}</span></div>` : ""}`
-        : `<p class="empty">Pas encore de canon : choisis-la parmi tes images (bouton « En faire la canon »).</p>`}</div>
-      <div class="stack">
+      ${slot("Tête", "gros plan neutre, fond gris", canon, candOf("canon"), "canon")}
+      ${slot("En pied", "de face, tenue de référence", canonBodyA, candOf("canon_body"), "canon_body")}
+    </div>
+    ${canonAsk}
+    ${editable && canon ? `<div class="row" style="gap:8px"><button class="btn small" data-canonhd ${ch.canon_hd.usable ? "" : "disabled"}>Générer une version HD réaliste de la tête · ${money(ch.canon_hd.cost_usd)}</button>
+      <span class="hint">${ch.canon_hd.usable ? "Facultatif." : `Facultatif : la version HD (${esc(ch.canon_hd.model)}) demandera une clé fal.`}</span></div>` : ""}
+    <div class="stack" style="margin-top:12px">
+        <h3>Tes images</h3>
         ${mine.length ? `<div class="packgrid">${mine.map((a) => `<div class="packitem kept">
             <img src="${media(a.path)}" data-zoom="${media(a.path)}" alt="">
             <div class="pi">${editable && a.kind !== "canon_draft" ? `<select data-assetkind="${a.id}" aria-label="Catégorie">${["sheet", "turnaround", "fullbody", "expressions", "lighting", "details"]
                 .map((k) => `<option value="${k}" ${k === a.kind ? "selected" : ""}>${esc(KLABEL[k])}</option>`).join("")}</select>`
                 : `<span class="hint">${esc(KLABEL[a.kind] || a.kind)}</span>`}
-              ${editable ? `<div class="row" style="gap:6px"><button class="btn small" ${a.kind === "canon_draft" ? `data-draftto="${a.id}:canon"` : `data-makecanon="${a.id}"`}>En faire la canon</button>
-                ${a.kind === "canon_draft" ? `<button class="btn small" data-draftto="${a.id}:sheet">Garder comme référence</button>` : ""}
+              ${editable ? `<div class="row" style="gap:6px"><button class="btn small" data-makecanon="${a.id}:canon">Canon tête</button>
+                <button class="btn small" data-makecanon="${a.id}:canon_body">Canon en pied</button>
                 <button class="btn small ghost" data-pickasset="${a.id}:reject">Retirer</button></div>` : ""}</div></div>`).join("")}</div>`
           : `<p class="hint">Aucune image déposée pour l'instant.</p>`}
-        ${candidates.length ? `<h3>Candidates générées</h3><div class="packgrid">${candidates.map((a) => `<div class="packitem">
-          ${a.status === "generating" ? `<div class="none" style="aspect-ratio:3/4;display:grid;place-items:center">${led("work")} en cours</div>` : `<img src="${media(a.path)}" data-zoom="${media(a.path)}" alt="">`}
-          <div class="pi">${a.status === "proposed" ? `<div class="row" style="gap:6px"><button class="btn small ok" data-pickasset="${a.id}:canon">Choisir comme canon</button>
-            <button class="btn small" data-pickasset="${a.id}:reject">Écarter</button></div>` : ""}</div></div>`).join("")}</div>` : ""}
         ${editable ? `<label class="field"><span>Ce que tu déposes</span><select id="pack-kind">
-            <option value="sheet">Image de référence (feuille, photo, vues…)</option><option value="canon">La canon (image principale)</option>
+            <option value="sheet">Image de référence (feuille, photo, vues…)</option><option value="canon">Canon tête (gros plan neutre)</option><option value="canon_body">Canon en pied</option>
             <option value="turnaround">Angles</option><option value="fullbody">En pied</option><option value="expressions">Expressions</option>
             <option value="lighting">Lumières</option><option value="details">Détails</option></select></label>
           ${dropZone("pack", "Déposer tes images", "png, jpg ou webp, plusieurs à la fois", "image/*", true)}` : ""}
@@ -2663,8 +2685,15 @@ async function characterClick(e, ch, v) {
       toast("Tenue enregistrée"); return reload();
     }
     if (d.makecanon) {
-      await api(`/api/character-assets/${d.makecanon}/make-canon`, { method: "POST" });
-      toast("C'est la nouvelle canon ; l'ancienne reste dans tes images");
+      const [aid, role] = d.makecanon.split(":");
+      await api(`/api/character-assets/${aid}/make-canon`, { json: { role: role || "canon" } });
+      toast(role === "canon_body" ? "Canon en pied choisie" : "Canon tête choisie");
+      return reload();
+    }
+    if (d.canonask !== undefined) {
+      t.disabled = true;
+      await api(`${base}/versions/${v.version}/canon-request`, { json: { text: document.getElementById("canon-note")?.value || "" } });
+      toast("Le directeur de casting prépare la canon : ses propositions arrivent ici");
       return reload();
     }
     if (d.draftto) {

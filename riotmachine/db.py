@@ -425,6 +425,8 @@ LATER_COLUMNS = {
     # prompt_agent : le prompt écrit par le décorateur d'après l'image de départ de Michael
     # prompt_status : requested quand une image de départ attend d'être regardée par le décorateur
     # brief : ce que Michael veut tirer de ses images d'inspiration (texte des brouillons)
+    # canon_status : requested (le directeur de casting prépare l'étape suivante de la canon), review (Michael choisit)
+    "character_versions": [("canon_status", "TEXT NOT NULL DEFAULT 'none'")],
     "elements": [("prompt", "TEXT"), ("prompt_agent", "TEXT"), ("prompt_status", "TEXT NOT NULL DEFAULT 'none'"),
                  ("brief", "TEXT")],
     # role : inspi = image d'inspiration (trouvée par Michael), draft = image de départ (déposée, ou brouillon

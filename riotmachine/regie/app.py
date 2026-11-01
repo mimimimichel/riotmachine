@@ -789,10 +789,23 @@ def canon_hd_now(slug: str, version: int) -> dict[str, Any]:
         raise HTTPException(400, str(exc))
 
 
-@app.post("/api/character-assets/{asset_id}/make-canon")
-def asset_make_canon(asset_id: int) -> dict[str, Any]:
+class CanonRole(BaseModel):
+    role: str = "canon"
+
+
+@app.post("/api/characters/{slug}/versions/{version}/canon-request")
+def canon_request(slug: str, version: int, body: ScriptText) -> dict[str, Any]:
     try:
-        production.make_canon(_conn(), asset_id)
+        production.request_canon(_conn(), slug, version, body.text)
+    except (production.ProductionError, LookupError) as exc:
+        raise _error(exc)
+    return {"ok": True}
+
+
+@app.post("/api/character-assets/{asset_id}/make-canon")
+def asset_make_canon(asset_id: int, body: CanonRole | None = None) -> dict[str, Any]:
+    try:
+        production.make_canon(_conn(), asset_id, (body.role if body else "canon"))
     except (production.ProductionError, LookupError) as exc:
         raise _error(exc)
     return {"ok": True}

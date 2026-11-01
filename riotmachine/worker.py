@@ -222,7 +222,7 @@ def wake_casting(conn: sqlite3.Connection) -> list[str]:
         need = {**need, "retry_on_backoff": False}
         if not _should_wake(conn, key, need):
             continue
-        if _launch_claude(conn, key, f"/casting {need['slug']}", [f"pack demandé v{need['version']}"],
+        if _launch_claude(conn, key, f"/casting {need['slug']}", [f"{need.get('what', 'pack demandé')} v{need['version']}"],
                           need["fingerprint"]):
             woken.append(key)
     return woken

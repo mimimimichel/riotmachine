@@ -12,7 +12,14 @@ Le parcours se fait dans la régie (onglet Personnages) :
 2. Michael écrit ses **instructions** pour le pack et clique « Lancer le pack ».
 3. Toi : tu fais générer le pack, puis Michael trie et valide la version.
 
-## Ce que tu fais
+## La canon (si `canon_status` vaut `requested`)
+
+Délègue à l'agent `directeur-casting` l'**étape suivante** de la canon (tête, ou corps en
+pied à partir de la tête choisie), selon sa section « La canon, toujours en deux
+images ». Il dépose deux candidates, puis `riot character canon-wait`. Arrête-toi :
+Michael choisit dans la régie.
+
+## Le pack (si `pack_status` vaut `requested`)
 
 1. `riot character show $ARGUMENTS` : repère la version brouillon dont
    `pack_status` vaut `requested`. Lis ses `instructions` (aussi dans

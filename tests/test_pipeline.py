@@ -554,3 +554,36 @@ def test_looks_reusable_and_wearer(studio):
     assert production.move_look(conn, "jj", "tailleur-test", "max") == "max-tailleur-test"
     sh = conn.execute("SELECT * FROM shots WHERE clip_slug='deux'").fetchone()
     assert "@max-tailleur-test" in sh["description"] and json.loads(sh["looks"]) == {"max": "tailleur-test"}
+
+
+def test_canon_pair_flow(studio, tmp_path, monkeypatch):
+    """La canon en deux images : la tête d'abord, puis le corps à partir d'elle, choisis par Michael."""
+    import shutil
+    import subprocess
+    from riotmachine import elements
+    run("init")
+    conn = db.connect()
+    production.new_character(conn, "Rox")
+    img = tmp_path / "r.png"
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "color=c=tan:s=320x240",
+                    "-frames:v", "1", str(img)], check=True)
+    production.request_canon(conn, "rox", 1, "regard doux")
+    assert any(n["what"] == "canon demandée" for n in production.characters_needing_agent(conn))
+    monkeypatch.setattr(elements, "draft_backends", lambda: [("cloudflare", "klein-9b", "test")])
+    monkeypatch.setattr(elements, "_draft_one", lambda b, p, refs, out, w, h: (out.parent.mkdir(parents=True, exist_ok=True), shutil.copy(img, out)))
+    monkeypatch.setattr(production.routing, "provider_usable", lambda key: key == "cloudflare")
+    monkeypatch.setattr(production.providers, "simulated", lambda provider="fal": False)
+    import threading
+    monkeypatch.setattr(threading, "Thread", lambda target, args, daemon: type("T", (), {"start": lambda self: target(*args)})())
+    r = production.launch_character_asset(conn, "rox", 1, "canon", "tete", "portrait")
+    production.canon_waiting(conn, "rox", 1)
+    a = conn.execute("SELECT * FROM character_assets WHERE id=?", (r["asset_id"],)).fetchone()
+    assert a["status"] == "proposed" and a["cost_usd"] == 0
+    production.make_canon(conn, a["id"], "canon")
+    assert production.character_version(conn, "rox", 1)["canon_status"] == "requested"   # le corps est demandé
+    r2 = production.launch_character_asset(conn, "rox", 1, "canon_body", "en-pied", "full body")
+    production.make_canon(conn, r2["asset_id"], "canon_body")
+    assert production.character_version(conn, "rox", 1)["canon_status"] == "done"
+    kinds = [x[0] for x in conn.execute("SELECT kind FROM character_assets a JOIN character_versions v ON v.id=a.version_id "
+                                        "WHERE v.character_slug='rox' AND a.status='kept' ORDER BY a.id")]
+    assert kinds == ["canon", "canon_body"]

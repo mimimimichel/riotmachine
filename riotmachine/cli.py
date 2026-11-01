@@ -346,6 +346,9 @@ def cmd_character(a) -> None:
     elif a.action == "validate":
         production.validate_character_version(conn, a.slug, a.version)
         out({"character": a.slug, "canon_version": a.version})
+    elif a.action == "canon-wait":
+        production.canon_waiting(conn, a.slug, a.version)
+        out({"character": a.slug, "version": a.version, "canon": "propositions déposées, Michael choisit"})
     elif a.action == "pack-done":
         production.pack_done(conn, a.slug, a.version)
         out({"character": a.slug, "version": a.version, "pack": "done"})
@@ -573,12 +576,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     sp = sub.add_parser("character", help="Référentiel des personnages")
     sp.add_argument("action", choices=["list", "new", "show", "version", "sync", "gen", "pick", "validate",
-                                       "pack-done"])
+                                       "pack-done", "canon-wait"])
     sp.add_argument("slug", nargs="?")
     sp.add_argument("--name")
     sp.add_argument("--notes")
     sp.add_argument("--version", type=int)
-    sp.add_argument("--kind", choices=["turnaround", "fullbody", "expressions", "lighting", "details", "canon"])
+    sp.add_argument("--kind", choices=["canon", "canon_body", "sheet", "turnaround", "fullbody", "expressions", "lighting", "details"])
     sp.add_argument("--label")
     sp.add_argument("--prompt")
     sp.add_argument("--prompt-file")
