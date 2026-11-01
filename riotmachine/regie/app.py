@@ -215,6 +215,42 @@ def provider_enable(key: str, body: ProviderEnabled) -> dict[str, Any]:
     return {"ok": True}
 
 
+DOCS = Path(__file__).resolve().parents[2] / "docs"
+
+
+@app.get("/api/crew")
+def crew() -> dict[str, Any]:
+    """L'équipe (config/crew.yaml + consignes de chaque agent) et la bibliothèque (docs/savoir/)."""
+    import yaml
+    from ..settings import REPO_ROOT
+    cfg = yaml.safe_load((REPO_ROOT / "config" / "crew.yaml").read_text(encoding="utf-8")) or {}
+    out = []
+    for a in cfg.get("crew", []):
+        meta = {}
+        f = REPO_ROOT / ".claude" / "agents" / f"{a.get('fichier')}.md" if a.get("fichier") else None
+        if f and f.is_file():
+            head = f.read_text(encoding="utf-8").split("---")[1]
+            meta = yaml.safe_load(head) or {}
+        out.append({**a, "modele": meta.get("model", "celui de la session"), "outils": meta.get("tools", ""),
+                    "consignes": f".claude/agents/{a['fichier']}.md" if a.get("fichier") else "CLAUDE.md"})
+    lib = []
+    for p in sorted((DOCS / "savoir").glob("*.md")):
+        text = p.read_text(encoding="utf-8")
+        title = next((l.lstrip("# ").strip() for l in text.splitlines() if l.startswith("# ")), p.stem)
+        intro = next((l.strip() for l in text.splitlines()[1:] if l.strip() and not l.startswith("#")), "")
+        lib.append({"name": p.name, "title": title, "intro": intro[:240],
+                    "readers": [a["titre"] for a in cfg.get("crew", []) if p.name in (a.get("lit") or [])]})
+    return {"crew": out, "library": lib}
+
+
+@app.get("/api/savoir/{name}")
+def savoir(name: str) -> dict[str, Any]:
+    p = (DOCS / "savoir" / name).resolve()
+    if p.parent != (DOCS / "savoir").resolve() or not p.is_file():
+        raise HTTPException(404, "Document inconnu")
+    return {"name": name, "text": p.read_text(encoding="utf-8")}
+
+
 @app.get("/api/clips/{slug}/waveform")
 def waveform(slug: str) -> dict[str, Any]:
     conn = _conn()

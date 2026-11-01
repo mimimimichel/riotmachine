@@ -1,0 +1,59 @@
+# L'équipe de Riot Machine, telle que Michael la voit dans la régie (page Crew).
+# Chaque agent a son fichier de consignes dans .claude/agents/<fichier>.md.
+# `lit` : les documents de docs/savoir/ que l'agent doit connaître.
+crew:
+  - key: orchestrateur
+    fichier: null            # ses consignes sont dans CLAUDE.md et .claude/skills/prod/SKILL.md
+    titre: "Le chef de production"
+    role: "Fait avancer chaque clip. Il réveille le bon agent au bon moment, trie tes retours et vérifie que tout avance. Il ne décide jamais à ta place."
+    quand: "À chaque passage de production, lancé tout seul par le worker."
+  - key: scenariste
+    fichier: scenariste
+    titre: "L'atelier d'idées"
+    role: "Lit un brainstorm brut et propose un pitch, un concept, des blocs et des idées de plans. Tu acceptes ou écartes chaque partie."
+    quand: "Quand tu colles un brainstorm dans l'onglet Dossier."
+  - key: script-doctor
+    fichier: script-doctor
+    titre: "Le scénariste"
+    role: "Lit tout le dossier et tes sources, tient la mémoire de réalisation, écrit le découpage plan par plan (ce qu'on voit et le prompt détaillé), crée et cite les tenues. Suit ta direction artistique."
+    quand: "Quand tu envoies ton dossier, demandes une modif sur le découpage ou un plan, ou ajoutes des sources."
+    lit: [direction-artistique-et-prompts.md]
+  - key: decorateur
+    fichier: decorateur
+    titre: "Le décorateur"
+    role: "Repère les décors, objets et figurants, écrit leur fiche (apparence seule), relie les plans, et écrit le prompt HD d'après ton image de départ."
+    quand: "Une fois le découpage complet, et dès que tu déposes une image de départ."
+  - key: directeur-casting
+    fichier: directeur-casting
+    titre: "Le directeur de casting"
+    role: "Tient le pack de référence des personnages (canon, fiche, résumé visuel, images en plus si tu le demandes)."
+    quand: "Quand tu demandes des images en plus pour un personnage."
+    lit: [personnages-canon-et-feuille.md]
+  - key: storyboard
+    fichier: storyboard
+    titre: "Le storyboardeur"
+    role: "Écrit le prompt et lance le visuel de départ de chaque plan, avec les références du plan (personnages, tenues, décors, objets)."
+    quand: "Pour chaque plan d'un bloc validé."
+    lit: [personnages-canon-et-feuille.md, banque-camera.md]
+  - key: controleur
+    fichier: controleur
+    titre: "Le contrôleur"
+    role: "Contrôle chaque visuel et chaque vidéo avant toi (personnage, anatomie, artefacts, respect de la DA). Il refuse ce qui ne va pas."
+    quand: "Après chaque visuel et chaque vidéo générés."
+  - key: routeur
+    fichier: routeur
+    titre: "Le routeur"
+    role: "Choisit pour chaque plan le modèle vidéo le moins cher qui fera le travail, avec une raison que tu peux contester."
+    quand: "Quand un plan passe au plan vidéo."
+    lit: [economiser-les-credits.md]
+  - key: prompteur
+    fichier: prompteur
+    titre: "Le prompteur"
+    role: "Écrit le prompt de chaque vidéo pour le modèle choisi : action, mouvement de caméra, rythme. Il connaît la banque de plans et de mouvements de caméra."
+    quand: "Après le routeur, avant que tu valides le plan vidéo."
+    lit: [banque-camera.md, direction-artistique-et-prompts.md]
+  - key: finition
+    fichier: finition
+    titre: "La finition"
+    role: "S'occupe du rendu final, de l'upscale et du lip-sync quand ils posent problème."
+    quand: "Quand une vidéo HD ou un lip-sync échoue."

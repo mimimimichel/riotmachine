@@ -347,6 +347,7 @@ async function router() {
     else if (page === "nouveau") { setNav("studio"); await showNewClip(); }
     else if (page === "fournisseurs") { setNav("fournisseurs"); await showProviders(); }
     else if (page === "depenses") { setNav("depenses"); await showSpend(); }
+    else if (page === "crew") { setNav("crew"); await showCrew(arg); }
     else { setNav("studio"); await showStudio(); }
   } catch (e) {
     $view.innerHTML = `<p class="empty">${esc(e.message)}</p>`;
@@ -2711,6 +2712,55 @@ async function characterClick(e, ch, v) {
       return reload();
     }
   } catch (err) { toast(err.message, "err"); }
+}
+
+/* ---------- Crew : l'équipe et sa bibliothèque ---------- */
+
+/* rendu Markdown minimal (titres, listes, gras, code, liens, tableaux simples) */
+function mdHtml(md) {
+  const lines = md.split("\n"); let html = ""; let inCode = false, inList = false, inTable = false;
+  const inline = (t) => esc(t).replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>").replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\[([^\]]+)\]\((https?:[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  const close = () => { if (inList) { html += "</ul>"; inList = false; } if (inTable) { html += "</table>"; inTable = false; } };
+  for (const l of lines) {
+    if (l.startsWith("```")) { close(); html += inCode ? "</pre>" : `<pre class="text">`; inCode = !inCode; continue; }
+    if (inCode) { html += esc(l) + "\n"; continue; }
+    const h = l.match(/^(#{1,4})\s+(.*)/);
+    if (h) { close(); html += `<h${h[1].length + 1}>${inline(h[2])}</h${h[1].length + 1}>`; continue; }
+    if (/^\s*\|/.test(l)) {
+      if (/^\s*\|\s*-/.test(l)) continue;
+      if (!inTable) { close(); html += `<table class="mdt">`; inTable = true; }
+      html += "<tr>" + l.trim().replace(/^\||\|$/g, "").split("|").map((c) => `<td>${inline(c.trim())}</td>`).join("") + "</tr>"; continue;
+    }
+    if (/^\s*[-*]\s+/.test(l)) { if (inTable) { html += "</table>"; inTable = false; } if (!inList) { html += "<ul>"; inList = true; } html += `<li>${inline(l.replace(/^\s*[-*]\s+/, ""))}</li>`; continue; }
+    close();
+    if (l.trim()) html += `<p>${inline(l)}</p>`;
+  }
+  close(); if (inCode) html += "</pre>";
+  return html;
+}
+
+async function showCrew(doc) {
+  const d = await api("/api/crew");
+  if (doc) {
+    const r = await api(`/api/savoir/${encodeURIComponent(doc)}`);
+    $view.innerHTML = `<div class="pagehead"><a href="#/crew">← Crew</a></div><article class="panel mdview">${mdHtml(r.text)}</article>`;
+    return;
+  }
+  $view.innerHTML = `<div class="pagehead"><h1>Crew</h1>
+      <span class="sub">L'équipe de Riot Machine : qui fait quoi, quand, et ce que chacun connaît. Toi, tu écris, tu choisis, tu valides.</span></div>
+    <div class="clips" style="grid-template-columns:repeat(auto-fill,minmax(300px,1fr))">${d.crew.map((a) => `<div class="panel stack" style="gap:6px">
+        <div class="row"><b style="font-size:17px">${esc(a.titre)}</b><span class="spacer"></span><span class="pill wait">${esc(String(a.modele))}</span></div>
+        <p>${esc(a.role)}</p>
+        <p class="hint"><b>Quand :</b> ${esc(a.quand || "")}</p>
+        ${(a.lit || []).length ? `<p class="hint"><b>Connaît :</b> ${a.lit.map((n) => `<a href="#/crew/${encodeURIComponent(n)}">${esc((d.library.find((x) => x.name === n) || {}).title || n)}</a>`).join(", ")}</p>` : ""}
+        <p class="hint mono">Consignes : ${esc(a.consignes)}</p></div>`).join("")}</div>
+    <section class="panel stack" style="margin-top:18px"><div class="panel-head"><h2>Bibliothèque</h2>
+        <span class="hint">Ce que l'équipe a appris : bonnes pratiques, prompts éprouvés, ressources des créateurs. Les agents s'en servent.</span></div>
+      ${d.library.map((x) => `<a class="file" href="#/crew/${encodeURIComponent(x.name)}" style="text-decoration:none;color:inherit">
+          <span class="ico">MD</span><span class="nm"><b>${esc(x.title)}</b><br><span class="hint">${esc(x.intro)}</span></span>
+          ${x.readers.length ? `<span class="hint">lu par ${x.readers.map(esc).join(", ")}</span>` : ""}</a>`).join("") || `<p class="hint">Vide pour l'instant.</p>`}
+    </section>`;
 }
 
 /* ---------- Fournisseurs ---------- */

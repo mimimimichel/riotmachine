@@ -814,3 +814,9 @@ details.sources-box > div { padding: 10px 0 0; }
 .refscheck .muted { color: var(--dim); font-style: italic; }
 .k-tenue { --k: #4da3ff; --k-soft: #4da3ff1f; }
 .linkbtn { background: none; border: 0; color: var(--muted); text-decoration: underline; cursor: pointer; font-size: 12px; padding: 0 4px; }
+.mdview h2 { margin: 18px 0 8px; } .mdview h3 { margin: 14px 0 6px; } .mdview h4, .mdview h5 { margin: 10px 0 4px; }
+.mdview p, .mdview li { line-height: 1.55; margin: 4px 0; } .mdview ul { padding-left: 20px; }
+.mdview code { font-family: var(--mono); font-size: 12px; background: #ffffff10; padding: 1px 4px; border-radius: 4px; }
+.mdt { width: 100%; border-collapse: collapse; font-size: 13px; margin: 8px 0; display: block; overflow-x: auto; }
+.mdt td { border: 1px solid var(--line); padding: 5px 8px; vertical-align: top; }
+.mdt tr:first-child td { font-weight: 700; background: #ffffff08; }
