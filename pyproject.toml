@@ -34,3 +34,5 @@ riotmachine = ["regie/static/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+tmp_path_retention_count = 1
+tmp_path_retention_policy = "failed"
