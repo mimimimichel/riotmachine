@@ -820,3 +820,4 @@ details.sources-box > div { padding: 10px 0 0; }
 .mdt { width: 100%; border-collapse: collapse; font-size: 13px; margin: 8px 0; display: block; overflow-x: auto; }
 .mdt td { border: 1px solid var(--line); padding: 5px 8px; vertical-align: top; }
 .mdt tr:first-child td { font-weight: 700; background: #ffffff08; }
+.kindhelp { display: block; font-size: 11px; margin-top: 3px; }

@@ -2461,6 +2461,8 @@ async function showCharacter(slug, keep = false) {
   $view.onclick = (e) => characterClick(e, ch, v);
   $view.onchange = async (e) => {
     const t = e.target;
+    const help = t.parentNode && t.parentNode.querySelector(".kindhelp");
+    if (help && t.tagName === "SELECT") help.textContent = (t.selectedOptions[0] || {}).title || "";
     if (!t.dataset || !t.dataset.assetkind) return;
     try { await api(`/api/character-assets/${t.dataset.assetkind}/kind`, { json: { kind: t.value } }); toast("Catégorie changée"); }
     catch (err) { toast(err.message, "err"); }
@@ -2560,8 +2562,21 @@ function renderVersion(ch, v) {
     : (v.adn ? `<details class="fold"><summary>Lire la fiche (${nWords(v.adn)} mots)</summary><div><pre class="text">${esc(v.adn)}</pre></div></details>${v.resume ? `<h3>Résumé visuel</h3><pre class="text">${esc(v.resume)}</pre>` : ""}` : `<p class="hint">Pas de fiche écrite pour cette version.</p>`);
 
   const packHtml = packSection(v, editable);
-  const KLABEL = { canon: "canon tête", canon_body: "canon en pied", sheet: "référence (feuille, photo)", turnaround: "angle", fullbody: "en pied",
-    expressions: "expression", lighting: "lumière", details: "détail", canon_draft: "à classer" };
+  const KLABEL = { canon: "canon tête", canon_body: "canon en pied", sheet: "feuille de personnage", turnaround: "vue sous un angle",
+    fullbody: "photo en pied", expressions: "expressions", lighting: "lumière", details: "détail", canon_draft: "à classer" };
+  const KHELP = {
+    sheet: "Une image qui montre le personnage sous plusieurs angles (face, profil, dos…).",
+    turnaround: "Une seule vue : de face, de profil, de dos ou de trois-quarts.",
+    fullbody: "Le personnage entier, de la tête aux pieds, sur une seule vue.",
+    expressions: "Le visage avec une émotion (rire, colère…), ou une planche de plusieurs expressions.",
+    details: "Un gros plan sur ce qui compte : yeux, tatouage, bijou, texture du pelage…",
+    lighting: "Le personnage sous une lumière particulière (néon, contre-jour…).",
+    canon: "La tête du personnage, expression neutre, fond uni : l'image principale.",
+    canon_body: "Le personnage en entier dans sa tenue de référence, de face." };
+  const USER_KINDS = ["sheet", "turnaround", "fullbody", "expressions", "details"];
+  const kindSelect = (attr, cur) => `<select ${attr} aria-label="Catégorie">${USER_KINDS.map((k) =>
+    `<option value="${k}" title="${esc(KHELP[k])}" ${k === cur ? "selected" : ""}>${esc(KLABEL[k][0].toUpperCase() + KLABEL[k].slice(1))}</option>`).join("")}</select>
+    <span class="hint kindhelp">${esc(KHELP[cur] || "")}</span>`;
   const mine = v.assets.filter((a) => a.status === "kept" && a.path && a.kind !== "canon"
     && (a.comment === "image de Michael" || a.kind === "canon_draft"));
   const canonBodyA = v.assets.filter((a) => a.kind === "canon_body" && a.status === "kept").pop();
@@ -2600,17 +2615,13 @@ function renderVersion(ch, v) {
         <h3>Tes images</h3>
         ${mine.length ? `<div class="packgrid">${mine.map((a) => `<div class="packitem kept">
             <img src="${media(a.path)}" data-zoom="${media(a.path)}" alt="">
-            <div class="pi">${editable && a.kind !== "canon_draft" ? `<select data-assetkind="${a.id}" aria-label="Catégorie">${["sheet", "turnaround", "fullbody", "expressions", "lighting", "details"]
-                .map((k) => `<option value="${k}" ${k === a.kind ? "selected" : ""}>${esc(KLABEL[k])}</option>`).join("")}</select>`
-                : `<span class="hint">${esc(KLABEL[a.kind] || a.kind)}</span>`}
+            <div class="pi">${editable && a.kind !== "canon_draft" ? kindSelect(`data-assetkind="${a.id}"`, a.kind)
+                : `<span class="hint" title="${esc(KHELP[a.kind] || "")}">${esc(KLABEL[a.kind] || a.kind)}</span>`}
               ${editable ? `<div class="row" style="gap:6px"><button class="btn small" data-makecanon="${a.id}:canon">Canon tête</button>
                 <button class="btn small" data-makecanon="${a.id}:canon_body">Canon en pied</button>
                 <button class="btn small ghost" data-pickasset="${a.id}:reject">Retirer</button></div>` : ""}</div></div>`).join("")}</div>`
           : `<p class="hint">Aucune image déposée pour l'instant.</p>`}
-        ${editable ? `<label class="field"><span>Ce que tu déposes</span><select id="pack-kind">
-            <option value="sheet">Image de référence (feuille, photo, vues…)</option><option value="canon">Canon tête (gros plan neutre)</option><option value="canon_body">Canon en pied</option>
-            <option value="turnaround">Angles</option><option value="fullbody">En pied</option><option value="expressions">Expressions</option>
-            <option value="lighting">Lumières</option><option value="details">Détails</option></select></label>
+        ${editable ? `<label class="field"><span>Ce que tu déposes</span>${kindSelect('id="pack-kind"', "sheet")}</label>
           ${dropZone("pack", "Déposer tes images", "png, jpg ou webp, plusieurs à la fois", "image/*", true)}` : ""}
       </div></div>`;
 
