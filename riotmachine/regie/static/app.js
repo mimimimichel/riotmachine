@@ -961,7 +961,7 @@ function renderPlans(clip) {
     toReview.forEach((s) => { const g = gateOf(s); gates[g] = (gates[g] || 0) + 1; });
     const leds = shots.map((s) => `<span class="led ${shotState(s)}" title="Plan ${s.num} · ${esc(statusLabel(s))}"></span>`).join("");
     const a = shots.length ? shots[0].t_start : 0; const z = shots.length ? shots[shots.length - 1].t_end : 0;
-    const bulk = Object.entries(gates).filter(([g]) => g !== "hd").map(([g, n]) => {
+    const bulk = Object.entries(gates).filter(([g]) => g !== "hd" && APPROVE_LABEL[g]).map(([g, n]) => {
       const cost = g === "videoplan" ? shots.filter((s) => s.status === "video_review").reduce((t, s) => t + ((s.estimate || {}).cost_total_usd || 0), 0) : 0;
       return `<button class="btn small" data-approveblock="${g}:${b.id ?? ""}">Valider les ${n} ${APPROVE_LABEL[g][1]}${cost ? ` · ~${money(cost)}` : ""}</button>`;
     }).join("");
@@ -1145,7 +1145,7 @@ function renderDrawer() {
         </div>` : ""}
       ${notes.join("")}
       ${renderStepPanel(shot, step)}
-      ${shot.image_prompt ? `<details class="fold"><summary>Prompt du visuel</summary><div><pre class="text">${esc(shot.image_prompt)}</pre></div></details>` : ""}
+
       ${(shot.reviews || []).length ? `<details class="fold"><summary>Historique des validations</summary><div class="journal">${shot.reviews.map((r) =>
         `<div><span class="t">${esc(r.created_at.replace("T", " ").slice(5, 16))}</span><span>${esc(APPROVE_LABEL[r.gate]?.[1] || r.gate)} : ${r.decision === "approve" ? "validé" : "modif : " + esc(r.comment || "")}${r.handled_note ? ` <span class="dim">(${esc(r.handled_note)})</span>` : ""}</span></div>`).join("")}</div></details>` : ""}
       <p class="hint mono">Dépensé sur ce plan : ${money(shot.cost_usd)}</p>
@@ -1228,7 +1228,8 @@ function renderStepPanel(shot, step) {
     </div>`;
   }
   const v = viewerFor(shot, def.kinds, clip, {
-    image: "Le storyboard prépare ce visuel.",
+    image: shot.waiting === "spend" || (shot.status === "image_todo" && shot.image_prompt) ? "Le prompt est prêt : touche « Générer le visuel maintenant » pour lancer 3 propositions."
+      : "Le storyboardeur écrit le prompt de ce visuel.",
     hd: "La HD part dès que le visuel draft est validé.",
     draft: "La vidéo draft part dès que le plan vidéo est validé.",
     final: "La vidéo HD part dès que la vidéo draft est validée.",
