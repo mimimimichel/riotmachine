@@ -1467,13 +1467,13 @@ function renderDecoupageTab(clip) {
         Le modèle de chaque vidéo se choisit dans le panneau du plan, au moment de la générer.</p>
     </div>` : "";
   if (clip.stage === "decoupage_review") {
-    head = `<div class="actionbox" style="margin-bottom:16px"><h3>Découpage à valider</h3>
-      <p class="hint">Relis chaque plan : ce qu'on voit, son prompt détaillé, son modèle vidéo, et écoute-le avec ▶ (le lecteur reste en haut). Corrige directement
-        ci-dessous, enregistre, puis valide pour lancer le storyboard. Les plans incomplets et les durées mal adaptées
-        au modèle sont signalés.</p>
+    const nBlocks = state.editor.length, nLive = state.editor.filter((b) => b.validated).length;
+    head = `<div class="actionbox" style="margin-bottom:16px"><h3>Découpage : valide bloc par bloc</h3>
+      <p class="hint">Ouvre un bloc, relis et valide chacun de ses plans (« Valider ce plan »), puis touche <b>« Lancer ce bloc »</b>.
+        Ses plans partent en production sans attendre les autres blocs. ${nLive ? `<b>${nLive} / ${nBlocks}</b> blocs déjà lancés.` : ""}</p>
       ${clip.script_notes ? `<details class="fold"><summary>Notes de relecture du scénariste</summary><div><pre class="text">${esc(clip.script_notes)}</pre></div></details>` : ""}
-      <div class="row"><button class="btn ok" data-cut="approve">Valider le découpage</button>
-        <button class="btn ghost" data-cut="open">Demander des changements</button></div>
+      <div class="row"><button class="btn ghost" data-cut="open">Demander des changements sur tout le découpage</button>
+        <button class="btn small ghost" data-cut="approve" title="Lance tous les blocs d'un coup, sans validation plan par plan">Tout lancer d'un coup</button></div>
       <div class="feedback stack" id="fb-cut" hidden>
         <textarea placeholder="Ex. : fusionner les plans 4 et 5, le refrain commence sur un plan large…"></textarea>
         <div class="row"><button class="btn go" data-cut="change">Envoyer au scénariste</button></div></div>
@@ -2214,6 +2214,7 @@ function bindClip() {
       if (d.cut === "open") { const fb = document.getElementById("fb-cut"); fb.hidden = false; fb.querySelector("textarea").focus(); return; }
       if (d.cut === "approve" || d.cut === "change") {
         if (state.editorDirty) { toast("Enregistre d'abord tes modifications du découpage", "err"); return; }
+        if (d.cut === "approve" && needsConfirm(t, "cutall")) return;
         const comment = d.cut === "change" ? document.querySelector("#fb-cut textarea").value.trim() : "";
         if (d.cut === "change" && !comment) { toast("Explique les changements voulus", "err"); return; }
         await api(`/api/clips/${encodeURIComponent(clip.slug)}/decoupage`, { json: { decision: d.cut, comment } });
