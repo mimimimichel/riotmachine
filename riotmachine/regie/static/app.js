@@ -414,6 +414,7 @@ function waitingText(shot) {
 
 function statusLabel(shot) {
   if (shot.id && !shot.en_production) return state.clip.stage === "decoupage_review" ? "Attend la validation de son bloc" : "Découpage en préparation";
+  if (shot.status === "image_todo" && (state.clip.blocks || []).some((b) => b.id === shot.block_id && b.refs_checked === 0)) return "Le scripte vérifie ses références";
   if (shot.waiting === "spend") return "En attente de validation (dépense)";
   if (shot.waiting === "decors_scan") return "Attend le repérage des décors";
   if (shot.waiting === "decors") return "Attend les références de décor";
@@ -1573,6 +1574,7 @@ function renderDecoupageTab(clip) {
         ${todo && !b.validated ? `<span class="pill review">${todo} à compléter</span>` : ""}
         ${(() => { const nb = b.shots.filter((x) => badRefs(x).length).length;
           return nb ? `<span class="pill bad">⚠ ${nb} plan${nb > 1 ? "s" : ""} avec @ introuvable</span>` : ""; })()}
+        ${b.validated && !b.refs_checked ? `<span class="pill work" title="Le scénariste relie chaque plan à ses références (personnages, tenues, décors, objets) avant les visuels">Références en vérification</span>` : ""}
         ${b.validated ? `<a class="pill done golive" href="#/clip/${encodeURIComponent(clip.slug)}/plans" data-goblock="${b.id}" title="Ouvrir ce bloc dans l'onglet Plans">En production · voir les plans →</a>`
           : b.id && b.shots.length ? (() => { const left = b.shots.filter((x) => !x.cut_ok).length;
               return `<button class="btn small ${left ? "ghost" : "ok"} blockgo" data-validateblock="${b.id}" ${left ? "disabled" : ""}

@@ -27,6 +27,11 @@ et `needs_agent`. Si `needs_agent` est vide, dis-le et arrête-toi.
 2. **Retours sur le découpage** (`pending_reviews` de gate `decoupage`) → agent
    `script-doctor` pour corriger. Puis continue avec les blocs déjà validés.
 
+**Références d'un bloc lancé.** Si `needs_agent` contient « références du bloc N à
+vérifier », délègue d'abord à l'agent `script-doctor` (son rôle de scripte, section
+« Vérifier les références d'un bloc lancé ») : il relie chaque plan à ses références, puis
+`riot block refs-ok`. Les visuels de ce bloc n'attendent que ça.
+
 **Production bloc par bloc.** Michael valide le découpage bloc par bloc. Un plan est
 en production quand `en_production` vaut `true` dans `riot clip show` : seuls ces
 plans passent par les étapes 4 à 8, même si le clip est encore à l'étape

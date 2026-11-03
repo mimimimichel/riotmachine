@@ -1605,8 +1605,12 @@ def validate_block(conn: sqlite3.Connection, block_id: int) -> dict:
                         f"({','.join('?' * len(shots))})", [s["id"] for s in shots]).fetchone()[0]
     if pend:
         raise ProductionError("Une modif demandée au scénariste est encore en cours dans ce bloc")
+    from . import elements
     with db.tx(conn):
-        conn.execute("UPDATE blocks SET validated=1 WHERE id=?", (block_id,))
+        for sh in shots:   # les liens suivent les @ du texte
+            elements.link_mentions(conn, sh["id"])
+        # le scripte vérifie les références du bloc avant que les visuels partent
+        conn.execute("UPDATE blocks SET validated=1, refs_checked=0 WHERE id=?", (block_id,))
         conn.execute("UPDATE shots SET status='image_todo', updated_at=? WHERE block_id=? AND status='image_todo'",
                      (db.now(), block_id))
         db.log_event(conn, b["clip_slug"], "decoupage", f"Bloc « {b['name']} » validé : ses {len(shots)} plans partent en production")
@@ -1616,6 +1620,39 @@ def validate_block(conn: sqlite3.Connection, block_id: int) -> dict:
                          (b["clip_slug"], "decoupage", "approve", "tous les blocs validés", 1, db.now()))
             set_stage(conn, b["clip_slug"], "production")
     return {"block": b["num"], "clip_in_production": not left}
+
+
+def block_refs_checked(conn: sqlite3.Connection, clip_slug: str, num: int, note: str = "") -> None:
+    """Le scripte a vérifié les références du bloc : ses visuels peuvent partir."""
+    b = conn.execute("SELECT * FROM blocks WHERE clip_slug=? AND num=?", (clip_slug, num)).fetchone()
+    if b is None:
+        raise ProductionError(f"Bloc inconnu : {num}")
+    with db.tx(conn):
+        conn.execute("UPDATE blocks SET refs_checked=1 WHERE id=?", (b["id"],))
+        db.log_event(conn, clip_slug, "decoupage", f"Bloc « {b['name']} » : références vérifiées par le scripte"
+                     + (f" ({note})" if note else "") + ", les visuels partent")
+
+
+def shot_ref(conn: sqlite3.Connection, shot_id: int, slug: str) -> str:
+    """Relie un plan à une référence (personnage, tenue personnage-tenue, décor, objet, figurant) sans toucher
+    à son texte. Le lien est gardé comme s'il avait été posé à la main."""
+    from . import elements
+    shot = db.get_shot(conn, shot_id)
+    slug = slug.lstrip("@").strip().lower()
+    e = conn.execute("SELECT id FROM elements WHERE clip_slug=? AND slug=?", (shot["clip_slug"], slug)).fetchone()
+    if e:
+        elements.link(conn, [shot_id], e["id"], manual=True)
+        return "element"
+    if conn.execute("SELECT 1 FROM characters WHERE slug=?", (slug,)).fetchone():
+        elements.add_character(conn, shot_id, slug)
+        return "personnage"
+    lk = conn.execute("SELECT character_slug, slug FROM looks WHERE character_slug || '-' || slug = ?", (slug,)).fetchone()
+    if lk:
+        elements.add_character(conn, shot_id, lk["character_slug"])
+        elements.set_shot_look(conn, shot_id, lk["character_slug"], lk["slug"])
+        conn.execute("UPDATE shots SET looks_manual=1 WHERE id=?", (shot_id,))
+        return "tenue"
+    raise ProductionError(f"@{slug} : aucun personnage, tenue ou élément de ce nom")
 
 
 def shot_in_production(conn: sqlite3.Connection, shot: dict) -> bool:
@@ -1748,6 +1785,9 @@ def launch_image(conn: sqlite3.Connection, shot_id: int, force: bool = False, ap
     shot = db.get_shot(conn, shot_id)
     if not shot_in_production(conn, shot):
         raise ProductionError(f"Plan {shot['num']} : son bloc n'est pas encore validé par Michael")
+    chk = conn.execute("SELECT refs_checked FROM blocks WHERE id=?", (shot.get("block_id"),)).fetchone()
+    if chk and not chk["refs_checked"]:
+        raise ProductionError(f"Plan {shot['num']} : le scripte vérifie encore les références de son bloc")
     if not shot.get("image_prompt"):
         raise ProductionError("Le plan n'a pas encore de prompt image (riot shot set --image-prompt)")
     clip = db.get_clip(conn, shot["clip_slug"])
@@ -2573,12 +2613,16 @@ def needs_agent(conn: sqlite3.Connection, slug: str) -> dict:
         if clip.get("decors_status") == "requested" or (clip.get("decors_status", "todo") == "todo" and not n_el
                                                         and not n_bare):
             reasons.append("decorateur: décors, objets et figurants à repérer (plans complets)")
+    for b in conn.execute("SELECT num, name FROM blocks WHERE clip_slug=? AND validated=1 AND refs_checked=0 ORDER BY num",
+                          (slug,)).fetchall():
+        reasons.append(f"script_doctor: références du bloc {b['num']} « {b['name']} » à vérifier avant production")
     n_prod = n_shots if clip["stage"] == "production" else conn.execute(
         "SELECT COUNT(*) FROM shots s JOIN blocks b ON b.id=s.block_id WHERE s.clip_slug=? AND b.validated=1",
         (slug,)).fetchone()[0]
     if n_prod:
-        prod_filter = "" if clip["stage"] == "production" else \
-            " AND block_id IN (SELECT id FROM blocks WHERE clip_slug=s.clip_slug AND validated=1)"
+        prod_filter = (" AND COALESCE(block_id, 0) NOT IN (SELECT id FROM blocks WHERE clip_slug=s.clip_slug AND refs_checked=0)"
+                       if clip["stage"] == "production" else
+                       " AND block_id IN (SELECT id FROM blocks WHERE clip_slug=s.clip_slug AND validated=1 AND refs_checked=1)")
         for status in db.AGENT_STATUSES:
             # rien n'attend les décors : un plan part avec les références qui existent (HD, sinon brouillon)
             n = conn.execute("SELECT COUNT(*) FROM shots s WHERE clip_slug=? AND status=? AND id NOT IN "

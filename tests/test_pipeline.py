@@ -522,6 +522,11 @@ def test_validate_block_by_block(studio):
         production.validate_block(conn, b1)                 # le plan n'est pas encore validé
     production.set_cut_ok(conn, s1, True)
     assert production.validate_block(conn, b1)["clip_in_production"] is False
+    assert any("références du bloc 1" in r for r in production.needs_agent(conn, "blocs")["reasons"])
+    production.shot_ref(conn, s1, "jj")                       # le scripte relie sans toucher au texte
+    assert "jj" in db.get_shot(conn, s1)["characters"]
+    production.block_refs_checked(conn, "blocs", 1)
+    assert not any("références du bloc" in r for r in production.needs_agent(conn, "blocs")["reasons"])
     snap = production.clip_snapshot(conn, "blocs", compact=True)
     assert [s["en_production"] for s in snap["shots"]] == [True, False]
     assert db.get_clip(conn, "blocs")["stage"] == "decoupage_review"

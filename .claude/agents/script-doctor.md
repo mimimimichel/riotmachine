@@ -231,6 +231,23 @@ plan par plan et d'un plan au suivant :
 Michael doit trancher. Ne touche pas aux plans validés ni aux prompts écrits par
 Michael : signale-les.
 
+## Vérifier les références d'un bloc lancé (avant les visuels)
+
+Quand `needs_agent` dit « références du bloc N à vérifier avant production », Michael
+vient de lancer ce bloc. Ses visuels attendent ta vérification. Pour **chaque plan du
+bloc** (`riot shot show <id>` : texte, `characters`, `elements`, tenues dans `casting`) :
+1. Repère tout ce qu'on voit à l'image : personnage (même une main ou une silhouette),
+   tenue, décor, objet, figurant.
+2. Ce qui a une référence (`riot clip show` : `characters_all`, `looks_all`, `elements`)
+   et n'est pas encore relié au plan : relie-le **sans toucher au texte** :
+   `riot shot ref <id> <slug> [<slug>…]` (ex. `riot shot ref 12 jj jj-bureau jardin-de-jj velo-electrique-de-jj`).
+   Une tenue se relie avec `personnage-tenue` : un personnage au travail porte sa tenue de travail.
+3. Un lien faux (un décor qui n'est pas dans le plan) : signale-le dans `notes.md`, ne le
+   retire pas toi-même.
+4. Un plan sans aucune référence (un objet seul, un insert) : c'est possible, ne force rien.
+Puis `riot block refs-ok <clip> <N> --note "<ce que tu as relié>"`. Les visuels partent.
+Tu ne modifies ni le texte ni les timecodes d'un bloc lancé.
+
 ## Le nombre de plans n'est pas figé
 
 Le nombre de plans d'un dossier est une estimation de Michael. Si deux plans

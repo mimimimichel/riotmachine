@@ -416,11 +416,13 @@ LATER_COLUMNS = {
               ("lipsync_key", "TEXT"),    # lip-sync choisi par Michael pour ce plan
               ("cut_ok", "INTEGER NOT NULL DEFAULT 0"),   # plan validé par Michael dans le découpage
               ("looks", "TEXT"),    # tenue de chaque personnage dans ce plan (JSON {personnage: tenue}), par @
-              ("refs_ok", "INTEGER NOT NULL DEFAULT 0")],   # Michael confirme : pas de référence @ voulue
+              ("refs_ok", "INTEGER NOT NULL DEFAULT 0"),   # Michael confirme : pas de référence @ voulue
+              ("looks_manual", "INTEGER NOT NULL DEFAULT 0")],   # tenue posée sans @ (scripte, panneau) : gardée
     # looks : clip_slug = le clip pour lequel la tenue a été créée (vide : tenue signature du personnage)
     "looks": [("clip_slug", "TEXT"), ("name", "TEXT")],
     "blocks": [("look", "TEXT"),   # lumière et étalonnage communs aux plans du bloc
-               ("validated", "INTEGER NOT NULL DEFAULT 0")],   # bloc validé par Michael : ses plans sont en production
+               ("validated", "INTEGER NOT NULL DEFAULT 0"),   # bloc validé par Michael : ses plans sont en production
+               ("refs_checked", "INTEGER NOT NULL DEFAULT 1")],   # 0 : le scripte vérifie les références avant les visuels
     # prompt : le prompt de l'image HD, réécrit par Michael (NULL = prompt par défaut)
     # prompt_agent : le prompt écrit par le décorateur d'après l'image de départ de Michael
     # prompt_status : requested quand une image de départ attend d'être regardée par le décorateur

@@ -548,7 +548,7 @@ def link_mentions(conn: sqlite3.Connection, shot_id: int) -> list[str]:
             conn.execute("DELETE FROM shot_elements WHERE shot_id=? AND element_id=?", (shot_id, r["element_id"]))
     looks = shot.get("looks")
     looks = json.loads(looks) if isinstance(looks, str) and looks else dict(looks or {})
-    kept = {c: l for c, l in looks.items() if f"{c}-{l}" in cited}
+    kept = looks if shot.get("looks_manual") else {c: l for c, l in looks.items() if f"{c}-{l}" in cited}
     if kept != looks:
         conn.execute("UPDATE shots SET looks=? WHERE id=?", (json.dumps(kept) if kept else None, shot_id))
     linked = []
