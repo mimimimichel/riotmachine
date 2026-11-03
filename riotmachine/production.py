@@ -1497,8 +1497,8 @@ def import_shots(conn: sqlite3.Connection, slug: str, shots: Any, by: str = "age
                         "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", (*values, slug, "image_todo")).lastrowid
                     src = s.get("split_from")
                     if src and int(src) in existing:
-                        conn.execute("INSERT OR IGNORE INTO shot_elements (shot_id, element_id, state) "
-                                     "SELECT ?, element_id, state FROM shot_elements WHERE shot_id=?", (new_id, int(src)))
+                        conn.execute("INSERT OR IGNORE INTO shot_elements (shot_id, element_id, state, manual) "
+                                     "SELECT ?, element_id, state, manual FROM shot_elements WHERE shot_id=?", (new_id, int(src)))
         if by != "michael":
             for sid, old in existing.items():
                 new_row = conn.execute("SELECT description, detail, t_start, t_end FROM shots WHERE id=?", (sid,)).fetchone()

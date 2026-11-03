@@ -427,6 +427,8 @@ LATER_COLUMNS = {
     # brief : ce que Michael veut tirer de ses images d'inspiration (texte des brouillons)
     # canon_status : requested (le directeur de casting prépare l'étape suivante de la canon), review (Michael choisit)
     "character_versions": [("canon_status", "TEXT NOT NULL DEFAULT 'none'")],
+    # manual : 0 = né d'un @ du texte (suit le texte), 1 = ajouté à la main, 2 = posé par le décorateur
+    "shot_elements": [("manual", "INTEGER NOT NULL DEFAULT 0")],
     "elements": [("prompt", "TEXT"), ("prompt_agent", "TEXT"), ("prompt_status", "TEXT NOT NULL DEFAULT 'none'"),
                  ("brief", "TEXT")],
     # role : inspi = image d'inspiration (trouvée par Michael), draft = image de départ (déposée, ou brouillon

@@ -1051,7 +1051,7 @@ def shot_element(shot_id: int, body: ShotElementIn) -> dict[str, Any]:
         if body.remove:
             elements.unlink(conn, shot_id, body.element_id)
         else:
-            elements.link(conn, [shot_id], body.element_id, body.state)
+            elements.link(conn, [shot_id], body.element_id, body.state, manual=True)   # ajouté à la main : gardé
     except production.ProductionError as exc:
         raise _error(exc)
     return {"ok": True, "elements": elements.for_shot(conn, shot_id)}

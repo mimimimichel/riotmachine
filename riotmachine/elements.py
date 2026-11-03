@@ -423,15 +423,19 @@ def pick(conn: sqlite3.Connection, image_id: int, decision: str) -> None:
         raise ProductionError(f"Décision inconnue : {decision}")
 
 
-def link(conn: sqlite3.Connection, shot_ids: list[int], element_id: int, state: str | None = None) -> int:
+def link(conn: sqlite3.Connection, shot_ids: list[int], element_id: int, state: str | None = None,
+         manual: bool = False) -> int:
+    """Lien posé par le décorateur (gardé) ou à la main dans le panneau du plan (gardé) ; les liens nés
+    d'un @ dans le texte suivent le texte (voir link_mentions)."""
     e = _element(conn, element_id)
     n = 0
     for sid in shot_ids:
         shot = db.get_shot(conn, sid)
         if shot["clip_slug"] != e["clip_slug"]:
             raise ProductionError(f"Le plan {sid} n'est pas dans le clip {e['clip_slug']}")
-        conn.execute("INSERT INTO shot_elements (shot_id, element_id, state) VALUES (?,?,?) "
-                     "ON CONFLICT(shot_id, element_id) DO UPDATE SET state=excluded.state", (sid, element_id, state))
+        conn.execute("INSERT INTO shot_elements (shot_id, element_id, state, manual) VALUES (?,?,?,?) "
+                     "ON CONFLICT(shot_id, element_id) DO UPDATE SET state=excluded.state, manual=MAX(manual, excluded.manual)",
+                     (sid, element_id, state, 1 if manual else 2))
         n += 1
     return n
 
@@ -532,10 +536,21 @@ MENTION = re.compile(r"@([a-z0-9][a-z0-9-]*[a-z0-9]|[a-z0-9])")
 
 
 def link_mentions(conn: sqlite3.Connection, shot_id: int) -> list[str]:
-    """Chaque @slug écrit dans la ligne ou le prompt détaillé d'un plan relie ce plan à l'élément.
-    Un lien existant garde son état ; retirer la mention ne retire pas le lien (le panneau du plan le fait)."""
+    """Les @ du texte d'un plan (ce qu'on voit, prompt détaillé) font foi : chaque @ cité relie le plan
+    à son élément, sa tenue ou son personnage ; un lien qui n'est plus cité est retiré, sauf s'il a été
+    ajouté à la main dans le panneau du plan."""
     shot = db.get_shot(conn, shot_id)
     text = f"{shot.get('description') or ''}\n{shot.get('detail') or ''}".lower()
+    cited = set(MENTION.findall(text))
+    for r in conn.execute("SELECT se.element_id, e.slug FROM shot_elements se JOIN elements e ON e.id=se.element_id "
+                          "WHERE se.shot_id=? AND se.manual=0", (shot_id,)).fetchall():
+        if r["slug"] not in cited:
+            conn.execute("DELETE FROM shot_elements WHERE shot_id=? AND element_id=?", (shot_id, r["element_id"]))
+    looks = shot.get("looks")
+    looks = json.loads(looks) if isinstance(looks, str) and looks else dict(looks or {})
+    kept = {c: l for c, l in looks.items() if f"{c}-{l}" in cited}
+    if kept != looks:
+        conn.execute("UPDATE shots SET looks=? WHERE id=?", (json.dumps(kept) if kept else None, shot_id))
     linked = []
     for slug in dict.fromkeys(MENTION.findall(text)):
         r = conn.execute("SELECT id FROM elements WHERE clip_slug=? AND slug=?", (shot["clip_slug"], slug)).fetchone()
