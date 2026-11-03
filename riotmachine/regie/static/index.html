@@ -26,11 +26,26 @@
       <a href="#/fournisseurs" data-nav="fournisseurs">Fournisseurs</a>
     </nav>
     <div class="sysstat" id="sysstat"></div>
+    <button class="fsbtn" id="fsbtn" title="Plein écran" aria-label="Plein écran">⛶</button>
   </header>
   <main id="view" tabindex="-1"><p class="loading">Chargement…</p></main>
   <aside id="drawer" class="drawer" hidden></aside>
   <div id="toast" role="status" aria-live="polite"></div>
   <script src="/static/app.js"></script>
+  <script>
+    /* plein écran sans installation : un toucher suffit ; une fois choisi, il revient au premier toucher */
+    (function () {
+      const el = document.documentElement, btn = document.getElementById("fsbtn");
+      const on = () => !!document.fullscreenElement;
+      const want = () => { try { return localStorage.getItem("riot:fullscreen") === "1"; } catch (e) { return false; } };
+      const keep = (v) => { try { localStorage.setItem("riot:fullscreen", v ? "1" : "0"); } catch (e) {} };
+      const enter = () => el.requestFullscreen && el.requestFullscreen({ navigationUI: "hide" }).catch(() => {});
+      if (!el.requestFullscreen || window.matchMedia("(display-mode: standalone)").matches) { btn.hidden = true; return; }
+      btn.addEventListener("click", (e) => { e.stopPropagation(); if (on()) { keep(false); document.exitFullscreen(); } else { keep(true); enter(); } });
+      document.addEventListener("pointerdown", () => { if (want() && !on()) enter(); }, true);
+      document.addEventListener("fullscreenchange", () => { btn.textContent = on() ? "✕" : "⛶"; btn.title = on() ? "Quitter le plein écran" : "Plein écran"; });
+    })();
+  </script>
   <script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});</script>
 </body>
 </html>

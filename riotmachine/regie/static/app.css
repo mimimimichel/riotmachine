@@ -821,3 +821,6 @@ details.sources-box > div { padding: 10px 0 0; }
 .mdt td { border: 1px solid var(--line); padding: 5px 8px; vertical-align: top; }
 .mdt tr:first-child td { font-weight: 700; background: #ffffff08; }
 .kindhelp { display: block; font-size: 11px; margin-top: 3px; }
+.fsbtn { background: none; border: 1px solid var(--line-2); color: var(--muted); border-radius: 8px; width: 34px; height: 30px;
+  cursor: pointer; font-size: 15px; flex: none; margin-left: 8px; }
+.fsbtn:hover { color: var(--text); }
