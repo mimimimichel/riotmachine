@@ -1573,7 +1573,7 @@ function renderDecoupageTab(clip) {
         ${todo && !b.validated ? `<span class="pill review">${todo} à compléter</span>` : ""}
         ${(() => { const nb = b.shots.filter((x) => badRefs(x).length).length;
           return nb ? `<span class="pill bad">⚠ ${nb} plan${nb > 1 ? "s" : ""} avec @ introuvable</span>` : ""; })()}
-        ${b.validated ? `<span class="pill done">Validé · en production</span>`
+        ${b.validated ? `<a class="pill done golive" href="#/clip/${encodeURIComponent(clip.slug)}/plans" data-goblock="${b.id}" title="Ouvrir ce bloc dans l'onglet Plans">En production · voir les plans →</a>`
           : b.id && b.shots.length ? (() => { const left = b.shots.filter((x) => !x.cut_ok).length;
               return `<button class="btn small ${left ? "ghost" : "ok"} blockgo" data-validateblock="${b.id}" ${left ? "disabled" : ""}
                 title="${left ? "Valide d'abord chaque plan du bloc" : "Ses plans partent en production"}">${left ? `Lancer ce bloc · ${left} plan${left > 1 ? "s" : ""} à valider` : "Lancer ce bloc"}</button>`; })() : ""}
@@ -2004,6 +2004,13 @@ function bindClip() {
         if (d.tlzoom === "fit") return setTlZoom(1);
         const next = d.tlzoom === "in" ? TL_ZOOMS.find((x) => x > z) || z : [...TL_ZOOMS].reverse().find((x) => x < z) || 1;
         return setTlZoom(next);
+      }
+      if (d.goblock !== undefined && t.classList.contains("golive")) {
+        ev.preventDefault();
+        const open = openBlocks(clip); open.add(d.goblock); prefs("open:" + clip.slug, [...open]);
+        location.hash = `#/clip/${encodeURIComponent(clip.slug)}/plans`;
+        setTimeout(() => document.getElementById("block-" + d.goblock)?.scrollIntoView({ behavior: "smooth", block: "start" }), 400);
+        return;
       }
       if (d.goblock !== undefined) {
         // un bloc touché dans la frise : on zoome dessus, et on ouvre ce bloc dans la liste
