@@ -1573,7 +1573,8 @@ function renderDecoupageTab(clip) {
         ${todo && !b.validated ? `<span class="pill review">${todo} à compléter</span>` : ""}
         ${(() => { const nb = b.shots.filter((x) => badRefs(x).length).length;
           return nb ? `<span class="pill bad">⚠ ${nb} plan${nb > 1 ? "s" : ""} avec @ introuvable</span>` : ""; })()}
-        ${b.validated ? `<span class="pill done">Validé · en production</span>` : ""}
+        ${b.validated ? `<span class="pill done">Validé · en production</span>`
+          : b.id && b.shots.length ? `<button class="btn small ok blockgo" data-validateblock="${b.id}" ${b.shots.every((x) => x.cut_ok) ? "" : "hidden"}>Lancer ce bloc</button>` : ""}
       </div>
       <div class="dblock-body">
         ${b.validated ? `<p class="hint" style="margin:10px 0">Bloc validé : ses plans sont en production, suis-les dans l'onglet
@@ -1616,8 +1617,17 @@ function refreshDecCounts(bi) {
   const okN = b.shots.filter((x) => x.cut_ok).length;
   const pill = document.querySelector(`#decblock-${bi} .dblock-count`);
   if (pill) { pill.textContent = `${okN}/${b.shots.length} validés`; pill.className = `pill dblock-count ${okN === b.shots.length ? "done" : okN ? "work" : "wait"}`; }
-  const btn = document.querySelector(`#decblock-${bi} [data-validateblock]`);
-  if (btn) btn.disabled = okN !== b.shots.length;
+  const all_ok = okN === b.shots.length;
+  document.querySelectorAll(`#decblock-${bi} [data-validateblock]`).forEach((btn) => {
+    if (btn.classList.contains("blockgo")) btn.hidden = !all_ok; else btn.disabled = !all_ok;
+  });
+  const banner = document.getElementById(`blockready-${bi}`);
+  if (all_ok && !b.validated && !banner && b.id) {
+    document.querySelector(`#decblock-${bi} .dshots`)?.insertAdjacentHTML("afterend",
+      `<div class="actionbox" id="blockready-${bi}" style="margin-top:10px"><b>Tous les plans de « ${esc(b.name)} » sont validés.</b>
+        <div class="row" style="margin-top:6px"><button class="btn ok" data-validateblock="${b.id}">Valider ce bloc et lancer sa production</button>
+        <span class="hint">Ses plans partent en production ; les autres blocs n'attendent pas.</span></div></div>`);
+  } else if (!all_ok && banner) banner.remove();
   const all = state.editor.flatMap((x) => x.shots);
   const top = document.getElementById("dec-okcount");
   if (top) top.textContent = `${all.filter((x) => x.cut_ok).length} validés`;
@@ -2044,7 +2054,8 @@ function bindClip() {
         return;
       }
       // découpage
-      if (d.toggledec !== undefined) {
+      if (d.toggledec !== undefined && ev.target.closest("[data-validateblock]")) { /* le bouton gère */ }
+      else if (d.toggledec !== undefined) {
         const b = state.editor[+d.toggledec];
         b._open = !b._open;
         document.getElementById("decblock-" + d.toggledec)?.classList.toggle("open", b._open);
