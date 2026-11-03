@@ -2054,6 +2054,57 @@ def skip_step(conn: sqlite3.Connection, shot_id: int) -> str:
     return nxt
 
 
+def regenerate_image(conn: sqlite3.Connection, shot_id: int, prompt: str | None = None) -> dict:
+    """Michael réécrit le prompt du visuel (ou le garde) et relance tout de suite (son clic vaut accord)."""
+    shot = db.get_shot(conn, shot_id)
+    if shot["status"] not in ("image_todo", "image_qc", "image_review", "change_requested", "failed", "prompt_todo",
+                              "hd_todo", "hd_review", "video_review"):
+        raise ProductionError("La vidéo de ce plan est déjà partie : demande une modif pour revenir au visuel")
+    with db.tx(conn):
+        if prompt is not None and prompt.strip():
+            conn.execute("UPDATE shots SET image_prompt=?, updated_at=? WHERE id=?", (prompt.strip(), db.now(), shot_id))
+            db.add_note(conn, shot_id, "michael", "Prompt du visuel réécrit par Michael.")
+        db.set_shot_status(conn, shot_id, "image_todo")
+        conn.execute("UPDATE spend_requests SET status='done', note='relancé depuis le plan', decided_at=? "
+                     "WHERE shot_id=? AND status='pending'", (db.now(), shot_id))
+    return launch_image(conn, shot_id, approved=True)
+
+
+def upload_shot_asset(conn: sqlite3.Connection, shot_id: int, kind: str, src: str | Path) -> dict:
+    """Michael dépose son propre contenu pour une étape du plan (fait ailleurs, à la main).
+    Il devient une proposition comme les autres et le plan passe à la validation de cette étape."""
+    targets = {"image": ("storyboard", IMAGE_EXT, "image_review"), "image_hd": ("storyboard", IMAGE_EXT, "prompt_todo"),
+               "draft": ("drafts", VIDEO_EXT, "draft_review"), "final": ("finals", VIDEO_EXT, "final_review")}
+    if kind not in targets:
+        raise ProductionError("Étape : image, image_hd, draft ou final")
+    folder, exts, nxt = targets[kind]
+    src = Path(src)
+    if src.suffix.lower() not in exts:
+        raise ProductionError("Une image est attendue" if exts is IMAGE_EXT else "Une vidéo est attendue (mp4, mov, webm)")
+    shot = db.get_shot(conn, shot_id)
+    version = db.next_asset_version(conn, shot_id, kind)
+    suffix = {"image_hd": "-hd"}.get(kind, "")
+    dest = studio() / "clips" / shot["clip_slug"] / folder / f"plan-{shot['num']:03d}{suffix}-v{version}-michael{src.suffix.lower()}"
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy(src, dest)
+    if kind in ("draft", "final"):
+        from .providers._http import strip_audio
+        try:
+            strip_audio(dest)   # la musique vient de Suno
+        except Exception:   # noqa: BLE001 - une vidéo sans piste son passe telle quelle
+            pass
+    with db.tx(conn):
+        cur = conn.execute(
+            "INSERT INTO assets (shot_id, kind, version, path, prompt, model_key, params, cost_usd, funding, status, created_at) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+            (shot_id, kind, version, rel(dest), None, "michael", "{}", 0, "free", "validated" if kind == "image_hd" else "ready",
+             db.now()))
+        db.set_shot_status(conn, shot_id, nxt)
+        db.add_note(conn, shot_id, "michael", f"Contenu déposé par Michael pour l'étape {KIND_LABEL.get(kind, kind)} (v{version}).")
+        db.log_event(conn, shot["clip_slug"], "asset", f"Plan {shot['num']} : {KIND_LABEL.get(kind, kind)} déposé par Michael")
+    return {"asset_id": cur.lastrowid, "version": version, "status": nxt}
+
+
 MICHAEL_CHOICE = "Choisi par Michael"
 # Le modèle vidéo d'un plan se change tant que la vidéo n'est pas partie.
 MODEL_OPEN_STATUSES = {"image_todo", "image_gen", "image_qc", "image_review", "hd_todo", "hd_gen", "hd_qc",

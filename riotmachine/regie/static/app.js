@@ -1152,6 +1152,14 @@ function renderDrawer() {
     </div>`;
   if (sameShot) $drawer.querySelector(".drawer-body").scrollTop = scroll;
   bindCompare($drawer);
+  bindDrops($drawer, async (kind, files) => {
+    if (!kind.startsWith("shotup:")) return;
+    const [, sid, k] = kind.split(":");
+    const fd = new FormData(); fd.set("kind", k); fd.set("file", files[0]);
+    toast("Envoi…");
+    try { await upload(`/api/shots/${sid}/upload`, fd); toast("Déposé : à valider dans cette étape"); showClip(clip.slug, state.tab, false); }
+    catch (e) { toast(e.message, "err"); }
+  });
   $drawer.onclick = drawerClick;
   $drawer.onchange = async (ev) => {
     const t = ev.target;
@@ -1227,6 +1235,22 @@ function renderStepPanel(shot, step) {
     lipsync: "Le lip-sync se fait après la vidéo HD.",
   }[step]);
   let html = v.html;
+  const own = { image: ["image", "ton visuel", "image/*"], hd: ["image_hd", "ton visuel HD", "image/*"],
+                draft: ["draft", "ta vidéo draft", "video/*"], final: ["final", "ta vidéo HD", "video/*"] }[step];
+  const prompt = step === "image" ? shot.image_prompt : (step === "draft" || step === "final") ? shot.video_prompt : null;
+  if (step === "image") html += `<details class="fold" ${shot.status === "image_review" ? "" : ""}><summary>Prompt du visuel : le voir, le copier, le réécrire</summary><div class="stack" style="gap:6px">
+      <textarea rows="6" id="pr-${shot.id}-image" placeholder="Le storyboardeur n'a pas encore écrit ce prompt.">${esc(shot.image_prompt || "")}</textarea>
+      <div class="row" style="gap:8px">
+        <button class="btn small" data-copyprompt="pr-${shot.id}-image">Copier</button>
+        <button class="btn small go" data-regenimage="${shot.id}">Enregistrer et régénérer · 3 propositions</button>
+        <span class="hint">Les références du plan (personnages, tenues, décors) partent avec.</span></div></div></details>`;
+  else if (prompt) html += `<details class="fold"><summary>Prompt de cette étape</summary><div class="stack" style="gap:6px">
+      <pre class="text" id="pr-${shot.id}-${step}">${esc(prompt)}</pre>
+      <div class="row"><button class="btn small" data-copyprompt="pr-${shot.id}-${step}">Copier le prompt</button>
+        <span class="hint">Pour le réutiliser ailleurs (Grok, ChatGPT, Higgsfield…).</span></div></div></details>`;
+  if (own) html += `<details class="fold"><summary>Déposer ${own[1]}, fait ailleurs</summary><div class="stack" style="gap:6px">
+      <p class="hint">Il devient une proposition de cette étape, à valider comme les autres.</p>
+      ${dropZone(`shotup:${shot.id}:${own[0]}`, `Déposer ${own[1]}`, own[2] === "image/*" ? "png, jpg ou webp" : "mp4, mov ou webm", own[2], false)}</div></details>`;
   if (isGate) {
     const label = step === "lipsync" || step === "final" ? APPROVE_LABEL.finals[0] : APPROVE_LABEL[gate][0];
     const ph = {
@@ -1344,6 +1368,21 @@ async function drawerClick(ev) {
       pk.hidden = !pk.hidden;
       if (!pk.hidden) pk.scrollIntoView({ behavior: "smooth", block: "nearest" });
       return;
+    }
+    if (d.copyprompt) {
+      const node = document.getElementById(d.copyprompt);
+      const txt = (node && (node.value !== undefined ? node.value : node.textContent)) || "";
+      try { await navigator.clipboard.writeText(txt); toast("Prompt copié"); }
+      catch (e) { const r = document.createRange(); r.selectNodeContents(document.getElementById(d.copyprompt)); getSelection().removeAllRanges(); getSelection().addRange(r); toast("Sélectionné : copie-le avec le menu"); }
+      return;
+    }
+    if (d.regenimage) {
+      const txt = document.getElementById(`pr-${d.regenimage}-image`).value;
+      if (!txt.trim()) { toast("Écris d'abord le prompt", "err"); return; }
+      if (needsConfirm(t, "regen" + d.regenimage)) return;
+      t.disabled = true;
+      await api(`/api/shots/${d.regenimage}/regenerate-image`, { json: { prompt: txt } });
+      toast("3 nouvelles propositions en cours"); return reload();
     }
     if (d.runstep) {
       if (needsConfirm(t, "run" + d.runstep)) return;

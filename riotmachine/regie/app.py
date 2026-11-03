@@ -615,6 +615,33 @@ def shot_run(shot_id: int) -> dict[str, Any]:
         raise HTTPException(400, str(exc))
 
 
+class ImagePrompt(BaseModel):
+    prompt: str | None = None
+
+
+@app.post("/api/shots/{shot_id}/regenerate-image")
+def shot_regen_image(shot_id: int, body: ImagePrompt) -> dict[str, Any]:
+    try:
+        return {"ok": True, "result": production.regenerate_image(_conn(), shot_id, body.prompt)}
+    except (production.ProductionError, LookupError) as exc:
+        raise _error(exc)
+    except Exception as exc:   # aucun modèle disponible
+        raise HTTPException(400, str(exc))
+
+
+@app.post("/api/shots/{shot_id}/upload")
+async def shot_upload(shot_id: int, kind: str = Form(...), file: UploadFile = File(...)) -> dict[str, Any]:
+    """Michael dépose son propre visuel ou sa propre vidéo pour une étape du plan."""
+    tmp = Path(tempfile.mkdtemp(prefix="riot-upload-"))
+    try:
+        path = _save_uploads(tmp, [file], "plan")[0]
+        return {"ok": True, **production.upload_shot_asset(_conn(), shot_id, kind, path)}
+    except (production.ProductionError, LookupError) as exc:
+        raise _error(exc)
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 @app.post("/api/shots/{shot_id}/skip")
 def shot_skip(shot_id: int) -> dict[str, Any]:
     try:
