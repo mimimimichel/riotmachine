@@ -1098,6 +1098,10 @@ function renderDrawer() {
       <p class="hint">Leur image sert de référence au visuel du plan. Pour en ajouter : touche ＋, ou tape @ dans le prompt détaillé. Tout se gère dans l'onglet Références.</p>
       <div class="eltiles2">
         ${shotChars.map((c) => charTile(c, "", `<button class="x" data-charunlink="${esc(c.slug)}" title="Retirer du plan" aria-label="Retirer du plan">✕</button>`)).join("")}
+        ${(() => { let lk = shot.looks; try { lk = typeof lk === "string" ? JSON.parse(lk) : (lk || {}); } catch (e) { lk = {}; }
+          return Object.entries(lk || {}).map(([c, l]) => { const L = (clip.looks_all || []).find((x) => x.character === c && x.look === l);
+            return `<div class="eltile2 k-tenue"><div class="img" style="${L && L.thumb ? `background-image:url('${media(L.thumb)}')` : ""}">${L && L.thumb ? "" : `<span>pas encore de photo</span>`}</div>
+              <span class="nm">${esc(L ? L.name : `${c} · ${l}`)}</span><span class="kd">Tenue · @${esc(c)}-${esc(l)}</span></div>`; }).join(""); })()}
         ${(shot.elements || []).map((e) => elTile(e, "", `<button class="x" data-elunlink="${e.id}" title="Retirer du plan" aria-label="Retirer du plan">✕</button>`)).join("")}
         ${free.length || freeChars.length ? `<button class="eltile2 add" data-elpick><span class="plus">＋</span><span class="nm">Ajouter</span></button>` : ""}
       </div>
@@ -1135,6 +1139,10 @@ function renderDrawer() {
       ${elBox}
       ${settings}
       <div class="pipeline">${pipeline}</div>
+      ${shot.actions && (shot.actions.run || shot.actions.skip) ? `<div class="row stepbar" style="gap:8px">
+          ${shot.actions.run ? `<button class="btn go" data-runstep="${shot.id}">${esc(shot.actions.run)}${shot.status === "draft_todo" || shot.status === "final_todo" ? ` · ~${money((shot.estimate || {}).cost_total_usd || 0)}` : ""}</button>` : ""}
+          ${shot.actions.skip ? `<button class="btn ghost" data-skipstep="${shot.id}">${esc(shot.actions.skip)}</button>` : ""}
+        </div>` : ""}
       ${notes.join("")}
       ${renderStepPanel(shot, step)}
       ${shot.image_prompt ? `<details class="fold"><summary>Prompt du visuel</summary><div><pre class="text">${esc(shot.image_prompt)}</pre></div></details>` : ""}
@@ -1336,6 +1344,17 @@ async function drawerClick(ev) {
       pk.hidden = !pk.hidden;
       if (!pk.hidden) pk.scrollIntoView({ behavior: "smooth", block: "nearest" });
       return;
+    }
+    if (d.runstep) {
+      if (needsConfirm(t, "run" + d.runstep)) return;
+      t.disabled = true;
+      await api(`/api/shots/${d.runstep}/run`, { method: "POST" });
+      toast("Lancé"); refreshSys(); return reload();
+    }
+    if (d.skipstep) {
+      if (needsConfirm(t, "skip" + d.skipstep)) return;
+      await api(`/api/shots/${d.skipstep}/skip`, { method: "POST" });
+      toast("Étape passée"); return reload();
     }
     if (d.refsok) {
       const [sid, on] = d.refsok.split(":");

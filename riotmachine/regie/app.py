@@ -604,6 +604,25 @@ def shot_refs_ok(shot_id: int, body: CutOk) -> dict[str, Any]:
     return {"ok": True}
 
 
+@app.post("/api/shots/{shot_id}/run")
+def shot_run(shot_id: int) -> dict[str, Any]:
+    """Michael lance l'étape en cours du plan tout de suite."""
+    try:
+        return {"ok": True, "result": production.run_step(_conn(), shot_id)}
+    except (production.ProductionError, LookupError) as exc:
+        raise _error(exc)
+    except Exception as exc:   # fournisseur non branché, refus
+        raise HTTPException(400, str(exc))
+
+
+@app.post("/api/shots/{shot_id}/skip")
+def shot_skip(shot_id: int) -> dict[str, Any]:
+    try:
+        return {"ok": True, "status": production.skip_step(_conn(), shot_id)}
+    except (production.ProductionError, LookupError) as exc:
+        raise _error(exc)
+
+
 class ShotChange(BaseModel):
     comment: str
 
@@ -1194,6 +1213,7 @@ class StudioFiles(StaticFiles):
 
 app.mount("/media", StudioFiles(), name="media")
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
+production.BACKGROUND = True   # la régie dure : les générations gratuites tournent en arrière-plan
 
 
 @app.get("/manifest.webmanifest")

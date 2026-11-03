@@ -239,6 +239,7 @@ def tick(conn: sqlite3.Connection, wake: bool = True) -> dict:
 
 def run_forever() -> None:
     s = get_settings()
+    production.BACKGROUND = True   # le worker dure : les générations gratuites tournent en arrière-plan
     print(f"Riot Machine worker — studio {s.studio_root} — fal {'SIMULATION' if s.fal_mock else 'réel'} "
           f"— tour toutes les {s.poll_seconds}s")
     with db.session() as conn:

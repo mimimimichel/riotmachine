@@ -580,13 +580,15 @@ def test_canon_pair_flow(studio, tmp_path, monkeypatch):
     monkeypatch.setattr(production.providers, "simulated", lambda provider="fal": False)
     import threading
     monkeypatch.setattr(threading, "Thread", lambda target, args, daemon: type("T", (), {"start": lambda self: target(*args)})())
-    r = production.launch_character_asset(conn, "rox", 1, "canon", "tete", "portrait")
+    pend = production.launch_character_asset(conn, "rox", 1, "canon", "tete", "portrait")
+    assert pend["status"] == "pending" and pend["est_usd"] == 0                # même gratuit : accord de Michael d'abord
+    r = production.launch_character_asset(conn, "rox", 1, "canon", "tete", "portrait", approved=True)
     production.canon_waiting(conn, "rox", 1)
     a = conn.execute("SELECT * FROM character_assets WHERE id=?", (r["asset_id"],)).fetchone()
     assert a["status"] == "proposed" and a["cost_usd"] == 0
     production.make_canon(conn, a["id"], "canon")
     assert production.character_version(conn, "rox", 1)["canon_status"] == "requested"   # le corps est demandé
-    r2 = production.launch_character_asset(conn, "rox", 1, "canon_body", "en-pied", "full body")
+    r2 = production.launch_character_asset(conn, "rox", 1, "canon_body", "en-pied", "full body", approved=True)
     production.make_canon(conn, r2["asset_id"], "canon_body")
     assert production.character_version(conn, "rox", 1)["canon_status"] == "done"
     kinds = [x[0] for x in conn.execute("SELECT kind FROM character_assets a JOIN character_versions v ON v.id=a.version_id "

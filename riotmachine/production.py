@@ -348,6 +348,13 @@ def launch_character_asset(conn: sqlite3.Connection, slug: str, version: int, ki
         base_version = version if own_canon or not (ch and ch["canon_version"]) else ch["canon_version"]
         refs = character_refs(conn, slug, base_version, limit=int(mcfg.get("max_refs", 6)))
     if not routing.provider_usable(mcfg.get("provider", "fal")) and not providers.simulated(mcfg.get("provider", "fal")):
+        if not approved:   # même gratuite, aucune génération sans l'accord de Michael
+            return _ask_spend(conn, "character_asset",
+                              {"slug": slug, "version": version, "kind": kind, "label": label, "prompt": prompt,
+                               "ref_paths": ref_paths, "model_key": key},
+                              _hash(slug, version, kind, label, prompt, ref_paths, "gratuit"),
+                              f"{slug} v{version} : {kind} « {label} » (gratuit)", 0.0, {"provider": "gratuit"}, "gratuit",
+                              detail=prompt, character_slug=slug)
         return _launch_free_character(conn, v, kind, label, prompt, [p for p in refs if p.is_file()])
     image_urls = [fal.to_data_uri(p) for p in refs if p.is_file()]
     payload = routing.build_payload(mcfg, prompt=prompt, image_urls=image_urls, mode="final",
@@ -390,8 +397,11 @@ def _launch_free_character(conn: sqlite3.Connection, v: dict, kind: str, label: 
             (v["id"], kind, label, rel(out), prompt, "gratuit", 0, "free", "generating", db.now()))
     asset_id = cur.lastrowid
     w, h = FREE_CHAR_SIZE.get(kind, (1024, 1024))
-    import threading
-    threading.Thread(target=_run_free_character, args=(asset_id, prompt, refs[:4], out, w, h), daemon=True).start()
+    if BACKGROUND:
+        import threading
+        threading.Thread(target=_run_free_character, args=(asset_id, prompt, refs[:4], out, w, h), daemon=True).start()
+    else:
+        _run_free_character(asset_id, prompt, refs[:4], out, w, h)
     return {"asset_id": asset_id, "cost_usd": 0, "free": True, "refs": [rel(p) for p in refs[:4]]}
 
 
@@ -1825,6 +1835,11 @@ def launch_image(conn: sqlite3.Connection, shot_id: int, force: bool = False, ap
         block_text = block_text.split("\n\nThe last reference")[0]
     el_text += block_text
     if not routing.provider_usable(mcfg.get("provider", "fal")) and not providers.simulated(mcfg.get("provider", "fal")):
+        if not approved:   # même gratuite, aucune génération sans l'accord de Michael
+            return _ask_spend(conn, "image", {"shot_id": shot_id, "force": force},
+                              _hash(shot_id, shot["image_prompt"], "gratuit"), f"Plan {shot['num']} : visuel draft (gratuit)",
+                              0.0, {"provider": "gratuit"}, "gratuit", detail=shot["image_prompt"],
+                              clip_slug=clip["slug"], shot_id=shot_id)
         return _launch_free_image(conn, shot, shot["image_prompt"] + el_text, refs, clip)
     image_urls = [fal.to_data_uri(p) for p in refs]
     cost = routing.estimate_cost(mcfg, mode="draft")
@@ -1843,57 +1858,76 @@ def launch_image(conn: sqlite3.Connection, shot_id: int, force: bool = False, ap
     return res
 
 
+# Les générations gratuites tournent dans un fil à part seulement dans un processus qui dure (régie,
+# worker). Lancées depuis la ligne de commande, elles vont au bout avant de rendre la main.
+BACKGROUND = False
+
 FREE_SIZE = {"16:9": (1280, 720), "9:16": (720, 1280), "1:1": (1024, 1024), "4:5": (896, 1120)}
 
 
+FREE_VARIANTS = 3   # propositions par visuel gratuit : Michael garde la meilleure
+
+
 def _launch_free_image(conn: sqlite3.Connection, shot: dict, prompt: str, refs: list[Path], clip: dict) -> dict:
-    """Visuel draft gratuit (mêmes modèles que les brouillons des décors), en arrière-plan.
-    Utilisé quand aucun modèle d'image payant n'est branché."""
+    """Visuel draft gratuit (mêmes modèles que les brouillons des décors) : plusieurs propositions,
+    Michael garde la meilleure. Utilisé quand aucun modèle d'image payant n'est branché."""
     from . import elements
     if not elements.draft_backends():
         raise ProductionError("Aucun modèle d'image branché, payant ou gratuit (page Fournisseurs)")
-    version = db.next_asset_version(conn, shot["id"], "image")
-    out = studio() / "clips" / shot["clip_slug"] / "storyboard" / f"plan-{shot['num']:03d}-v{version}.png"
+    jobs = []
     with db.tx(conn):
-        conn.execute("UPDATE assets SET status='superseded' WHERE shot_id=? AND kind='image' AND status IN ('ready','failed')",
-                     (shot["id"],))
-        cur = conn.execute(
-            "INSERT INTO assets (shot_id, kind, version, path, prompt, model_key, params, cost_usd, funding, status, created_at) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-            (shot["id"], "image", version, rel(out), prompt, "gratuit", "{}", 0, "free", "generating", db.now()))
+        conn.execute("UPDATE assets SET status='superseded' WHERE shot_id=? AND kind='image' "
+                     "AND status IN ('ready','failed','generating')", (shot["id"],))
+        for _ in range(FREE_VARIANTS):
+            version = db.next_asset_version(conn, shot["id"], "image")
+            out = studio() / "clips" / shot["clip_slug"] / "storyboard" / f"plan-{shot['num']:03d}-v{version}.png"
+            cur = conn.execute(
+                "INSERT INTO assets (shot_id, kind, version, path, prompt, model_key, params, cost_usd, funding, status, "
+                "created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                (shot["id"], "image", version, rel(out), prompt, "gratuit", "{}", 0, "free", "generating", db.now()))
+            jobs.append((cur.lastrowid, out))
         db.set_shot_status(conn, shot["id"], "image_gen")
-    asset_id = cur.lastrowid
     w, h = FREE_SIZE.get(clip["aspect_ratio"], (1280, 720))
-    import threading
-    threading.Thread(target=_run_free_image, args=(asset_id, shot["id"], prompt, refs[:4], out, w, h), daemon=True).start()
-    return {"asset_id": asset_id, "version": version, "path": rel(out), "cost_usd": 0, "free": True,
-            "refs": [rel(p) for p in refs[:4]]}
+    args = (jobs, shot["id"], prompt, refs[:4], w, h)
+    if BACKGROUND:
+        import threading
+        threading.Thread(target=_run_free_image, args=args, daemon=True).start()
+    else:
+        _run_free_image(*args)
+    return {"assets": [j[0] for j in jobs], "cost_usd": 0, "free": True, "refs": [rel(p) for p in refs[:4]]}
 
 
-def _run_free_image(asset_id: int, shot_id: int, prompt: str, refs: list[Path], out: Path, w: int, h: int) -> None:
+def _run_free_image(jobs: list, shot_id: int, prompt: str, refs: list[Path], w: int, h: int) -> None:
     from . import elements
     from .providers._http import ProviderError
     conn = db.connect()
-    errors = []
-    for b in elements.draft_backends():
-        try:
-            elements._draft_one(b, prompt, refs, out, w, h)
-        except (ProviderError, OSError, subprocess.CalledProcessError, ValueError) as exc:
-            errors.append(f"{b[2]} : {exc}")
-            continue
-        qc = load_models().get("qc", {})
-        shot = db.get_shot(conn, shot_id)
-        with db.tx(conn):
+    dead, errors, made = set(), [], 0
+    for asset_id, out in jobs:
+        done = False
+        for b in elements.draft_backends():
+            if b in dead:
+                continue
+            try:
+                elements._draft_one(b, prompt, refs, out, w, h)
+            except (ProviderError, OSError, subprocess.CalledProcessError, ValueError) as exc:
+                dead.add(b)
+                errors.append(f"{b[2]} : {exc}")
+                continue
             conn.execute("UPDATE assets SET status='ready', model_key=? WHERE id=?", (f"{b[0]}:{b[1]}", asset_id))
-            db.set_shot_status(conn, shot_id, "image_qc" if qc.get("images", True) else "image_review")
-            db.log_event(conn, shot["clip_slug"], "asset", f"Plan {shot['num']} : visuel draft gratuit prêt ({b[2]})")
-        return
+            done, made = True, made + 1
+            break
+        if not done:
+            conn.execute("UPDATE assets SET status='failed', error=? WHERE id=?",
+                         (("Aucun modèle gratuit n'a pu le faire. " + " · ".join(dict.fromkeys(errors)))[:2000], asset_id))
     shot = db.get_shot(conn, shot_id)
-    msg = "Aucun modèle gratuit n'a pu le faire. " + " · ".join(dict.fromkeys(errors))
+    qc = load_models().get("qc", {})
     with db.tx(conn):
-        conn.execute("UPDATE assets SET status='failed', error=? WHERE id=?", (msg[:2000], asset_id))
-        conn.execute("UPDATE shots SET status='failed', failed_step='image', updated_at=? WHERE id=?", (db.now(), shot_id))
-        db.add_note(conn, shot_id, "machine", msg[:400])
+        if made:
+            db.set_shot_status(conn, shot_id, "image_qc" if qc.get("images", True) else "image_review")
+            db.log_event(conn, shot["clip_slug"], "asset", f"Plan {shot['num']} : {made} proposition(s) de visuel gratuites prêtes")
+        else:
+            conn.execute("UPDATE shots SET status='failed', failed_step='image', updated_at=? WHERE id=?", (db.now(), shot_id))
+            db.add_note(conn, shot_id, "machine", ("Aucun modèle gratuit n'a pu faire le visuel. " + " · ".join(dict.fromkeys(errors)))[:400])
 
 
 def launch_image_hd(conn: sqlite3.Connection, shot_id: int, force: bool = False,
@@ -1956,6 +1990,68 @@ def submit_video_plan(conn: sqlite3.Connection, shot_id: int) -> dict:
     db.log_event(conn, shot["clip_slug"], "videoplan",
                  f"Plan {shot['num']} : plan vidéo prêt ({est['model_label']}, ~{est['cost_total_usd']:.2f} $)")
     return est
+
+
+def step_actions(conn: sqlite3.Connection, shot: dict) -> dict:
+    """Ce que Michael peut faire sur l'étape en cours d'un plan : la lancer maintenant, ou la passer."""
+    st = shot["status"]
+    run = {"image_todo": "Générer le visuel maintenant" if shot.get("image_prompt") else None,
+           "image_review": None,
+           "hd_todo": "Lancer le visuel HD maintenant",
+           "prompt_todo": "Présenter le plan vidéo" if shot.get("video_prompt") and shot.get("model_key") else None,
+           "draft_todo": "Lancer la vidéo draft maintenant",
+           "final_todo": "Lancer la vidéo HD maintenant",
+           "lipsync_todo": "Lancer le lip-sync maintenant"}.get(st)
+    skip = {"image_qc": "Passer le contrôle du visuel",
+            "hd_todo": "Passer le visuel HD (le visuel draft sert tel quel)",
+            "hd_gen": "Passer le visuel HD", "hd_qc": "Passer le visuel HD", "hd_review": "Passer le visuel HD",
+            "draft_qc": "Passer le contrôle de la vidéo",
+            "final_todo": "Passer la vidéo HD (la vidéo draft sert de finale)",
+            "lipsync_todo": "Passer le lip-sync"}.get(st)
+    return {"run": run, "skip": skip}
+
+
+def run_step(conn: sqlite3.Connection, shot_id: int) -> dict:
+    """Michael lance l'étape en cours tout de suite (son clic vaut accord, le coût est affiché)."""
+    shot = db.get_shot(conn, shot_id)
+    st = shot["status"]
+    # son clic vaut accord : la demande en attente pour ce plan est close
+    conn.execute("UPDATE spend_requests SET status='done', note='lancé depuis le plan', decided_at=? "
+                 "WHERE shot_id=? AND status='pending'", (db.now(), shot_id))
+    if st == "image_todo":
+        return launch_image(conn, shot_id, approved=True)
+    if st == "hd_todo":
+        return launch_image_hd(conn, shot_id, approved=True)
+    if st == "prompt_todo":
+        return submit_video_plan(conn, shot_id)
+    if st == "draft_todo":
+        return launch_draft(conn, shot_id)
+    if st == "final_todo":
+        return launch_final(conn, shot_id)
+    if st == "lipsync_todo":
+        return launch_lipsync(conn, shot_id)
+    raise ProductionError("Rien à lancer à cette étape")
+
+
+def skip_step(conn: sqlite3.Connection, shot_id: int) -> str:
+    """Michael passe l'étape en cours ; le plan va à l'étape suivante avec ce qui existe déjà."""
+    shot = db.get_shot(conn, shot_id)
+    st = shot["status"]
+    nxt = {"image_qc": "image_review", "hd_todo": "prompt_todo", "hd_gen": "prompt_todo", "hd_qc": "prompt_todo",
+           "hd_review": "prompt_todo", "draft_qc": "draft_review", "lipsync_todo": "final_review"}.get(st)
+    with db.tx(conn):
+        if st == "final_todo":
+            draft = db.latest_asset(conn, shot_id, "draft")
+            if not draft:
+                raise ProductionError("Pas de vidéo draft à garder comme finale")
+        elif nxt is None:
+            raise ProductionError("Cette étape ne se passe pas")
+        else:
+            db.set_shot_status(conn, shot_id, nxt)
+        db.add_note(conn, shot_id, "michael", f"Étape passée par Michael ({st}).")
+    if st == "final_todo":
+        return _keep_draft_as_final(conn, shot, draft)["status"]
+    return nxt
 
 
 MICHAEL_CHOICE = "Choisi par Michael"
@@ -2517,6 +2613,7 @@ def shot_view(conn: sqlite3.Connection, shot: dict) -> dict:
             lm = routing.model(lk)
             s["lipsync"] = {"key": lk, "label": lm.get("label", lk), "chosen": bool(shot.get("lipsync_key")),
                             "usable": routing.provider_usable(lm.get("provider", "fal"))}
+    s["actions"] = step_actions(conn, s)
     return s
 
 
