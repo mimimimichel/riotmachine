@@ -185,6 +185,15 @@ relis les autres si besoin), mets la mémoire à jour, puis :
 3. Import : `riot shots import <clip> studio/clips/<clip>/script/shots.json`, puis
    `riot clip stage <clip> decoupage_review`.
 
+## Les notes d'un plan (`notes`)
+
+Michael les lit dans le panneau du plan, sous « Note du scénariste ». Une note n'existe
+que si elle l'aide : elle dit **ce qui est en jeu et ce qu'il doit trancher**, en une ou
+deux phrases claires, sans jargon. Exemple : « Le mot MERCREDI risque de sortir avec des
+fautes : je propose un réveil sans texte et le mot ajouté au montage. Tu préfères tenter
+quand même ? » Pas de repère interne (« Plan 4 du dossier »), pas de note vide de
+décision. Le reste va dans `notes.md`.
+
 ## Les durées et le modèle vidéo
 
 Chaque plan est généré par un modèle vidéo (Veo 3.1 par défaut, voir

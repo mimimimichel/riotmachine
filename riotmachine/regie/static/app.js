@@ -1036,7 +1036,9 @@ function renderDrawer() {
       <span class="lbl">${esc(s.label)}</span><span class="st">${led(s.state === "off" ? "wait" : s.state)}${esc(s.text)}</span></button>`).join("");
 
   const notes = [];
-  if (shot.notes) notes.push(`<p class="note">${esc(shot.notes)}</p>`);
+  // la note du scénariste, sans ses repères internes (« Plan N du dossier »)
+  const clean = (shot.notes || "").split("|").map((x) => x.trim()).filter((x) => x && !/^Plan \d+ du dossier\.?$/i.test(x)).join(" ");
+  if (clean) notes.push(`<p class="note"><b>Note du scénariste :</b> ${esc(clean)}</p>`);
   const hist = shot.historique || [];
   if (hist.length) {
     const last = hist[0];
