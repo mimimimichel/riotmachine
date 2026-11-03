@@ -1574,7 +1574,9 @@ function renderDecoupageTab(clip) {
         ${(() => { const nb = b.shots.filter((x) => badRefs(x).length).length;
           return nb ? `<span class="pill bad">⚠ ${nb} plan${nb > 1 ? "s" : ""} avec @ introuvable</span>` : ""; })()}
         ${b.validated ? `<span class="pill done">Validé · en production</span>`
-          : b.id && b.shots.length ? `<button class="btn small ok blockgo" data-validateblock="${b.id}" ${b.shots.every((x) => x.cut_ok) ? "" : "hidden"}>Lancer ce bloc</button>` : ""}
+          : b.id && b.shots.length ? (() => { const left = b.shots.filter((x) => !x.cut_ok).length;
+              return `<button class="btn small ${left ? "ghost" : "ok"} blockgo" data-validateblock="${b.id}" ${left ? "disabled" : ""}
+                title="${left ? "Valide d'abord chaque plan du bloc" : "Ses plans partent en production"}">${left ? `Lancer ce bloc · ${left} plan${left > 1 ? "s" : ""} à valider` : "Lancer ce bloc"}</button>`; })() : ""}
       </div>
       <div class="dblock-body">
         ${b.validated ? `<p class="hint" style="margin:10px 0">Bloc validé : ses plans sont en production, suis-les dans l'onglet
@@ -1618,8 +1620,13 @@ function refreshDecCounts(bi) {
   const pill = document.querySelector(`#decblock-${bi} .dblock-count`);
   if (pill) { pill.textContent = `${okN}/${b.shots.length} validés`; pill.className = `pill dblock-count ${okN === b.shots.length ? "done" : okN ? "work" : "wait"}`; }
   const all_ok = okN === b.shots.length;
+  const left = b.shots.length - okN;
   document.querySelectorAll(`#decblock-${bi} [data-validateblock]`).forEach((btn) => {
-    if (btn.classList.contains("blockgo")) btn.hidden = !all_ok; else btn.disabled = !all_ok;
+    btn.disabled = !all_ok;
+    if (btn.classList.contains("blockgo")) {
+      btn.textContent = all_ok ? "Lancer ce bloc" : `Lancer ce bloc · ${left} plan${left > 1 ? "s" : ""} à valider`;
+      btn.classList.toggle("ok", all_ok); btn.classList.toggle("ghost", !all_ok);
+    }
   });
   const banner = document.getElementById(`blockready-${bi}`);
   if (all_ok && !b.validated && !banner && b.id) {
