@@ -31,7 +31,8 @@ app = FastAPI(title="Riot Machine — régie", docs_url=None, redoc_url=None)
 @app.middleware("http")
 async def token_guard(request: Request, call_next):
     token = get_settings().regie_token
-    if token:
+    public = request.url.path in ("/manifest.webmanifest", "/sw.js") or request.url.path.startswith("/static/icons/")
+    if token and not public:
         given = (request.query_params.get("token") or request.cookies.get("riot_token")
                  or request.headers.get("authorization", "").removeprefix("Bearer "))
         if not given or not secrets.compare_digest(given, token):
@@ -1193,6 +1194,18 @@ class StudioFiles(StaticFiles):
 
 app.mount("/media", StudioFiles(), name="media")
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
+
+
+@app.get("/manifest.webmanifest")
+def manifest() -> FileResponse:
+    return FileResponse(STATIC / "manifest.webmanifest", media_type="application/manifest+json")
+
+
+@app.get("/sw.js")
+def service_worker() -> FileResponse:
+    """À la racine : le service worker couvre toute la régie (installation en application)."""
+    return FileResponse(STATIC / "sw.js", media_type="application/javascript",
+                        headers={"Cache-Control": "no-cache", "Service-Worker-Allowed": "/"})
 
 
 @app.get("/")
