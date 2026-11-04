@@ -233,6 +233,8 @@ Section à enrichir au fil des clips : une ligne par leçon, avec sa date.
   (librosa pour les temps, Whisper small pour les paroles, 4 min pour 2:38). Whisper
   rate parfois le premier couplet quand l'intro est longue : le relancer sur les
   30 premières secondes avec les paroles en amorce.
+- 03/11/2026 : FLUX.1 Kontext (Hugging Face) ne lit qu'une image : inutilisable pour combiner un personnage et une tenue (visage changé). Les Spaces FLUX de Hugging Face refusent un côté au-delà de 1024 px. Une feuille de tenue se fait vue par vue (face, trois-quarts, dos), la machine assemble : demandée en une seule planche, les modèles gratuits font des collages coupés.
+- 03/11/2026 : Michael choisit le modèle d'image à chaque génération ; le modèle choisi est le seul essayé, une erreur s'affiche s'il échoue (plus de repli silencieux). Recommandations par tâche dans config/models.yaml. Style photo par défaut : réel comme un clip bien filmé, jamais moche (pas de pores visibles).
 
 ## 9. Où vivent les choses
 

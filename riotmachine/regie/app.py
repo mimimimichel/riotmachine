@@ -20,7 +20,7 @@ from fastapi.responses import HTMLResponse, FileResponse, JSONResponse, Redirect
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from .. import db, media, production, providers, routing
+from .. import db, image_models, media, production, providers, routing
 from ..settings import get_settings
 
 STATIC = Path(__file__).parent / "static"
@@ -173,7 +173,8 @@ def providers() -> dict[str, Any]:
     models.sort(key=lambda m: m["per_second_usd"])
     return {"providers": routing.providers(), "credits": credits.status(conn), "video_models": models,
             "rodage": production.rodage(conn), "lipsync": routing.models_cfg().get("lipsync"),
-            "image_upscale": routing.models_cfg()["image"].get("upscale")}
+            "image_upscale": routing.models_cfg()["image"].get("upscale"),
+            "image_models": {t: image_models.options(t) for t in image_models.TASKS}}
 
 
 class ProviderKey(BaseModel):
@@ -486,6 +487,15 @@ def visual_hd(slug: str, body: VisualHd) -> dict[str, Any]:
     return {"ok": True}
 
 
+@app.post("/api/clips/{slug}/style")
+def save_style(slug: str, body: ScriptText) -> dict[str, Any]:
+    try:
+        production.set_style(_conn(), slug, body.text)
+    except (production.ProductionError, LookupError) as exc:
+        raise _error(exc)
+    return {"ok": True}
+
+
 @app.post("/api/clips/{slug}/da")
 def save_da(slug: str, body: ScriptText) -> dict[str, Any]:
     try:
@@ -605,10 +615,10 @@ def shot_refs_ok(shot_id: int, body: CutOk) -> dict[str, Any]:
 
 
 @app.post("/api/shots/{shot_id}/run")
-def shot_run(shot_id: int) -> dict[str, Any]:
-    """Michael lance l'étape en cours du plan tout de suite."""
+def shot_run(shot_id: int, count: int | None = None, model: str | None = None) -> dict[str, Any]:
+    """Michael lance l'étape en cours du plan tout de suite (visuel : nombre de propositions et modèle)."""
     try:
-        return {"ok": True, "result": production.run_step(_conn(), shot_id)}
+        return {"ok": True, "result": production.run_step(_conn(), shot_id, count, model or None)}
     except (production.ProductionError, LookupError) as exc:
         raise _error(exc)
     except Exception as exc:   # fournisseur non branché, refus
@@ -617,12 +627,14 @@ def shot_run(shot_id: int) -> dict[str, Any]:
 
 class ImagePrompt(BaseModel):
     prompt: str | None = None
+    count: int | None = None
+    model: str | None = None
 
 
 @app.post("/api/shots/{shot_id}/regenerate-image")
 def shot_regen_image(shot_id: int, body: ImagePrompt) -> dict[str, Any]:
     try:
-        return {"ok": True, "result": production.regenerate_image(_conn(), shot_id, body.prompt)}
+        return {"ok": True, "result": production.regenerate_image(_conn(), shot_id, body.prompt, body.count, body.model or None)}
     except (production.ProductionError, LookupError) as exc:
         raise _error(exc)
     except Exception as exc:   # aucun modèle disponible
@@ -841,9 +853,9 @@ class CanonRole(BaseModel):
 
 
 @app.post("/api/characters/{slug}/versions/{version}/canon-request")
-def canon_request(slug: str, version: int, body: ScriptText) -> dict[str, Any]:
+def canon_request(slug: str, version: int, body: ScriptText, model: str | None = None) -> dict[str, Any]:
     try:
-        production.request_canon(_conn(), slug, version, body.text)
+        production.request_canon(_conn(), slug, version, body.text, model or None)
     except (production.ProductionError, LookupError) as exc:
         raise _error(exc)
     return {"ok": True}
@@ -946,6 +958,7 @@ class ElementGen(BaseModel):
     state: str | None = None
     notes: str = ""
     prompt: str | None = None   # prompt de l'image HD tel que Michael le voit (enregistré avant le lancement)
+    model: str | None = None    # modèle choisi par Michael (gratuit ou payant)
 
 
 class ElementPrompt(BaseModel):
@@ -978,7 +991,11 @@ def clip_elements(slug: str) -> dict[str, Any]:
             "characters": [{"slug": c["slug"], "name": c["name"]} for c in production.studio_characters(conn)],
             "cast": [{"slug": c["character_slug"], "name": c["name"]} for c in db.casting_for_clip(conn, slug)],
             "drafts_usable": bool(elements.draft_backends()),
-            "draft_models": [{"key": f"{b[0]}:{b[1]}", "label": b[2]} for b in elements.draft_backends()]}
+            "draft_models": [{"key": f"{b[0]}:{b[1]}", "label": b[2]} for b in elements.draft_backends()],
+            "image_models": {t: image_models.options(t) for t in image_models.TASKS},
+            "style": production.style_text(db.get_clip(conn, slug)),
+            "style_custom": bool((db.get_clip(conn, slug).get("style_image") or "").strip()),
+            "style_default": production.STYLE_DEFAULT}
 
 
 @app.post("/api/clips/{slug}/elements")
@@ -1048,7 +1065,7 @@ def element_generate(element_id: int, body: ElementGen) -> dict[str, Any]:
                              or elements._draft_for_state(conn, element_id, None))
             prompt = elements.generation_prompt(e, body.state, body.notes.strip(), from_draft=has_draft)
         # Michael clique sur un bouton qui affiche le coût : c'est son accord
-        return elements.launch_image(conn, element_id, body.state, prompt, approved=True)
+        return elements.launch_image(conn, element_id, body.state, prompt, approved=True, model=body.model or None)
     except (production.ProductionError, providers.ProviderError) as exc:
         raise _error(exc)
 
@@ -1150,6 +1167,25 @@ def edit_look(slug: str, look: str, body: LookEdit) -> dict[str, Any]:
     except production.ProductionError as exc:
         raise _error(exc)
     return {"ok": True, "key": key}
+
+
+@app.post("/api/characters/{slug}/looks/{look}/sheet")
+def look_sheet(slug: str, look: str, count: int | None = None, model: str | None = None) -> dict[str, Any]:
+    """Michael lance les propositions de feuille de référence de la tenue (gratuit, son clic vaut accord)."""
+    from riotmachine import look_sheets
+    try:
+        return {"ok": True, **look_sheets.launch_sheet(_conn(), slug, look, count, model=model or None)}
+    except look_sheets.LookError as exc:
+        raise HTTPException(400, str(exc))
+
+
+@app.post("/api/look-images/{image_id}/{decision}")
+def look_image_decide(image_id: int, decision: str) -> dict[str, Any]:
+    from riotmachine import look_sheets
+    try:
+        return {"ok": True, **look_sheets.decide(_conn(), image_id, decision)}
+    except look_sheets.LookError as exc:
+        raise HTTPException(400, str(exc))
 
 
 @app.post("/api/characters/{slug}/looks/{look}/images")
@@ -1263,4 +1299,15 @@ def index() -> HTMLResponse:
     for name in ("app.js", "app.css"):
         v = int((STATIC / name).stat().st_mtime)
         html = html.replace(f"/static/{name}", f"/static/{name}?v={v}")
+    html = html.replace("</head>", f'<script>window.RIOT_VERSION="{_ui_version()}";</script></head>', 1)
     return HTMLResponse(html, headers={"Cache-Control": "no-cache"})
+
+
+def _ui_version() -> str:
+    return "-".join(str(int((STATIC / n).stat().st_mtime)) for n in ("app.js", "app.css", "index.html"))
+
+
+@app.get("/api/ui-version")
+def ui_version() -> dict[str, str]:
+    """La page compare sa version à celle-ci et se recharge seule après une mise à jour."""
+    return {"version": _ui_version()}

@@ -234,7 +234,7 @@ def hd_model() -> tuple[str, dict, float]:
 
 
 def launch_image(conn: sqlite3.Connection, element_id: int, state: str | None = None, prompt: str | None = None,
-                 approved: bool = False) -> dict:
+                 approved: bool = False, model: str | None = None) -> dict:
     """Génère l'image HD de l'élément, à partir de l'image de départ de Michael quand il y en a une.
 
     Références envoyées : l'image de départ de cet état, puis les images HD déjà gardées
@@ -242,13 +242,24 @@ def launch_image(conn: sqlite3.Connection, element_id: int, state: str | None = 
     e = _element(conn, element_id)
     clip = db.get_clip(conn, e["clip_slug"])
     key, mcfg, cost = hd_model()
+    from . import image_models
+    if model and image_models.is_free(model):
+        return _launch_free_hd(conn, e, state, prompt, model, clip)
+    if model:
+        try:
+            image_models.check(model)
+        except image_models.ModelError as exc:
+            raise ProductionError(str(exc)) from exc
+        key, mcfg = model, routing.model(model)
+        cost = routing.estimate_cost(mcfg, mode="final")
     drafts = _draft_for_state(conn, element_id, state)
     if not drafts and state:
         drafts = _draft_for_state(conn, element_id, None)
     refs = (drafts[-1:] + _refs(conn, element_id, state, limit=2))[:3]   # une seule image de départ : sa composition
-    text = prompt or generation_prompt(e, state, from_draft=bool(drafts))
+    from .production import with_style
+    text = with_style(prompt or generation_prompt(e, state, from_draft=bool(drafts)), clip)
     if _needs_approval(mcfg.get("provider", "fal"), cost, False, approved):
-        return _ask_spend(conn, "element_image", {"element_id": element_id, "state": state, "prompt": prompt},
+        return _ask_spend(conn, "element_image", {"element_id": element_id, "state": state, "prompt": prompt, "model": key},
                           _hash(element_id, state, text, [str(p) for p in refs]),
                           f"{KIND_LABEL[e['kind']]} « {e['name']} »{' (' + state + ')' if state else ''} : image HD",
                           cost, mcfg, key, detail=text, clip_slug=e["clip_slug"])
@@ -268,6 +279,47 @@ def launch_image(conn: sqlite3.Connection, element_id: int, state: str | None = 
     return {"image_id": cur.lastrowid, "cost_usd": cost}
 
 
+def _launch_free_hd(conn: sqlite3.Connection, e: dict, state: str | None, prompt: str | None, model: str,
+                    clip: dict) -> dict:
+    """Image « HD » sur un modèle gratuit choisi par Michael (son clic vaut accord) : proposée à côté des autres."""
+    from . import image_models
+    from .production import BACKGROUND, with_style
+    try:
+        m = image_models.check(model)
+    except image_models.ModelError as exc:
+        raise ProductionError(str(exc)) from exc
+    drafts = _draft_for_state(conn, e["id"], state) or _draft_for_state(conn, e["id"], None)
+    refs = (drafts[-1:] + _refs(conn, e["id"], state, limit=2))[:min(3, m["refs"])]
+    text = with_style(prompt or generation_prompt(e, state, from_draft=bool(drafts)), clip)
+    w, h = HD_FREE_SIZE[e["kind"]]
+    with db.tx(conn):
+        cancel_pending(conn, e["id"], "remplacée par une génération lancée par Michael")
+        cur = conn.execute(
+            "INSERT INTO element_images (element_id, state, source, label, prompt, model_key, cost_usd, funding, "
+            "status, role, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+            (e["id"], state, "gen", state or "référence", text, model, 0, "free", "generating", "hd", db.now()))
+        image_id = cur.lastrowid
+        db.log_event(conn, e["clip_slug"], "decors", f"Image HD lancée sur {m['label']} : {e['name']}")
+    out = absp(e["dir"]) / f"{slugify(state or 'base')}-gratuit-{image_id}.png"
+
+    def run() -> None:
+        c = db.connect()
+        try:
+            image_models.run_free(model, text, refs, out, w, h)
+            c.execute("UPDATE element_images SET status='proposed', path=? WHERE id=?", (rel(out), image_id))
+        except image_models.ModelError as exc:
+            c.execute("UPDATE element_images SET status='failed', error=? WHERE id=?", (str(exc)[:700], image_id))
+        c.commit()
+
+    if BACKGROUND:
+        import threading
+        threading.Thread(target=run, daemon=True).start()
+    else:
+        run()
+    return {"image_id": image_id, "cost_usd": 0, "free": True}
+
+
+HD_FREE_SIZE = {"decor": (1280, 720), "objet": (1024, 1024), "figurant": (832, 1216)}
 DRAFT_SIZE = {"decor": (1024, 576), "objet": (768, 768), "figurant": (640, 896)}
 KIND_EN = {"decor": "location", "objet": "object", "figurant": "person or animal"}
 
@@ -322,35 +374,32 @@ def _draft_one(backend: tuple[str, str, str], text: str, inspi: list[Path], out:
 
 def _run_drafts(element_id: int, ids: list[int], text: str, inspi: list[Path], w: int, h: int,
                 only: str | None = None) -> None:
-    from .providers._http import ProviderError
+    """Brouillons sur le modèle choisi par Michael (`only`), et lui seul : en cas d'échec, l'erreur s'affiche."""
+    from . import image_models
     conn = db.connect()
     e = _element(conn, element_id)
-    dead: set[tuple] = set()
-    made, errors = 0, []
+    model = only or image_models.default(e["kind"]) or "cloudflare:klein-9b"
+    label = image_models.get(model)["label"] if model in {m["id"] for m in image_models.catalog()} else model
+    made, error = 0, None
     for image_id in ids:
+        if error:
+            conn.execute("UPDATE element_images SET status='failed', error=? WHERE id=?", (error[:700], image_id))
+            conn.commit()
+            continue
         out = absp(e["dir"]) / "brouillons" / f"brouillon-{db.now()[:19].replace(':', '').replace('-', '')}-{image_id}.png"
-        done = False
-        for b in draft_backends():
-            if b in dead or (only and f"{b[0]}:{b[1]}" != only):
-                continue
-            try:
-                _draft_one(b, text, inspi, out, w, h)
-            except (ProviderError, OSError, subprocess.CalledProcessError, ValueError) as exc:
-                dead.add(b)
-                errors.append(f"{b[2]} : {exc}")
-                continue
-            conn.execute("UPDATE element_images SET status='proposed', path=?, model_key=?, label=? WHERE id=?",
-                         (rel(out), f"{b[0]}:{b[1]}", f"brouillon · {b[2]}", image_id))
+        try:
+            image_models.run_free(model, text, inspi, out, w, h)
+        except image_models.ModelError as exc:
+            error = str(exc)
+            conn.execute("UPDATE element_images SET status='failed', error=? WHERE id=?", (error[:700], image_id))
             conn.commit()
-            done, made = True, made + 1
-            break
-        if not done:
-            conn.execute("UPDATE element_images SET status='failed', error=? WHERE id=?",
-                         (("Aucun modèle gratuit n'a pu le faire. " + " · ".join(dict.fromkeys(errors)))[:700]
-                          if errors else "aucun modèle gratuit disponible", image_id))
-            conn.commit()
+            continue
+        conn.execute("UPDATE element_images SET status='proposed', path=?, model_key=?, label=? WHERE id=?",
+                     (rel(out), model, f"brouillon · {label}", image_id))
+        conn.commit()
+        made += 1
     db.log_event(conn, e["clip_slug"], "decors",
-                 f"{made} brouillon(s) gratuit(s) : {e['name']}" + (f" ({len(ids) - made} en échec)" if made < len(ids) else ""))
+                 f"{made} brouillon(s) gratuit(s) : {e['name']}" + (f" ({len(ids) - made} en échec : {error[:160]})" if error else ""))
     conn.commit()
 
 
@@ -363,8 +412,15 @@ def launch_drafts(conn: sqlite3.Connection, element_id: int, brief: str | None =
     if brief is not None:
         set_brief(conn, element_id, brief)
         e = _element(conn, element_id)
-    if not draft_backends():
-        raise ProductionError("Aucune option gratuite de brouillon n'est branchée (page Fournisseurs)")
+    from . import image_models
+    backend = backend or image_models.default(e["kind"])
+    if not backend:
+        raise ProductionError("Aucun modèle d'image branché (page Fournisseurs)")
+    try:
+        if not image_models.check(backend)["free"]:
+            raise ProductionError("Les brouillons passent par un modèle gratuit : choisis-en un (le payant sert à l'image HD)")
+    except image_models.ModelError as exc:
+        raise ProductionError(str(exc)) from exc
     rows = [r for r in conn.execute(
         "SELECT id, path FROM element_images WHERE element_id=? AND role='inspi' AND status='kept' AND path IS NOT NULL "
         "ORDER BY id DESC", (element_id,)).fetchall() if absp(r["path"]) and absp(r["path"]).is_file()][:4]
@@ -373,7 +429,8 @@ def launch_drafts(conn: sqlite3.Connection, element_id: int, brief: str | None =
     used = json.dumps([r["id"] for r in rows])
     if not inspi and not (e.get("brief") or "").strip():
         raise ProductionError("Ajoute des images ou écris ton instruction")
-    text = draft_prompt(e, e.get("brief") or "", len(inspi))
+    from .production import with_style
+    text = with_style(draft_prompt(e, e.get("brief") or "", len(inspi)), db.get_clip(conn, e["clip_slug"]))
     w, h = DRAFT_SIZE[e["kind"]]
     ids = []
     with db.tx(conn):
@@ -381,7 +438,7 @@ def launch_drafts(conn: sqlite3.Connection, element_id: int, brief: str | None =
             cur = conn.execute(
                 "INSERT INTO element_images (element_id, source, label, prompt, model_key, cost_usd, funding, status, "
                 "role, created_at, from_ids) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-                (element_id, "gen", "brouillon", text, "gratuit", 0, "free", "generating", "draft", db.now(), used))
+                (element_id, "gen", "brouillon", text, backend, 0, "free", "generating", "draft", db.now(), used))
             ids.append(cur.lastrowid)
     if background:
         import threading

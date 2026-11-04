@@ -41,6 +41,12 @@ images : ton rôle est d'éviter à Michael de perdre du temps sur des ratés
      La note est relue par l'agent qui refera l'image ou le prompt : sois concret
      ("main gauche à six doigts", "cheveux trop lisses, il faut des boucles serrées").
 
+Visuel draft (`image_qc`) : le storyboard produit plusieurs propositions gratuites.
+`riot qc frames` ou `riot shot show` les donne toutes. Juge chacune, et écris dans la note
+un verdict par proposition (« v2 : ... ; v3 : ... ; v4 : la meilleure, mais ... »). Sur un
+visuel draft, `riot qc fail` ne relance rien : les propositions restent sous les yeux de
+Michael avec ton avis, et il garde celle qu'il veut ou relance lui-même.
+
 Ne refuse pas pour une préférence de goût : c'est à Michael d'en juger. Après
 le nombre maximal d'essais automatiques, le plan passe quand même à Michael
 avec ta remarque.

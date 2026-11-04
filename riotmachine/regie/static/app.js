@@ -405,6 +405,8 @@ function shotState(shot) {
 
 // ce qui bloque un plan quand ce n'est pas la machine qui travaille
 function waitingText(shot) {
+  if (shot.waiting === "spend" && shot.status === "image_todo" && !shot.spend_usd)
+    return "Prêt à lancer : choisis le nombre de propositions, puis touche « Générer le visuel ». Gratuit, environ une minute.";
   return {
     spend: "En attente de validation : la dépense de ce visuel est dans l'onglet Dépenses.",
     decors_scan: "Attend le repérage des décors, objets et figurants.",
@@ -415,6 +417,7 @@ function waitingText(shot) {
 function statusLabel(shot) {
   if (shot.id && !shot.en_production) return state.clip.stage === "decoupage_review" ? "Attend la validation de son bloc" : "Découpage en préparation";
   if (shot.status === "image_todo" && (state.clip.blocks || []).some((b) => b.id === shot.block_id && b.refs_checked === 0)) return "Le scripte vérifie ses références";
+  if (shot.waiting === "spend" && shot.status === "image_todo" && !shot.spend_usd) return "Prêt à lancer (gratuit)";
   if (shot.waiting === "spend") return "En attente de validation (dépense)";
   if (shot.waiting === "decors_scan") return "Attend le repérage des décors";
   if (shot.waiting === "decors") return "Attend les références de décor";
@@ -1051,6 +1054,12 @@ function renderDrawer() {
   }
   const wait = waitingText(shot);
   if (wait) notes.unshift(`<p class="note michael">${esc(wait)}</p>`);
+  if (shot.status === "change_requested") {
+    const mine = hist.find((n) => n.author === "michael");
+    notes.unshift(`<div class="agentbar">${led("work")}<span>Ta demande est partie${mine ? ` : « ${esc(mine.text)} »` : ""}.
+      L'orchestrateur la transmet au bon agent, qui réécrit le plan ou son prompt. Compte une à deux minutes.
+      Ensuite, le bouton pour lancer les nouvelles propositions apparaît ici. La page se met à jour seule.</span></div>`);
+  }
   const locked = !["image_todo", "image_gen", "image_qc", "image_review", "hd_todo", "hd_gen", "hd_qc", "hd_review",
     "prompt_todo", "video_review", "change_requested", "failed"].includes(shot.status) && clip.stage === "production";
   const settings = `<div class="shot-settings stack" style="gap:8px">
@@ -1142,7 +1151,9 @@ function renderDrawer() {
       ${settings}
       <div class="pipeline">${pipeline}</div>
       ${shot.actions && (shot.actions.run || shot.actions.skip) ? `<div class="row stepbar" style="gap:8px">
-          ${shot.actions.run ? `<button class="btn go" data-runstep="${shot.id}">${esc(shot.actions.run)}${shot.status === "draft_todo" || shot.status === "final_todo" ? ` · ~${money((shot.estimate || {}).cost_total_usd || 0)}` : ""}</button>` : ""}
+          ${shot.actions.run && (shot.status === "image_todo" || shot.status === "failed" && shot.failed_step === "image") ? `<div class="stack" style="gap:6px;width:100%">${modelPicker(shotModelKey(shot), clip.image_models?.visuel)}
+            <div class="row" style="gap:8px"><button class="btn go" data-runstep="${shot.id}">${shot.status === "failed" ? "Relancer le visuel" : "Générer le visuel"}</button>${countPicker(shot)}</div></div>`
+            : shot.actions.run ? `<button class="btn go" data-runstep="${shot.id}">${esc(shot.actions.run)}${shot.status === "draft_todo" || shot.status === "final_todo" ? ` · ~${money((shot.estimate || {}).cost_total_usd || 0)}` : ""}</button>` : ""}
           ${shot.actions.skip ? `<button class="btn ghost" data-skipstep="${shot.id}">${esc(shot.actions.skip)}</button>` : ""}
         </div>` : ""}
       ${notes.join("")}
@@ -1200,6 +1211,77 @@ function viewerFor(shot, kinds, clip, emptyText) {
   return { html: `<div class="viewer">${inner}</div>${versions}`, asset: picked };
 }
 
+// choix du modèle d'image à chaque génération : le conseillé est présélectionné, sa raison est affichée
+function freeOnly(opts) {
+  return opts ? { ...opts, models: opts.models.filter((m) => m.free),
+    default: (opts.models.find((m) => m.free && m.id === opts.default) || opts.models.find((m) => m.free && m.rank && m.usable)
+      || opts.models.find((m) => m.free && m.usable) || {}).id } : opts;
+}
+
+function pickedModel(key, opts) {
+  if (!opts || !opts.models) return null;
+  const c = state.model?.[key] || prefs("model:" + key);
+  return c && opts.models.some((m) => m.id === c && m.usable) ? c : opts.default;
+}
+
+function pickedModelInfo(key, opts) {
+  const id = pickedModel(key, opts);
+  return (opts?.models || []).find((m) => m.id === id) || null;
+}
+
+function modelWhy(m) {
+  if (!m) return "Aucun modèle branché : page Fournisseurs.";
+  return `${m.rank ? `<b>Conseillé n°${m.rank} : ${esc(m.why)}</b>` : `<b>${esc(m.why)}</b>`}
+    ${m.forces ? ` Fort pour : ${esc(m.forces)}.` : ""}${m.limites ? ` Limites : ${esc(m.limites)}.` : ""}
+    ${m.vitesse ? ` Durée : ${esc(m.vitesse)}.` : ""} ${m.refs ? `Lit ${m.refs} image${m.refs > 1 ? "s" : ""} de référence.` : ""}`;
+}
+
+function modelPicker(key, opts) {
+  if (!opts || !opts.models) return "";
+  const cur = pickedModel(key, opts);
+  return `<div class="modelpick stack" style="gap:4px"><label class="field"><span>Modèle · ${esc(opts.label || "")}</span>
+      <select data-modelpick="${esc(key)}" aria-label="Modèle d'image">
+      ${opts.models.map((m) => `<option value="${esc(m.id)}" ${m.id === cur ? "selected" : ""} ${m.usable ? "" : "disabled"}>${m.rank === 1 ? "★ " : ""}${esc(m.label)} · ${m.free ? "gratuit" : money(m.cost_usd) + " l'image"}${m.rank ? ` · conseillé n°${m.rank}` : " · pas conseillé ici"}${m.usable ? "" : " · pas branché"}</option>`).join("")}
+      </select></label>
+    <p class="hint" data-modelwhy="${esc(key)}">${modelWhy(pickedModelInfo(key, opts))}</p></div>`;
+}
+
+document.addEventListener("change", (ev) => {
+  const sel = ev.target.closest && ev.target.closest("select[data-modelpick]");
+  if (!sel) return;
+  const key = sel.dataset.modelpick;
+  state.model = { ...(state.model || {}), [key]: sel.value };
+  prefs("model:" + key, sel.value);
+  if (sel.closest("#drawer") && typeof renderDrawer === "function") { $drawer.dataset.json = ""; renderDrawer(); return; }
+  const opts = state.modelOpts?.[key];
+  const why = document.querySelector(`[data-modelwhy="${CSS.escape(key)}"]`);
+  if (why && opts) why.innerHTML = modelWhy(pickedModelInfo(key, opts));
+});
+
+function rememberOpts(key, opts) { state.modelOpts = { ...(state.modelOpts || {}), [key]: opts }; return opts; }
+
+// nombre de propositions d'un lancement de visuel : Michael le choisit à chaque fois
+function shotModelKey(shot) { return `visuel:${shot.id}`; }
+function shotModel(shot) { return pickedModelInfo(shotModelKey(shot), state.clip?.image_models?.visuel); }
+
+function propCount(shot) {
+  const info = shot.image_launch || { counts: { gratuit: 3, payant: 1 }, max: 4 };
+  const m = shotModel(shot);
+  return state.propCount?.[shot.id] || (m && !m.free ? info.counts.payant : info.counts.gratuit);
+}
+
+function countPicker(shot) {
+  const info = shot.image_launch;
+  if (!info) return "";
+  const n = propCount(shot);
+  const m = shotModel(shot);
+  const cost = !m || m.free ? "gratuit" : `${money(m.cost_usd * n)} (${money(m.cost_usd)} l'une)`;
+  return `<span class="countpick" title="Nombre de propositions de ce lancement">
+    ${Array.from({ length: info.max }, (_, i) => i + 1).map((k) =>
+      `<button class="${k === n ? "on" : ""}" data-propcount="${shot.id}:${k}">${k}</button>`).join("")}
+    <span class="hint">proposition${n > 1 ? "s" : ""} · ${cost}</span></span>`;
+}
+
 function feedbackBox(shot, placeholder) {
   return `<div class="feedback stack" id="fb-${shot.id}" hidden>
       <textarea placeholder="${esc(placeholder)}"></textarea>
@@ -1230,14 +1312,40 @@ function renderStepPanel(shot, step) {
     </div>`;
   }
   const v = viewerFor(shot, def.kinds, clip, {
-    image: shot.waiting === "spend" || (shot.status === "image_todo" && shot.image_prompt) ? "Le prompt est prêt : touche « Générer le visuel maintenant » pour lancer 3 propositions."
+    image: shot.waiting === "spend" || (shot.status === "image_todo" && shot.image_prompt) ? "Le prompt est prêt : choisis le nombre de propositions et touche « Générer le visuel »."
       : "Le storyboardeur écrit le prompt de ce visuel.",
     hd: "La HD part dès que le visuel draft est validé.",
     draft: "La vidéo draft part dès que le plan vidéo est validé.",
     final: "La vidéo HD part dès que la vidéo draft est validée.",
     lipsync: "Le lip-sync se fait après la vidéo HD.",
   }[step]);
-  let html = v.html;
+  // propositions du visuel draft : toutes visibles côte à côte, Michael garde celle qu'il veut
+  const props = step === "image" && ["image_todo", "image_qc", "image_review"].includes(shot.status)
+    ? assetsOf(shot, ["image"]).filter((a) => ["ready", "rejected"].includes(a.status)) : [];
+  const stale = props.length && ["image_todo", "change_requested"].includes(shot.status);
+  let html = props.length ? "" : v.html;
+  if (stale) {
+    html = `<div class="viewer"><div class="none">${shot.status === "change_requested" ? `${led("work")} Ta demande est en cours de traitement.`
+        : "Les nouvelles propositions apparaîtront ici."}</div></div>
+      <details class="fold"><summary>Propositions précédentes (${props.length}), avant ta dernière demande</summary>
+      <div class="propgrid ${aspectClass(clip)}">${props.map((a) => `<figure class="prop">
+        <img src="${media(a.path)}" alt="" data-zoom="${media(a.path)}"><figcaption>v${a.version}</figcaption>
+        <button class="btn small" data-keepimg="${shot.id}:${a.id}">Garder celle-ci quand même</button></figure>`).join("")}</div></details>`;
+  } else if (props.length) {
+    const qcRunning = shot.status === "image_qc";
+    html += `<div class="actionbox"><h3>Choisis ta proposition (${props.length})</h3>
+      <p class="hint">${qcRunning ? "Le contrôleur les regarde. Tu peux déjà garder celle qui te plaît."
+        : "L'avis du contrôleur est en haut du plan. C'est un conseil : tu gardes celle que tu veux."} Touche une image pour l'agrandir.</p>
+      <div class="propgrid ${aspectClass(clip)}">${props.map((a) => `<figure class="prop">
+        <img src="${media(a.path)}" alt="" data-zoom="${media(a.path)}">
+        <figcaption>v${a.version}${a.status === "rejected" ? " · écartée par le contrôleur" : ""}${a.model_key ? ` · ${esc(a.model_key)}` : ""}</figcaption>
+        <button class="btn small ok" data-keepimg="${shot.id}:${a.id}">Garder celle-ci</button></figure>`).join("")}</div>
+      <div class="row">
+        ${shot.image_prompt ? `${modelPicker(shotModelKey(shot), state.clip.image_models?.visuel)}<button class="btn" data-regenimage="${shot.id}">Relancer</button>${countPicker(shot)}` : ""}
+        <button class="btn ghost" data-openchange="${shot.id}">Demander une modif au storyboardeur</button>
+      </div>
+      ${feedbackBox(shot, "Ce que tu veux à la place (ex. : réveil sans texte, on ajoute MERCREDI au montage)")}</div>`;
+  }
   const own = { image: ["image", "ton visuel", "image/*"], hd: ["image_hd", "ton visuel HD", "image/*"],
                 draft: ["draft", "ta vidéo draft", "video/*"], final: ["final", "ta vidéo HD", "video/*"] }[step];
   const prompt = step === "image" ? shot.image_prompt : (step === "draft" || step === "final") ? shot.video_prompt : null;
@@ -1245,7 +1353,7 @@ function renderStepPanel(shot, step) {
       <textarea rows="6" id="pr-${shot.id}-image" placeholder="Le storyboardeur n'a pas encore écrit ce prompt.">${esc(shot.image_prompt || "")}</textarea>
       <div class="row" style="gap:8px">
         <button class="btn small" data-copyprompt="pr-${shot.id}-image">Copier</button>
-        <button class="btn small go" data-regenimage="${shot.id}">Enregistrer et régénérer · 3 propositions</button>
+        <button class="btn small go" data-regenimage="${shot.id}">Enregistrer et régénérer</button>${countPicker(shot)}
         <span class="hint">Les références du plan (personnages, tenues, décors) partent avec.</span></div></div></details>`;
   else if (prompt) html += `<details class="fold"><summary>Prompt de cette étape</summary><div class="stack" style="gap:6px">
       <pre class="text" id="pr-${shot.id}-${step}">${esc(prompt)}</pre>
@@ -1254,7 +1362,7 @@ function renderStepPanel(shot, step) {
   if (own) html += `<details class="fold"><summary>Déposer ${own[1]}, fait ailleurs</summary><div class="stack" style="gap:6px">
       <p class="hint">Il devient une proposition de cette étape, à valider comme les autres.</p>
       ${dropZone(`shotup:${shot.id}:${own[0]}`, `Déposer ${own[1]}`, own[2] === "image/*" ? "png, jpg ou webp" : "mp4, mov ou webm", own[2], false)}</div></details>`;
-  if (isGate) {
+  if (isGate && !props.length) {
     const label = step === "lipsync" || step === "final" ? APPROVE_LABEL.finals[0] : APPROVE_LABEL[gate][0];
     const ph = {
       images: "Ce qui ne va pas et ce que tu veux à la place (cadrage, pose, lumière, tenue, décor…)",
@@ -1275,8 +1383,9 @@ function renderStepPanel(shot, step) {
   }
   if (shot.status === "failed") {
     html += `<div class="actionbox" style="border-color:#ff4d6688"><h3 style="color:var(--red)">Échec</h3>
-      <p class="hint">L'orchestrateur va tenter de relancer. Tu peux aussi le faire toi-même.</p>
-      <div class="row"><button class="btn" data-retry="${shot.id}">Relancer l'étape</button></div></div>`;
+      ${shot.failed_step === "image" ? `<p class="hint">Le message en haut du plan dit ce qui a échoué. Choisis un autre modèle au-dessus et relance le visuel.</p>`
+        : `<p class="hint">L'orchestrateur va tenter de relancer. Tu peux aussi le faire toi-même.</p>
+      <div class="row"><button class="btn" data-retry="${shot.id}">Relancer l'étape</button></div>`}</div>`;
   }
   return html;
 }
@@ -1379,18 +1488,38 @@ async function drawerClick(ev) {
       catch (e) { const r = document.createRange(); r.selectNodeContents(document.getElementById(d.copyprompt)); getSelection().removeAllRanges(); getSelection().addRange(r); toast("Sélectionné : copie-le avec le menu"); }
       return;
     }
+    if (d.propcount) {
+      const [sid, k] = d.propcount.split(":").map(Number);
+      state.propCount = { ...(state.propCount || {}), [sid]: k };
+      $drawer.dataset.json = ""; renderDrawer(); return;
+    }
+    if (d.keepimg) {
+      const [sid, aid] = d.keepimg.split(":").map(Number);
+      const shot = clip.shots.find((s) => s.id === sid);
+      t.disabled = true;
+      await api(`/api/shots/${sid}/review`, { json: { decision: "approve", asset_id: aid } });
+      toast(`Plan ${shot.num} : proposition gardée`);
+      state.step = null;
+      return reload();
+    }
     if (d.regenimage) {
       const txt = document.getElementById(`pr-${d.regenimage}-image`).value;
       if (!txt.trim()) { toast("Écris d'abord le prompt", "err"); return; }
       if (needsConfirm(t, "regen" + d.regenimage)) return;
       t.disabled = true;
-      await api(`/api/shots/${d.regenimage}/regenerate-image`, { json: { prompt: txt } });
-      toast("3 nouvelles propositions en cours"); return reload();
+      const gs = clip.shots.find((s) => s.id === +d.regenimage);
+      const n = propCount(gs);
+      await api(`/api/shots/${d.regenimage}/regenerate-image`, { json: { prompt: txt, count: n,
+        model: pickedModel(shotModelKey(gs), clip.image_models?.visuel) } });
+      toast(`${n} nouvelle${n > 1 ? "s" : ""} proposition${n > 1 ? "s" : ""} en cours`); return reload();
     }
     if (d.runstep) {
       if (needsConfirm(t, "run" + d.runstep)) return;
       t.disabled = true;
-      await api(`/api/shots/${d.runstep}/run`, { method: "POST" });
+      const rs = clip.shots.find((s) => s.id === +d.runstep);
+      const rm = rs ? pickedModel(shotModelKey(rs), clip.image_models?.visuel) : null;
+      const q = rs && (rs.status === "image_todo" || rs.status === "failed") ? `?count=${propCount(rs)}${rm ? `&model=${encodeURIComponent(rm)}` : ""}` : "";
+      await api(`/api/shots/${d.runstep}/run${q}`, { method: "POST" });
       toast("Lancé"); refreshSys(); return reload();
     }
     if (d.skipstep) {
@@ -1812,6 +1941,7 @@ function renderDossier(clip) {
   const formatLocked = clip.stage !== "script" && clip.stage !== "decoupage_review";
   return `${cta}
     ${renderDaBox(clip, false)}
+    ${renderStyleBox(clip.slug, clip.style_effective || "", !!(clip.style_image || "").trim(), false)}
     ${renderSourcesBox(clip, false)}
     <div id="scenario-box" class="panel stack" style="margin-bottom:16px"><p class="loading">Chargement…</p></div>
     <div class="two-col">
@@ -1877,6 +2007,32 @@ function renderDossier(clip) {
       ${clip.casting.length ? clip.casting.map((c) => `<div class="row"><a href="#/personnages/${encodeURIComponent(c.character_slug)}"><b>${esc(c.name)}</b></a>
         <span class="hint">version ${c.version}${c.look_slug ? " · look " + esc(c.look_slug) : ""}</span></div>`).join("") : `<p class="hint">Aucun personnage.</p>`}
     </div>`;
+}
+
+/* ----- style photo : ajouté tel quel à chaque prompt d'image du clip ----- */
+function renderStyleBox(slug, style, custom, open) {
+  return `<details class="panel fold stylebox" ${open ? "open" : ""}><summary><b>Style photo des images</b>
+      <span class="pill ${custom ? "done" : "wait"}">${custom ? "le tien" : "par défaut"}</span>
+      <span class="hint">ajouté à chaque prompt : visuels, brouillons, images HD</span></summary>
+    <div class="stack">
+      <p class="hint">Ce texte part à la fin de chaque demande d'image de ce clip, en anglais, comme ça. Vérifie-le avant de lancer une HD.
+        Par défaut : réel comme un vrai clip bien filmé, mais jamais moche (pas de pores visibles, pas de défauts de peau, pas d'effet plastique).</p>
+      <textarea id="style-text" rows="6">${esc(style)}</textarea>
+      <div class="row" style="gap:8px"><button class="btn" data-savestyle="${esc(slug)}">Enregistrer le style</button>
+        ${custom ? `<button class="btn small ghost" data-resetstyle="${esc(slug)}">Revenir au style par défaut</button>` : ""}</div>
+    </div></details>`;
+}
+
+async function styleAction(d, refresh) {
+  if (d.savestyle) {
+    await api(`/api/clips/${encodeURIComponent(d.savestyle)}/style`, { json: { text: document.getElementById("style-text").value } });
+    toast("Style enregistré : les prochaines images le suivent"); refresh(); return true;
+  }
+  if (d.resetstyle) {
+    await api(`/api/clips/${encodeURIComponent(d.resetstyle)}/style`, { json: { text: "" } });
+    toast("Style par défaut rétabli"); refresh(); return true;
+  }
+  return false;
 }
 
 /* ----- direction artistique : écrite par Michael, fait foi sur tout ----- */
@@ -2299,6 +2455,7 @@ function bindClip() {
         return reload(d.cut === "approve" ? "plans" : "decoupage");
       }
       // direction artistique
+      if (await styleAction(d, () => showClip(clip.slug, state.tab, false))) return;
       if (d.saveda !== undefined || d.applyda !== undefined) {
         if (d.applyda !== undefined && state.editorDirty) { toast("Enregistre d'abord tes modifications du découpage", "err"); return; }
         t.disabled = true;
@@ -2530,7 +2687,8 @@ async function showCharacter(slug, keep = false) {
       if (kind.startsWith("look:")) {
         [...files].forEach((f) => fd.append("files", f));
         toast("Envoi des photos…");
-        await upload(`/api/characters/${encodeURIComponent(slug)}/looks/${encodeURIComponent(kind.slice(5))}/images`, fd);
+        const lkSlug = kind.split(":").pop();
+        await upload(`/api/characters/${encodeURIComponent(slug)}/looks/${encodeURIComponent(lkSlug)}/images`, fd);
         toast("Photos ajoutées à la tenue");
       } else if (kind === "pack") {
         [...files].forEach((f) => fd.append("files", f));
@@ -2598,6 +2756,68 @@ function packSection(v, editable) {
       </div></div>`).join("")}</div>`).join("");
 }
 
+// Tenue : photos de Michael (tenue portée) -> feuille de référence créée par la machine
+function lookMedia(lk, character, models) {
+  const key = `${character}:${lk.look || lk.slug}`;
+  const mopts = rememberOpts(`look:${key}`, freeOnly(models));
+  const cnt = lk.sheet_count || { default: 3, max: 4 };
+  const n = state.lookCount?.[key] || cnt.default;
+  const photos = lk.photos || [];
+  const props = lk.sheet_props || [];
+  const tile = (img, buttons, caption) => `<div class="packitem">
+      ${img.path ? `<img src="${media(img.path)}" data-zoom="${media(img.path)}" alt="">` : `<div class="none">${img.status === "failed" ? "Échec" : `${led("work")} en cours…`}</div>`}
+      <div class="stack" style="gap:4px;padding:6px">${caption ? `<span class="hint">${caption}</span>` : ""}
+        ${buttons ? `<div class="row" style="gap:6px">${buttons}</div>` : ""}</div></div>`;
+  return `<div class="stack" style="gap:10px">
+    <div><b>1. Photos de la tenue portée</b>
+      <p class="hint">Tes photos du personnage dans cette tenue. Elles servent à créer la feuille de référence, puis partent aussi avec les visuels.</p>
+      ${photos.length ? `<div class="packgrid">${photos.map((ph) => tile(ph, `<button class="btn small ghost" data-lookimg="${ph.id}:reject">Retirer</button>`)).join("")}</div>` : ""}
+      ${dropZone(`look:${character}:${lk.look || lk.slug}`, "Ajouter des photos de la tenue portée", "png, jpg ou webp, plusieurs à la fois", "image/*", true)}</div>
+    <div><b>2. Feuille de référence</b>
+      <p class="hint">La machine fait trois photos du personnage dans cette tenue, une par vue (face, trois-quarts, dos), puis les assemble.
+        Le visage vient de la canon${lk.person_ref ? "" : " (pas de canon trouvée : le visage vient de tes photos)"}, la tenue de tes photos.
+        La vue de face sert de modèle aux deux autres. La feuille gardée passe en tête des références de la tenue.</p>
+      ${lk.person_ref ? `<div class="row" style="gap:8px;align-items:center"><img src="${media(lk.person_ref)}" alt="" style="width:44px;height:44px;object-fit:cover;border-radius:6px">
+        <span class="hint">Visage de référence envoyé en image 1</span></div>` : ""}
+      ${lk.sheet ? `<div class="packgrid">${tile(lk.sheet, "", "Feuille gardée · part au modèle en premier")}</div>` : ""}
+      ${props.length ? `<p class="hint">Propositions : garde la meilleure.</p><div class="packgrid">${props.map((pr) => tile(pr,
+          pr.status === "proposed" ? `<button class="btn small ok" data-lookimg="${pr.id}:keep">Garder</button><button class="btn small" data-lookimg="${pr.id}:reject">Écarter</button>`
+          : pr.status === "failed" ? `<button class="btn small ghost" data-lookimg="${pr.id}:reject">Retirer</button>` : "",
+          pr.status === "failed" ? esc((pr.error || "").slice(0, 220))
+            : `${pr.model_key ? esc(pr.model_key) : ""}${pr.error ? `<br><span style="color:#ffb547">${esc(pr.error.slice(0, 220))}</span>` : ""}`)).join("")}</div>` : ""}
+      ${modelPicker(`look:${key}`, mopts)}
+      <div class="row" style="gap:8px;margin-top:6px">
+        <button class="btn go" data-looksheet="${esc(key)}" ${photos.length && !lk.sheet_generating ? "" : "disabled"}>${lk.sheet ? "Refaire la feuille" : "Créer la feuille de référence"}</button>
+        <span class="countpick">${Array.from({ length: cnt.max }, (_, i) => i + 1).map((k) =>
+          `<button class="${k === n ? "on" : ""}" data-lookcount="${esc(key)}:${k}">${k}</button>`).join("")}
+          <span class="hint">feuille${n > 1 ? "s" : ""} · ${n * 3} images du quota gratuit</span></span>
+        ${photos.length ? "" : `<span class="hint">Dépose d'abord une photo.</span>`}
+        ${lk.sheet_generating ? `<span class="hint">${led("work")} Création en cours : trois vues par feuille, quelques minutes.</span>` : ""}</div></div>
+  </div>`;
+}
+
+async function lookAction(d, refresh) {
+  if (d.lookcount) {
+    const parts = d.lookcount.split(":");
+    const k = +parts.pop();
+    state.lookCount = { ...(state.lookCount || {}), [parts.join(":")]: k };
+    refresh(); return true;
+  }
+  if (d.looksheet) {
+    const [ch, lk] = d.looksheet.split(":");
+    const n = state.lookCount?.[d.looksheet] || 1;
+    const model = pickedModel(`look:${d.looksheet}`, state.modelOpts?.[`look:${d.looksheet}`]) || "";
+    await api(`/api/characters/${encodeURIComponent(ch)}/looks/${encodeURIComponent(lk)}/sheet?count=${n}&model=${encodeURIComponent(model)}`, { method: "POST" });
+    toast(`${n} feuille${n > 1 ? "s" : ""} en cours (${n * 3} images)`); refresh(); return true;
+  }
+  if (d.lookimg) {
+    const [id, dec] = d.lookimg.split(":");
+    await api(`/api/look-images/${id}/${dec}`, { method: "POST" });
+    toast(dec === "keep" ? "Feuille gardée" : "Image retirée"); refresh(); return true;
+  }
+  return false;
+}
+
 function looksSection(ch) {
   const looks = ch.looks.map((lk) => `<div class="lookcard">
       <div class="row"><b>${esc(lk.slug)}</b><span class="spacer"></span>
@@ -2605,8 +2825,7 @@ function looksSection(ch) {
       <p class="hint mono">Dans un plan : @${esc(ch.slug)}-${esc(lk.slug)} · ${lk.clip_slug ? `créée pour « ${esc(lk.clip_slug)} »` : "tenue signature"}</p>
       <textarea rows="3" data-lookdesc="${esc(lk.slug)}" placeholder="Description : vêtements, couleurs, matières, chaussures, accessoires">${esc(lk.description || "")}</textarea>
       <div class="row"><button class="btn small" data-looksave="${esc(lk.slug)}">Enregistrer la description</button></div>
-      ${lk.images.length ? mediaGrid(lk.images.map((p) => ({ path: p, type: "image" }))) : ""}
-      ${dropZone("look:" + lk.slug, "Ajouter des photos de cette tenue", "png, jpg ou webp, plusieurs à la fois", "image/*", true)}
+      ${lookMedia(lk, ch.slug, ch.image_models?.feuille_tenue)}
     </div>`).join("");
   return charPanel("Tenues",
     `Les tenues que ${esc(ch.name)} porte dans les clips. Chaque tenue a un nom, une description et quelques photos.
@@ -2691,6 +2910,7 @@ function renderVersion(ch, v) {
       ${cst === "requested" ? `<div class="agentbar">${led("work")}Le directeur de casting prépare ${canon ? "le corps en pied, à partir de la tête choisie" : "la tête"}.</div>`
         : cst === "review" ? `<div class="agentbar">${led("review")}Ses propositions sont arrivées : choisis ci-dessus.</div>` : ""}
       ${cst !== "requested" ? `<textarea id="canon-note" rows="2" placeholder="Facultatif : ce que tu veux (ex. regard plus doux, pelage plus clair)"></textarea>
+        ${modelPicker(`canon:${ch.slug}`, rememberOpts(`canon:${ch.slug}`, freeOnly(ch.image_models?.personnage)))}
         <div class="row"><button class="btn ${canon && canonBodyA ? "" : "go"}" data-canonask>${canon && canonBodyA ? "Refaire la canon" : canon ? "Faire le corps en pied" : "Préparer la canon"}</button></div>` : ""}
     </div>` : "";
   const refsBody = `<div class="two-col">
@@ -2759,6 +2979,7 @@ async function characterClick(e, ch, v) {
   const reload = () => showCharacter(slug);
   try {
     if (d.zoom) return lightbox(d.zoom);
+    if (await lookAction(d, reload)) return;
     if (d.version) { state.charVersion = +d.version; return reload(); }
     if (d.newversion !== undefined) {
       const r = await api(`${base}/versions`, { method: "POST" });
@@ -2792,7 +3013,8 @@ async function characterClick(e, ch, v) {
     }
     if (d.canonask !== undefined) {
       t.disabled = true;
-      await api(`${base}/versions/${v.version}/canon-request`, { json: { text: document.getElementById("canon-note")?.value || "" } });
+      const cm = pickedModel(`canon:${slug}`, state.modelOpts?.[`canon:${slug}`]) || "";
+      await api(`${base}/versions/${v.version}/canon-request?model=${encodeURIComponent(cm)}`, { json: { text: document.getElementById("canon-note")?.value || "" } });
       toast("Le directeur de casting prépare la canon : ses propositions arrivent ici");
       return reload();
     }
@@ -2941,6 +3163,13 @@ async function showProviders() {
   $view.innerHTML = `<div class="pagehead"><h1>Fournisseurs</h1>
       <span class="sub">Règle : le moins cher qui est adapté au plan, crédits gratuits d'abord. Détail dans docs/PROCESS.md et docs/FOURNISSEURS.md.</span></div>
     <div class="clips" style="grid-template-columns:repeat(auto-fill,minmax(280px,1fr))">${provs}</div>
+    <div class="panel" style="margin-top:18px"><div class="panel-head"><h2>Images : quel modèle pour quoi</h2>
+      <span class="hint">L'ordre conseillé pour chaque travail. Le premier modèle branché est présélectionné à chaque génération ;
+        tu choisis toujours. Le modèle choisi est le seul essayé : s'il échoue, l'erreur s'affiche. Réglable dans config/models.yaml (recommandations).</span></div>
+      <div class="stack" style="gap:12px">${Object.values(d.image_models || {}).map((o) => `<div><b>${esc(o.label)}</b>
+        <ol style="margin:4px 0 0 18px;padding:0">${o.models.filter((m) => m.rank).map((m) => `<li style="margin:3px 0">
+          <b>${esc(m.label)}</b> · ${m.free ? "gratuit" : money(m.cost_usd) + " l'image"}${m.usable ? "" : ` · <span style="color:var(--amber)">pas branché</span>`}
+          <span class="hint"> : ${esc(m.why)}</span></li>`).join("")}</ol></div>`).join("")}</div></div>
     <div class="panel" style="margin-top:18px;overflow-x:auto"><div class="panel-head"><h2>Offres vidéo</h2>
       <span class="hint">Coût par seconde de plan, tout compris (vidéo draft, vidéo HD), sans son. Classées du moins cher au plus cher.</span></div>
       <table class="cut" style="width:100%;border-collapse:collapse;font-size:14px">
@@ -3140,9 +3369,7 @@ async function loadDecors(clip, keep = false) {
           ${drafts.length ? elGrid(drafts, "draft") : ""}
           ${draftProp.length ? `<p class="hint">Garde le brouillon qui te plaît, écarte les autres.</p>${elGrid(draftProp, "choose")}` : ""}
           <div class="row" style="gap:8px">
-            <select data-eldraftmodel="${e.id}" aria-label="Modèle des brouillons">
-              <option value="">Le meilleur gratuit disponible</option>
-              ${(d.draft_models || []).map((m) => `<option value="${esc(m.key)}" ${prefs("draftmodel") === m.key ? "selected" : ""}>${esc(m.label)}</option>`).join("")}</select>
+            ${modelPicker(`eldraft:${e.id}`, rememberOpts(`eldraft:${e.id}`, freeOnly(d.image_models?.[e.kind])))}
             <button class="btn ${drafts.length ? "" : "go"}" data-eldrafts="${e.id}" ${d.drafts_usable ? "" : "disabled"}>${draftProp.length || drafts.length ? "Créer 2 autres brouillons" : "Créer 2 brouillons"} · gratuit</button>
             <span class="hint">${d.drafts_usable ? `Gratuit, à partir ${inspi.length ? `de tes ${Math.min(inspi.length, 4)} image${inspi.length > 1 ? "s" : ""} de l'étape 1` : "de ton instruction seule"}. De quelques secondes à deux minutes.` : "Aucune option gratuite branchée (page Fournisseurs)."}</span></div>
           <details class="fold"><summary>Ou dépose ton propre brouillon</summary><div class="stack" style="gap:6px">
@@ -3159,12 +3386,14 @@ async function loadDecors(clip, keep = false) {
             : e.prompt_status === "requested" ? `<div class="agentbar">${led("work")}Le décorateur regarde ton brouillon et écrit le prompt de l'image HD (une à deux minutes).</div>`
             : `<label class="field"><span>Ce qui sera demandé pour l'image HD${e.prompt_edited ? " · modifié par toi" : " · écrit d'après ton brouillon, modifiable"}</span>
                 <textarea rows="5" data-elprompt="${e.id}">${esc(e.prompt_text)}</textarea></label>
+              <p class="hint">Le style photo du clip (en haut de l'onglet) s'ajoute à ce texte au lancement.</p>
               <div class="row" style="gap:8px">
-                <button class="btn ${e.step === "hd_todo" ? "go" : ""}" data-elgen="${e.id}" ${d.hd_usable ? "" : "disabled"}>${hdKept.length || hdProp.length ? "Refaire" : "Générer"} l'image HD · ${money(d.hd_cost)}</button>
+                ${modelPicker(`elhd:${e.id}`, rememberOpts(`elhd:${e.id}`, d.image_models?.[e.kind]))}
+                <button class="btn ${e.step === "hd_todo" ? "go" : ""}" data-elgen="${e.id}">${hdKept.length || hdProp.length ? "Refaire" : "Générer"} l'image HD</button>
                 ${e.prompt_edited ? `<button class="btn small ghost" data-elresetprompt="${e.id}">Revenir au texte d'origine</button>`
                   : `<button class="btn small ghost" data-eldescribe="${e.id}">Réécrire d'après le brouillon</button>`}
               </div>
-              ${d.hd_usable ? "" : `<p class="hint" style="color:var(--amber)">L'image HD n'est pas encore branchée.</p>`}`}
+`}
           <details class="fold"><summary>J'ai déjà une image HD finie</summary><div class="stack" style="gap:6px">
             ${dropZone(`el:${e.id}:hd`, "Déposer une image HD finie", "png, jpg ou webp", "image/*", true)}</div></details>
         </div>
@@ -3195,10 +3424,11 @@ async function loadDecors(clip, keep = false) {
         L'image HD gardée sert de référence à tous les plans où l'élément apparaît. Dans un plan, tape <b>@</b> pour citer un élément.</p>
       <div class="row" style="gap:10px">
         <span class="hint"><b>${nDone} / ${d.elements.length}</b> prêts${status ? " · " + status : ""}</span><span class="spacer"></span>
-        ${ready.length ? `<button class="btn go" data-elgenready>Générer les ${ready.length} image${ready.length > 1 ? "s" : ""} HD prêtes · ${cost(ready.length)}</button>` : ""}
+        ${ready.length && d.hd_usable ? `<button class="btn go" data-elgenready>Générer les ${ready.length} image${ready.length > 1 ? "s" : ""} HD prêtes · ${cost(ready.length)}</button>` : ""}
         <button class="btn small ghost" data-elrequest>${d.elements.length ? "Demander à l'agent de compléter" : "Demander à l'agent de repérer les éléments"}</button>
       </div>
       ${d.hd_usable ? "" : `<p class="hint" style="color:#ffb547">Le modèle d'image HD (${esc(d.hd_model)}) n'est pas branché.</p>`}
+      ${renderStyleBox(clip.slug, d.style, d.style_custom, false)}
       ${d.elements.length ? `<div class="eltiles-wrap">${tiles}</div>` : ""}
     </section>
     ${sections}
@@ -3211,9 +3441,8 @@ async function loadDecors(clip, keep = false) {
             ${lk.cited ? "" : `<span class="pill wait">pas encore citée dans un plan</span>`}</div>
           <label class="field"><span>Portée par</span><select data-lookwearer="${esc(lk.character)}:${esc(lk.look)}">
             ${(d.characters || []).map((c) => `<option value="${esc(c.slug)}" ${c.slug === lk.character ? "selected" : ""}>${esc(c.name)}</option>`).join("")}</select></label>
-          ${lk.images.length ? `<div class="packgrid">${lk.images.map((p) => `<div class="packitem"><img src="${media(p)}" data-zoom="${media(p)}" alt=""></div>`).join("")}</div>`
-            : `<p class="hint">Pas encore de photo : la description seule part au modèle.</p>`}
-          ${dropZone(`look:${lk.character}:${lk.look}`, "Ajouter des photos de la tenue", "png, jpg ou webp", "image/*", true)}
+          ${lk.images.length ? "" : `<p class="hint">Pas encore de photo : la description seule part au modèle.</p>`}
+          ${lookMedia(lk, lk.character, d.image_models?.feuille_tenue)}
           <label class="field"><span>Description (ce qui doit rester identique)</span>
             <textarea rows="3" data-lookdesc="${esc(lk.character)}:${esc(lk.look)}">${esc(lk.description)}</textarea></label>
           <div class="row"><button class="btn small" data-looksave="${esc(lk.character)}:${esc(lk.look)}">Enregistrer</button></div>
@@ -3283,6 +3512,8 @@ async function loadDecors(clip, keep = false) {
     const dd = t.dataset;
     const reload = () => loadDecors(clip);
     try {
+      if (await lookAction(dd, reload)) return;
+      if (await styleAction(dd, reload)) return;
       if (dd.zoom) { ev.preventDefault(); return lightbox(dd.zoom); }
       if (dd.eljump) {
         remember(dd.eljump);
@@ -3329,8 +3560,7 @@ async function loadDecors(clip, keep = false) {
       if (dd.eldrafts) {
         const brief = box.querySelector(`[data-elbrief="${dd.eldrafts}"]`).value;
         t.disabled = true; t.textContent = "Création des brouillons…";
-        const backend = box.querySelector(`[data-eldraftmodel="${dd.eldrafts}"]`)?.value || "";
-        prefs("draftmodel", backend);
+        const backend = box.querySelector(`[data-modelpick="eldraft:${dd.eldrafts}"]`)?.value || "";
         await api(`/api/elements/${dd.eldrafts}/drafts`, { json: { brief, n: 2, backend } });
         remember(dd.eldrafts);
         toast("Brouillons lancés : ils arrivent ici, de quelques secondes à deux minutes"); return reload();
@@ -3365,7 +3595,8 @@ async function loadDecors(clip, keep = false) {
         if (needsConfirm(t, "elgen" + dd.elgen)) return;
         t.disabled = true;
         const r = await api(`/api/elements/${dd.elgen}/generate`, { json: {
-          prompt: box.querySelector(`[data-elprompt="${dd.elgen}"]`).value } });
+          prompt: box.querySelector(`[data-elprompt="${dd.elgen}"]`).value,
+          model: box.querySelector(`[data-modelpick="elhd:${dd.elgen}"]`)?.value || null } });
         toast(`Image HD lancée · ${money(r.cost_usd)} : elle arrive dans une à deux minutes`);
         refreshSys(); return reload();
       }
@@ -3498,3 +3729,17 @@ function compactNums(nums) {
   if (a !== null) out.push(a === b ? `${a}` : `${a}-${b}`);
   return out.join(", ");
 }
+
+
+/* ---------- mise à jour : la page se recharge seule quand la régie change de version ---------- */
+setInterval(async () => {
+  try {
+    const r = await fetch("/api/ui-version", { cache: "no-store" });
+    const { version } = await r.json();
+    if (!window.RIOT_VERSION || version === window.RIOT_VERSION) return;
+    const el = document.activeElement;
+    // pas de rechargement pendant une saisie : on attendra le tour suivant
+    if (el && (el.tagName === "TEXTAREA" || el.tagName === "INPUT") && el.value) return;
+    location.reload();
+  } catch (e) { /* régie injoignable : on réessaie au tour suivant */ }
+}, 20000);

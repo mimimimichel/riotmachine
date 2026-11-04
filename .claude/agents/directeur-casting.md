@@ -82,7 +82,7 @@ référence (description de la tenue signature, ou ce que montrent les images de
 
 **TÊTE, personne :**
 ```
-Use the reference images only for the exact identity: same face, eyes, nose, lips, skin tone and marks, hair. Tight chest-up studio portrait of {RESUME}, framed from just above the crown down to the collarbones, face filling the frame, squared to camera, head level, eyes directly to camera, neutral expression, lips closed and relaxed. Plain black camisole. Hair kept off the face. Even neutral mid-gray seamless backdrop, no gradient. One broad diffused soft light slightly above camera, gentle wrap, no hard shadows, no rim light. Real skin texture, visible pores, subtle natural asymmetry, no retouching. 50mm prime, sharp focus on the eyes. Photographed, not generated. No text, no watermark.
+Use the reference images only for the exact identity: same face, eyes, nose, lips, skin tone and marks, hair. Tight chest-up studio portrait of {RESUME}, framed from just above the crown down to the collarbones, face filling the frame, squared to camera, head level, eyes directly to camera, neutral expression, lips closed and relaxed. Plain black camisole. Hair kept off the face. Even neutral mid-gray seamless backdrop, no gradient. One broad diffused soft light slightly above camera, gentle wrap, no hard shadows, no rim light. Natural healthy skin, fine even matte finish, no visible pores, no blemishes, subtle natural asymmetry, lightly polished like a professional photo shoot, never plastic. 50mm prime, sharp focus on the eyes. Photographed, not generated. No text, no watermark.
 ```
 
 **TÊTE, animal :**
@@ -107,8 +107,9 @@ propres du personnage (grain de beauté, sourcils, forme du nez), jamais un visa
 ## Prompts photoréalistes (en anglais)
 
 - Langage de photographe : "85mm portrait lens, f/2.8, soft window light from the left".
-- Peau réelle : "real skin texture, visible pores, fine vellus hair, subtle
-  natural asymmetry, no retouching".
+- Peau réelle mais flatteuse : "natural healthy skin with a fine, even, matte finish, no visible pores, no blemishes, no shine, subtle natural asymmetry, polished like a professional music-video shoot, never plastic".
+  Règle de Michael (03/11/2026) : réel, jamais moche. Voir « FLATTERING-REALISM CEILING »
+  dans docs/savoir/createurs-methodes-et-prompts.md.
 - Cheveux : texture précise, reprise mot pour mot de l'ADN du personnage (texture, longueur, volume, couleur).
 - Jamais : "flawless", "perfect skin", "beautiful", "CGI", "3D", "airbrushed".
 - Fonds variés et réalistes pour la lumière ; fond neutre seulement pour

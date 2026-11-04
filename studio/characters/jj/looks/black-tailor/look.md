@@ -1,0 +1,3 @@
+# Black tailor
+
+black tailored single-breasted blazer, slim fitted and sharply cinched at the waist, hip-length, notch lapels of medium width, deep plunging V neckline, single black button fastened at the natural waist, two horizontal flap pockets at the hips, vertical princess seams on the front, structured natural shoulders, long slim sleeves ending at the wrist, rounded front hem, worn with no top underneath; matching black high-waisted wide-leg trousers, straight fluid leg with sharp pressed center creases, floor-length hem almost covering the shoes; matte black wool crepe fabric, matching suit set; nude barely-there strappy high-heeled sandals with thin toe strap; small gold hoop earrings

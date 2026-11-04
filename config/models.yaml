@@ -19,6 +19,77 @@ budget:
   default_clip_usd: 80        # budget par défaut d'un clip, modifiable par clip
   alert_ratio: 0.8            # alerte Telegram à 80 % du budget
 
+propositions:                 # nombre de visuels draft par lancement ; Michael le change à chaque lancement
+  gratuit: 3                  # modèles gratuits : plusieurs propositions, il garde la meilleure
+  payant: 1                   # modèle payant : une seule par défaut, le coût est multiplié par le nombre
+  max: 4
+
+# Modèles d'image gratuits (aucune facture possible : quota épuisé = refus jusqu'au lendemain).
+# refs : nombre d'images de référence que le modèle lit vraiment.
+images_gratuites:
+  cloudflare:klein-9b:
+    label: FLUX.2 klein 9B (Cloudflare)
+    refs: 4
+    vitesse: quelques secondes
+    forces: lit 4 références à la fois (personnage, tenue, décor), garde bien les visages, suit le prompt
+    limites: références réduites à 512 px, détails fins moyens ; quota du jour partagé avec les autres modèles Cloudflare
+  huggingface:flux2-dev:
+    label: FLUX.2 dev (Hugging Face)
+    refs: 3
+    vitesse: 40 s environ
+    forces: meilleure qualité d'image du gratuit, matières et lumière plus riches, bon pour les décors
+    limites: quota très court (environ 5 images par jour avec le jeton HF), parfois indisponible
+  huggingface:kontext-dev:
+    label: FLUX.1 Kontext (Hugging Face)
+    refs: 1
+    vitesse: 30 s environ
+    forces: retouche d'UNE image existante (changer la lumière, enlever un objet, varier légèrement)
+    limites: ne lit qu'une seule image ; ne sait pas combiner un personnage et une tenue, change les visages
+  cloudflare:flux-2-dev:
+    label: FLUX.2 dev (Cloudflare)
+    refs: 4
+    vitesse: 20 s environ
+    forces: qualité proche de FLUX.2 dev Hugging Face, avec 4 références
+    limites: très gourmand, 2 ou 3 images par jour seulement
+  cloudflare:klein-4b:
+    label: FLUX.2 klein 4B (Cloudflare)
+    refs: 4
+    vitesse: quelques secondes
+    forces: le plus rapide et le moins gourmand, pour des essais en série
+    limites: moins de détails et visages moins fidèles que le 9B
+
+# Quel modèle pour quoi : dans l'ordre conseillé, avec la raison montrée dans la régie.
+# Le premier modèle branché de la liste est présélectionné ; tu peux toujours en choisir un autre.
+# Les modèles payants (fal) demandent ton accord sur le montant avant de partir.
+recommandations:
+  visuel:
+    - [cloudflare:klein-9b, "Le meilleur compromis gratuit : il lit personnage, tenue et décor ensemble."]
+    - [huggingface:flux2-dev, "Plus beau rendu, mais 3 références seulement et peu d'images par jour."]
+    - [nano-banana-2, "Payant. Le plus fiable pour un texte à l'écran (réveil, enseigne) et les visages."]
+    - [nano-banana-pro, "Payant, plus cher. Fidélité maximale quand tout le reste a échoué."]
+    - [cloudflare:klein-4b, "Pour des essais rapides et nombreux, qualité moindre."]
+  feuille_tenue:
+    - [cloudflare:klein-9b, "Lit la canon (visage) et tes photos de tenue ensemble : vue par vue, il garde l'identité."]
+    - [huggingface:flux2-dev, "Rendu plus fin du tissu, mais 3 références et quota court : une feuille par jour."]
+    - [nano-banana-pro, "Payant. Le plus fidèle au visage et à la tenue, pour la feuille définitive."]
+    - [cloudflare:flux-2-dev, "Bonne qualité, mais 2 ou 3 images par jour : une feuille au plus."]
+  personnage:
+    - [cloudflare:klein-9b, "Garde bien le visage à partir de tes images, rapide pour comparer plusieurs têtes."]
+    - [huggingface:flux2-dev, "Peau et cheveux plus naturels, peu d'images par jour."]
+    - [nano-banana-pro, "Payant. La référence pour une canon définitive."]
+  decor:
+    - [huggingface:flux2-dev, "Le plus beau rendu gratuit pour la lumière et les matières d'un lieu."]
+    - [cloudflare:klein-9b, "Rapide, suit bien tes photos d'inspiration."]
+    - [huggingface:kontext-dev, "Si tu pars d'UNE photo du lieu à retoucher (lumière, objet en moins)."]
+    - [seedream-5-lite, "Payant, peu cher : grands espaces et scènes détaillées."]
+  objet:
+    - [cloudflare:klein-9b, "Suit bien la forme et la couleur de tes photos de l'objet."]
+    - [huggingface:kontext-dev, "Pour retoucher UNE photo de l'objet (fond neutre, angle proche)."]
+    - [huggingface:flux2-dev, "Matières plus fines (métal, tissu, verre), peu d'images par jour."]
+  figurant:
+    - [cloudflare:klein-9b, "Rapide et fidèle aux images que tu donnes."]
+    - [huggingface:flux2-dev, "Rendu plus naturel, peu d'images par jour."]
+
 qc:                           # contrôle automatique par un agent avant de te montrer
   images: true                # cohérence du personnage vs la canon
   images_hd: true             # la HD est fidèle au visuel draft validé

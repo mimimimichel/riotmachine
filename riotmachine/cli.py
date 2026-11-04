@@ -287,6 +287,9 @@ def cmd_gen(a) -> None:
     launcher = {"image": production.launch_image, "hd": production.launch_image_hd,
                 "draft": production.launch_draft,
                 "final": production.launch_final, "lipsync": production.launch_lipsync}[a.kind]
+    if a.kind == "image":
+        out(production.launch_image(conn, a.shot, force=a.force, count=a.count))
+        return
     out(launcher(conn, a.shot, force=a.force))
 
 
@@ -559,6 +562,7 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("kind", choices=["image", "hd", "draft", "final", "lipsync"])
     sp.add_argument("shot", type=int)
     sp.add_argument("--force", action="store_true", help="Ignore le budget")
+    sp.add_argument("--count", type=int, help="Visuel : nombre de propositions (défaut : config/models.yaml, propositions)")
     sp.set_defaults(func=cmd_gen)
 
     sp = sub.add_parser("qc", help="Contrôle qualité d'un plan par l'agent")

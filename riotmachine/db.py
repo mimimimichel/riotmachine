@@ -309,6 +309,19 @@ CREATE TABLE IF NOT EXISTS shot_elements (
     PRIMARY KEY (shot_id, element_id)
 );
 
+-- Images d'une tenue : les photos de Michael (tenue portée) et la feuille de référence générée.
+CREATE TABLE IF NOT EXISTS look_images (
+    id INTEGER PRIMARY KEY,
+    look_id INTEGER NOT NULL REFERENCES looks(id) ON DELETE CASCADE,
+    role TEXT NOT NULL CHECK (role IN ('photo','sheet')),
+    status TEXT NOT NULL CHECK (status IN ('generating','proposed','kept','rejected','failed')),
+    path TEXT,
+    prompt TEXT,
+    model_key TEXT,
+    error TEXT,
+    created_at TEXT NOT NULL
+);
+
 -- Dépenses en attente de l'accord de Michael : rien de payant ne part sans lui.
 CREATE TABLE IF NOT EXISTS spend_requests (
     id INTEGER PRIMARY KEY,
@@ -408,6 +421,7 @@ LATER_COLUMNS = {
               ("memoire_status", "TEXT NOT NULL DEFAULT 'none'"),
               ("memoire_sources", "TEXT"),   # ids (JSON) des sources déjà lues par le script doctor
               ("da", "TEXT"),    # direction artistique écrite par Michael : fait foi sur tout le reste
+              ("style_image", "TEXT"),   # style photo ajouté à chaque prompt d'image (vide : style par défaut)
               ("visual_hd", "INTEGER NOT NULL DEFAULT 0")],   # 1 : visuel HD avant la vidéo ; 0 : le visuel validé suffit
     # detail : le prompt détaillé du plan (description courte = `description`)
     # detail_edited : 1 quand Michael l'a modifié à la main (les agents ne le réécrivent plus)
@@ -428,7 +442,8 @@ LATER_COLUMNS = {
     # prompt_status : requested quand une image de départ attend d'être regardée par le décorateur
     # brief : ce que Michael veut tirer de ses images d'inspiration (texte des brouillons)
     # canon_status : requested (le directeur de casting prépare l'étape suivante de la canon), review (Michael choisit)
-    "character_versions": [("canon_status", "TEXT NOT NULL DEFAULT 'none'")],
+    # canon_model : modèle d'image choisi par Michael pour préparer la canon
+    "character_versions": [("canon_status", "TEXT NOT NULL DEFAULT 'none'"), ("canon_model", "TEXT")],
     # manual : 0 = né d'un @ du texte (suit le texte), 1 = ajouté à la main, 2 = posé par le décorateur
     "shot_elements": [("manual", "INTEGER NOT NULL DEFAULT 0")],
     "elements": [("prompt", "TEXT"), ("prompt_agent", "TEXT"), ("prompt_status", "TEXT NOT NULL DEFAULT 'none'"),

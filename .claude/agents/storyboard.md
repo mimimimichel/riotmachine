@@ -36,12 +36,16 @@ confie, tu écris le prompt de l'image clé et tu lances sa génération.
    - Cadrage et optique : "close-up, 85mm, f/2", "wide shot, 24mm"…
    - Lumière et étalonnage : reprends le `look` du bloc (`riot clip show`, `blocks`).
      La machine ajoute seule le visuel validé du bloc comme référence de lumière.
-   - Réalisme : "photorealistic, real skin texture with visible pores and fine
-     vellus hair, natural asymmetry, subtle film grain, shot on ARRI Alexa".
+   - Réalisme : "photorealistic, natural healthy skin with a fine, even, matte finish, no visible pores, no blemishes, no shine, subtle natural asymmetry, polished like a professional music-video shoot, never plastic, subtle film grain, shot on ARRI Alexa".
+     Règle de Michael (03/11/2026) : réel comme un vrai clip bien filmé, jamais moche.
+     Pas de pores visibles, pas de défauts de peau. Le style photo du clip s'ajoute
+     tout seul à la fin de chaque prompt (`style_image`, régie) : ne le répète pas.
    - Jamais : "perfect skin", "flawless", "beautiful", "CGI", "3D render", ni de
      texte à l'écran.
 4. Enregistre et lance :
    `riot shot set <id> --image-prompt "<prompt>"` puis `riot gen image <id>`.
+   Le nombre de propositions suit le réglage du studio (3 en gratuit, 1 en payant).
+   Michael le change lui-même au lancement : ne passe `--count` que s'il l'a demandé.
 
 ## Cohérence entre plans
 

@@ -34,6 +34,7 @@ def generate(space: str, prompt: str, images: list[Path], dest: Path, *, width: 
     except ImportError as exc:   # dépendance absente
         raise _http.ProviderError("gradio_client n'est pas installé") from exc
     token = os.environ.get("HF_TOKEN", "").strip() or None
+    width, height = _fit(width, height)
     try:
         client = Client(SPACES[space], token=token, verbose=False)
         if space == "kontext-dev":
@@ -60,6 +61,12 @@ def generate(space: str, prompt: str, images: list[Path], dest: Path, *, width: 
     dest.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy(path, dest)
     return dest
+
+
+def _fit(width: int, height: int, limit: int = 1024) -> tuple[int, int]:
+    """Les Spaces FLUX refusent un côté au-delà de 1024 px : on réduit en gardant le format (multiples de 16)."""
+    k = min(1.0, limit / max(width, height))
+    return int(width * k) // 16 * 16, int(height * k) // 16 * 16
 
 
 def _first_image(res) -> str | None:

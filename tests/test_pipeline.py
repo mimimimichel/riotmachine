@@ -349,9 +349,9 @@ def test_spend_needs_approval(studio, monkeypatch):
     real_submit = prov.submit
     calls = []
     monkeypatch.setattr(prov, "submit", lambda *a, **k: calls.append(1) or real_submit(*a, **{**k, "force_mock": True}))
-    res = production.launch_image(conn, sid)
+    res = production.launch_image(conn, sid, model="nano-banana-2")      # modèle payant choisi par Michael
     assert res["status"] == "pending" and res["est_usd"] > 0 and not calls
-    assert production.launch_image(conn, sid)["spend_request"] == res["spend_request"]   # pas de doublon
+    assert production.launch_image(conn, sid, model="nano-banana-2")["spend_request"] == res["spend_request"]   # pas de doublon
     assert production.needs_agent(conn, "accord")["reasons"] == [] or "image_todo" not in str(
         production.needs_agent(conn, "accord")["reasons"])
     production.decide_spend(conn, [res["spend_request"]], "approve")
@@ -431,8 +431,10 @@ def test_element_free_drafts(studio, tmp_path, monkeypatch):
         shutil.copy(img, dest)
         return dest
     monkeypatch.setattr(elements, "draft_backends", lambda: [("cloudflare", "klein-9b", "test")])
+    monkeypatch.setattr(routing, "provider_has_key", lambda key: True)
     monkeypatch.setattr(cloudflare, "generate", fake)
-    r = elements.launch_drafts(conn, e["id"], "le canapé vert de la 2e image", 2, background=False)
+    r = elements.launch_drafts(conn, e["id"], "le canapé vert de la 2e image", 2, background=False,
+                               backend="cloudflare:klein-9b")
     assert len(r["images"]) == 2 and r["cost_usd"] == 0
     assert seen["n"] == 2 and "canapé vert" in seen["prompt"]
     ce = elements.clip_elements(conn, "salon")[0]
@@ -594,3 +596,133 @@ def test_canon_pair_flow(studio, tmp_path, monkeypatch):
     kinds = [x[0] for x in conn.execute("SELECT kind FROM character_assets a JOIN character_versions v ON v.id=a.version_id "
                                         "WHERE v.character_slug='rox' AND a.status='kept' ORDER BY a.id")]
     assert kinds == ["canon", "canon_body"]
+
+
+def test_image_proposals_count(studio, monkeypatch):
+    """Michael choisit le nombre de propositions : le coût est multiplié, le plan attend toutes les propositions."""
+    from riotmachine import providers as prov
+    run("init")
+    conn = db.connect()
+    production.create_clip(conn, "Nombre", song=studio["song"], characters=["jj"])
+    production.import_shots(conn, "nombre", [{"t_start": 0, "t_end": 4, "description": "x", "characters": ["jj"]}])
+    conn.execute("UPDATE blocks SET validated=1 WHERE clip_slug=?", ("nombre",))
+    sid = conn.execute("SELECT id FROM shots").fetchone()["id"]
+    production.update_shot(conn, sid, image_prompt="x")
+    monkeypatch.setattr(prov, "simulated", lambda provider="fal": False)
+    monkeypatch.setattr(routing, "provider_has_key", lambda key: True)
+    real_submit = prov.submit
+    calls = []
+    monkeypatch.setattr(prov, "submit", lambda *a, **k: calls.append(1) or real_submit(*a, **{**k, "force_mock": True}))
+    one = production.launch_image(conn, sid, model="nano-banana-2")    # payant : une seule par défaut
+    two = production.launch_image(conn, sid, count=2, model="nano-banana-2")
+    assert one["spend_request"] != two["spend_request"]
+    assert abs(two["est_usd"] - 2 * one["est_usd"]) < 1e-6
+    assert production.launch_image(conn, sid, count=9, model="nano-banana-2")["est_usd"] <= 4 * one["est_usd"] + 1e-6
+    production.decide_spend(conn, [two["spend_request"]], "approve")
+    production.run_approved_spend(conn)
+    assert len(calls) == 2
+    gen = conn.execute("SELECT COUNT(*) n FROM assets WHERE shot_id=? AND kind='image' AND status='generating'", (sid,)).fetchone()["n"]
+    assert gen == 2 and db.get_shot(conn, sid)["status"] == "image_gen"
+    info = production.image_launch_info(db.get_shot(conn, sid))
+    assert info["counts"]["payant"] == 1 and info["counts"]["gratuit"] == 3
+    jobs = [dict(r) for r in conn.execute("SELECT * FROM jobs WHERE target_table='assets' ORDER BY id")]
+    production.on_job_done(conn, jobs[0], {"images": [{"url": "mock://image?label=a"}]})
+    assert db.get_shot(conn, sid)["status"] == "image_gen"          # la deuxième proposition est encore en route
+    production.on_job_done(conn, jobs[1], {"images": [{"url": "mock://image?label=b"}]})
+    ready = conn.execute("SELECT COUNT(*) n FROM assets WHERE shot_id=? AND kind='image' AND status='ready'", (sid,)).fetchone()["n"]
+    assert ready == 2 and db.get_shot(conn, sid)["status"] in ("image_qc", "image_review")
+
+
+def test_change_request_any_step(studio):
+    """Michael demande une modif à n'importe quelle étape du visuel : pas d'erreur, l'orchestrateur la reçoit."""
+    run("init")
+    conn = db.connect()
+    production.create_clip(conn, "Modif", song=studio["song"], characters=["jj"])
+    production.import_shots(conn, "modif", [{"t_start": 0, "t_end": 4, "description": "x", "characters": ["jj"]}])
+    conn.execute("UPDATE blocks SET validated=1 WHERE clip_slug=?", ("modif",))
+    sid = conn.execute("SELECT id FROM shots").fetchone()["id"]
+    for st in ("image_todo", "image_qc", "image_gen", "prompt_todo"):
+        db.set_shot_status(conn, sid, st)
+        assert production.review_shot(conn, sid, "change", "réveil sans texte") == "change_requested"
+    assert len(production.clip_snapshot(conn, "modif")["pending_reviews"]) == 4
+
+
+def test_look_reference_sheet(studio, tmp_path, monkeypatch):
+    """Tenue : Michael dépose la photo portée, la machine crée la feuille, il la garde, elle part en tête."""
+    import shutil as sh
+    import subprocess
+    from riotmachine import elements, look_sheets
+    run("init")
+    conn = db.connect()
+    production.create_look(conn, "jj", "Essai feuille", "blazer bleu marine")
+    photo = tmp_path / "portee.png"
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "color=c=blue:s=64x64", "-frames:v", "1",
+                    str(photo)], check=True)
+    with pytest.raises(look_sheets.LookError):
+        look_sheets.launch_sheet(conn, "jj", "essai-feuille", background=False)      # pas encore de photo
+    production.add_look_image(conn, "jj", "essai-feuille", photo)
+    monkeypatch.setattr(elements, "draft_backends", lambda: [("huggingface", "kontext-dev", "Kontext"),
+                                                             ("cloudflare", "klein-9b", "FLUX.2 klein 9B")])
+    seen = {}
+    def fake(b, text, inputs, out, w, h):
+        assert b[1] != "kontext-dev"                                         # une seule image : écarté
+        seen["inputs"], seen["text"] = inputs, text
+        out.parent.mkdir(parents=True, exist_ok=True); sh.copy(photo, out)
+    monkeypatch.setattr(elements, "_draft_one", fake)
+    monkeypatch.setattr(routing, "provider_has_key", lambda key: True)
+    res = look_sheets.launch_sheet(conn, "jj", "essai-feuille", count=2, background=False, model="cloudflare:klein-9b")
+    assert res["count"] == 2 and "BACK VIEW" in seen["text"] and "blazer bleu marine" in seen["text"]
+    assert "IDENTITY" in seen["text"] and "canon" in str(seen["inputs"][0])   # le visage vient de la canon, en image 1
+    assert any(p.name == "portee.png" for p in seen["inputs"])
+    assert any("feuille-" in p.name and "-face" in p.name for p in seen["inputs"])   # la vue de face guide les autres
+    lk = [x for x in production.studio_looks(conn) if x["slug"] == "jj-essai-feuille"][0]
+    assert len(lk["sheet_props"]) == 2 and lk["sheet"] is None
+    look_sheets.decide(conn, lk["sheet_props"][0]["id"], "keep")
+    refs = look_sheets.refs(conn, "jj", "essai-feuille")
+    assert "feuilles" in str(refs[0]) and refs[1].name == "portee.png"
+    cr = production.character_refs(conn, "jj", 1, "essai-feuille")
+    assert "feuilles" in str(cr[1])                                         # canon d'abord, puis la feuille
+
+
+def test_photo_style_in_prompts(studio):
+    """Le style photo du clip part à la fin de chaque prompt d'image ; vide, c'est le style par défaut."""
+    run("init")
+    conn = db.connect()
+    production.create_clip(conn, "Style", song=studio["song"], characters=["jj"])
+    clip = db.get_clip(conn, "style")
+    assert "no visible pores" in production.with_style("a garden", clip)
+    production.set_style(conn, "style", "Moody night look, neon reflections.")
+    out = production.with_style("a garden", db.get_clip(conn, "style"))
+    assert out.endswith("PHOTO STYLE: Moody night look, neon reflections.")
+    assert production.with_style(out, db.get_clip(conn, "style")) == out     # jamais ajouté deux fois
+
+
+def test_chosen_model_only_and_clear_error(studio, monkeypatch):
+    """Le modèle choisi par Michael est le seul essayé ; s'il échoue, l'erreur le nomme et dit quoi faire."""
+    from riotmachine import image_models
+    from riotmachine.providers import cloudflare, hfspace
+    from riotmachine.providers._http import ProviderError
+    run("init")
+    conn = db.connect()
+    production.create_clip(conn, "Choix", song=studio["song"], characters=["jj"])
+    production.import_shots(conn, "choix", [{"t_start": 0, "t_end": 4, "description": "x", "characters": ["jj"]}])
+    conn.execute("UPDATE blocks SET validated=1 WHERE clip_slug=?", ("choix",))
+    sid = conn.execute("SELECT id FROM shots").fetchone()["id"]
+    production.update_shot(conn, sid, image_prompt="x")
+    monkeypatch.setattr(routing, "provider_has_key", lambda key: True)
+    from riotmachine import providers as prov
+    monkeypatch.setattr(prov, "simulated", lambda provider="fal": False)
+    def quota(*a, **k):
+        raise ProviderError("quota gratuit du jour épuisé")
+    hf_calls = []
+    monkeypatch.setattr(cloudflare, "generate", quota)
+    monkeypatch.setattr(hfspace, "generate", lambda *a, **k: hf_calls.append(1))
+    o = image_models.options("visuel")
+    assert o["default"] == "cloudflare:klein-9b" and o["models"][0]["why"]
+    production.launch_image(conn, sid, approved=True, count=2, model="cloudflare:klein-9b")
+    shot = db.get_shot(conn, sid)
+    assert shot["status"] == "failed" and not hf_calls                       # aucun repli silencieux
+    errs = [r["error"] for r in conn.execute("SELECT error FROM assets WHERE shot_id=? AND status='failed'", (sid,))]
+    assert len(errs) == 2 and all("FLUX.2 klein 9B" in e and "quota" in e and "autre modèle" in e for e in errs)
+    with pytest.raises(production.ProductionError):
+        production.launch_image(conn, sid, approved=True, model="modele-inconnu")
