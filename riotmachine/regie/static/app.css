@@ -750,8 +750,12 @@ textarea { overflow-y: hidden; }
 .sources-box > summary { cursor: pointer; padding: 2px 0; }
 .sources-box { margin-bottom: 16px; }
 @media (max-width: 700px) {
-  .dblock-head { padding: 12px; gap: 8px; }
+  /* en-tête de bloc sur téléphone : titre pleine largeur, pastilles de statut sur la ligne du dessous */
+  .dblock-head { padding: 12px; gap: 8px; flex-wrap: wrap; }
+  .dblock-title { flex: 1 1 calc(100% - 110px); min-width: 60%; }
   .dblock-title b { font-size: 16px; }
+  .dblock-head .pill { flex: none; max-width: 100%; white-space: normal; }
+  .dblock:not(.open) .dblock-int { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
   .dshot-sum { padding-left: 12px; }
 }
 
