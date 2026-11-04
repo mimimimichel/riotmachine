@@ -2911,6 +2911,7 @@ def shot_view(conn: sqlite3.Connection, shot: dict) -> dict:
     except routing.RoutingError:
         s["video_model"], s["fit"] = None, None
     s["waiting"] = shot_waiting(conn, shot)
+    s["owner"] = shot_owner(conn, shot, s["waiting"])
     if s["waiting"] == "spend":
         r = conn.execute("SELECT est_usd FROM spend_requests WHERE shot_id=? AND status='pending' ORDER BY id DESC",
                          (shot["id"],)).fetchone()
@@ -2933,11 +2934,38 @@ def shot_waiting(conn: sqlite3.Connection, shot: dict) -> str | None:
     """Pourquoi un plan à faire n'avance pas : la machine attend Michael, pas un agent."""
     if conn.execute("SELECT 1 FROM spend_requests WHERE shot_id=? AND status='pending'", (shot["id"],)).fetchone():
         return "spend"
-    if shot["status"] == "image_todo":
-        clip = conn.execute("SELECT stage, decors_status FROM clips WHERE slug=?", (shot["clip_slug"],)).fetchone()
-        if clip and clip["stage"] == "production":
-            from . import elements
     return None
+
+
+def shot_owner(conn: sqlite3.Connection, shot: dict, waiting: str | None) -> dict:
+    """R-F1 : qui est attendu sur ce plan (db.STATUS_OWNER, avec les cas particuliers)."""
+    status = shot["status"]
+    who, why = db.STATUS_OWNER.get(status, "agent:orchestrateur"), ""
+    if shot.get("deleted_at"):
+        who, why = "personne", "retiré du découpage"
+    elif not shot_in_production(conn, shot):
+        who, why = "michael", "valider son bloc dans le Découpage"
+    elif waiting == "spend":
+        who, why = "michael", "accord de dépense"
+    elif status == "image_todo" and conn.execute(
+            "SELECT 1 FROM blocks WHERE id=? AND refs_checked=0", (shot.get("block_id"),)).fetchone():
+        who, why = "agent:script-doctor", "vérifier les références du bloc"
+    elif status == "prompt_todo":
+        if shot.get("model_key") and shot.get("video_prompt"):
+            who, why = "agent:orchestrateur", "présenter le plan vidéo (riot shot submit)"
+        elif shot.get("model_key"):
+            who, why = "agent:prompteur", "écrire le prompt vidéo"
+        else:
+            why = "choisir le modèle"
+    elif status == "failed" and shot.get("failed_step") in ("final", "lipsync"):
+        who, why = "agent:finition", f"relancer l'étape {shot.get('failed_step')}"
+    elif status == "change_requested":
+        why = "trier ta demande de modification"
+    elif who == "michael":
+        why = "valider"
+    label = db.OWNER_LABEL.get(who, who)
+    return {"who": who, "name": label, "why": why,
+            "label": "Terminé" if status == "done" else f"En attente de : {label}" + (f" ({why})" if why else "")}
 
 
 def clip_snapshot(conn: sqlite3.Connection, slug: str, compact: bool = False) -> dict:

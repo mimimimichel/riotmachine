@@ -262,6 +262,7 @@ Section à enrichir au fil des clips : une ligne par leçon, avec sa date.
 | Dossier d'un clip | `studio/clips/<clip>/` : `song/`, `dossier/`, `script/`, `storyboard/`, `drafts/`, `finals/`, `montage/` |
 | Personnages | `studio/characters/<slug>/v<N>/` |
 | Base (statuts, validations, coûts) | `studio/riot.db` |
+| Qui est attendu sur un plan (un responsable par statut) | `STATUS_OWNER` dans `riotmachine/db.py`, champ `owner` de chaque plan, « En attente de : … » dans la régie |
 | Historique des changements (qui, quand, avant, après) | table `changes`, `riot history …`, pli « Historique des changements » du détail d'un plan |
 | Sauvegardes avant chaque migration de la base | `studio/backups/riot-<date>-v<n>.db` (`riot db status` les liste) |
 | Vision et exigences du produit | `docs/VISION.md`, `docs/REQUIREMENTS.md` ; une ligne par exigence livrée dans `CHANGELOG.md` |

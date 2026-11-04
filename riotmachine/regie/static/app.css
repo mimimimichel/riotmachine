@@ -114,6 +114,7 @@ main { max-width: 1360px; margin: 0 auto; padding: 24px max(16px, env(safe-area-
 .pill.change { color: var(--magenta); background: var(--magenta-soft); border-color: #ff3fbf55; }
 .pill.failed { color: var(--red); background: var(--red-soft); border-color: #ff4d6655; }
 
+.tag.michael { border-color: var(--amber); color: var(--amber); }
 .tag {
   display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 12px;
   background: var(--panel-2); border: 1px solid var(--line); color: var(--muted);

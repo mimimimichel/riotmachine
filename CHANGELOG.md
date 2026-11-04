@@ -5,6 +5,9 @@ Format : date, identifiant, ce qui change pour Michael.
 
 ## Lot 1 : Fondations
 
+- 2026-11-04 R-F1 : chaque statut de plan a un responsable unique (`STATUS_OWNER`),
+  affiché sur chaque plan et dans la timeline (« En attente de : toi / le storyboard /
+  le fournisseur… », avec la raison) ; `/api/shots/<id>` renvoie `owner`.
 - 2026-11-04 R-A3 : le texte de Michael (`script` d'un plan, `brief` d'un bloc) est
   stocké à part et aucun agent ne peut l'écrire (import refusé, `riot shot set
   --script` interdit). La version de production garde ses mots tels quels ; quand

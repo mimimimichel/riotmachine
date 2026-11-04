@@ -65,6 +65,47 @@ REVIEW_STATUSES = {
     "final_review": "finals",
 }
 
+# R-F1 : un responsable unique par statut, celui qui est attendu. Les cas particuliers
+# (bloc non validé, dépense en attente, références à vérifier, routeur puis prompteur,
+# finition) sont tranchés par production.shot_owner. La régie affiche « En attente de : … ».
+STATUS_OWNER = {
+    "image_todo": "agent:storyboard",
+    "image_gen": "fournisseur",
+    "image_qc": "agent:controleur",
+    "image_review": "michael",
+    "hd_todo": "worker",
+    "hd_gen": "fournisseur",
+    "hd_qc": "agent:controleur",
+    "hd_review": "michael",
+    "prompt_todo": "agent:routeur",
+    "video_review": "michael",
+    "draft_todo": "worker",
+    "draft_gen": "fournisseur",
+    "draft_qc": "agent:controleur",
+    "draft_review": "michael",
+    "final_todo": "worker",
+    "final_gen": "fournisseur",
+    "lipsync_todo": "worker",
+    "lipsync_gen": "fournisseur",
+    "final_review": "michael",
+    "done": "personne",
+    "change_requested": "agent:orchestrateur",
+    "failed": "agent:orchestrateur",
+}
+OWNER_LABEL = {
+    "michael": "toi",
+    "worker": "le worker",
+    "fournisseur": "le fournisseur",
+    "personne": "personne",
+    "agent:orchestrateur": "l'orchestrateur",
+    "agent:script-doctor": "le scénariste",
+    "agent:storyboard": "le storyboard",
+    "agent:controleur": "le contrôleur",
+    "agent:routeur": "le routeur",
+    "agent:prompteur": "le prompteur",
+    "agent:finition": "la finition",
+}
+
 # Statuts qui demandent un agent Claude (le worker réveille l'orchestrateur)
 AGENT_STATUSES = ("image_todo", "image_qc", "hd_qc", "prompt_todo", "draft_qc", "change_requested", "failed")
 

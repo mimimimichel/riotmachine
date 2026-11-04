@@ -292,3 +292,48 @@ def test_r_a3_baseline_michael(studio):
     assert sh["script"] == "JJ court sous la pluie, essoufflée" and sh["prod_outdated"] == 1
     settings = json.loads((Path(production.__file__).parent.parent / ".claude" / "settings.json").read_text())
     assert any("--script" in d for d in settings["permissions"]["deny"])
+
+
+# --- F. Clarté --------------------------------------------------------------------
+
+def test_r_f1_responsable_par_statut(studio):
+    """R-F1 : chaque statut a un responsable unique ; `/api/shots/<id>` renvoie `owner` ;
+    les surcharges (bloc non validé, dépense en attente, références à vérifier) désignent le bon."""
+    from fastapi.testclient import TestClient
+    from riotmachine import cli, production
+    from riotmachine.regie.app import app
+
+    assert set(db.STATUS_OWNER) == set(db.SHOT_STATUSES), "un statut sans responsable"
+    assert set(db.STATUS_OWNER.values()) <= set(db.OWNER_LABEL), "un responsable sans libellé"
+
+    assert cli.main(["init"]) == 0
+    conn = db.connect()
+    db.init_db(conn)
+    production.create_clip(conn, "Qui", song=studio["song"], characters=["jj"])
+    production.import_shots(conn, "qui", {"blocks": [{"name": "B", "shots": [
+        {"t_start": 0, "t_end": 4, "script": "a", "characters": ["jj"]},
+        {"t_start": 4, "t_end": 8, "script": "b", "characters": ["jj"]}]}]}, by="michael")
+    ids = [r["id"] for r in conn.execute("SELECT id FROM shots ORDER BY num")]
+    client = TestClient(app)
+    one = client.get(f"/api/shots/{ids[0]}").json()
+    assert one["owner"]["who"] == "michael" and "bloc" in one["owner"]["why"]   # le bloc n'est pas validé : à lui
+
+    for sid in ids:
+        production.set_cut_ok(conn, sid, True)
+    bid = conn.execute("SELECT id FROM blocks").fetchone()[0]
+    production.validate_block(conn, bid)
+    assert production.shot_view(conn, db.get_shot(conn, ids[0]))["owner"]["who"] == "agent:script-doctor"
+    production.block_refs_checked(conn, "qui", 1, "")
+    assert production.shot_view(conn, db.get_shot(conn, ids[0]))["owner"]["who"] == "agent:storyboard"
+
+    db.set_shot_status(conn, ids[1], "video_review")
+    v = production.shot_view(conn, db.get_shot(conn, ids[1]))["owner"]
+    assert v["who"] == "michael" and v["label"].startswith("En attente de : ")
+    db.set_shot_status(conn, ids[1], "prompt_todo")
+    assert production.shot_view(conn, db.get_shot(conn, ids[1]))["owner"]["who"] == "agent:routeur"
+    production.update_shot(conn, ids[1], model_key="wan-3")
+    assert production.shot_view(conn, db.get_shot(conn, ids[1]))["owner"]["who"] == "agent:prompteur"
+    db.set_shot_status(conn, ids[1], "draft_gen")
+    assert production.shot_view(conn, db.get_shot(conn, ids[1]))["owner"]["who"] == "fournisseur"
+    db.update(conn, "shots", ids[1], {"status": "failed", "failed_step": "lipsync"})
+    assert production.shot_view(conn, db.get_shot(conn, ids[1]))["owner"]["who"] == "agent:finition"

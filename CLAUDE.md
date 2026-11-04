@@ -65,7 +65,8 @@ dossier du clip (morceau, voix, pitch, concept, dossier de réalisation, paroles
 Un clip compte souvent des dizaines de plans (60 et plus), regroupés en **blocs**
 (intro, couplet 1, refrain…). Chaque plan avance à son rythme, plan par plan.
 
-Statuts d'un plan et qui s'en occupe :
+Statuts d'un plan et qui s'en occupe (la table `STATUS_OWNER` de `riotmachine/db.py`
+fait foi, la régie affiche « En attente de : … » sur chaque plan) :
 
 | Statut | Qui agit |
 |---|---|

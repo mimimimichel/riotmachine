@@ -950,7 +950,7 @@ function renderTile(s, clip) {
       </div>
       <div class="info">
         <p class="desc">${mentionHtml(s.script ?? s.description)}${s.prod_outdated ? ` <span class="tag" title="Ton texte a changé : le scénariste met la version de production à jour">production à mettre à jour</span>` : ""}</p>
-        <div class="foot">${s.en_production ? `${led(st)}<span>${esc(statusLabel(s))}</span>`
+        <div class="foot">${s.en_production ? `${led(st)}<span>${esc(statusLabel(s))}</span>${ownerTag(s)}`
           : `${led("wait")}<span>${clip.stage === "decoupage_review" ? "Attend la validation du découpage" : "Découpage en préparation"}</span>`}</div>
         <div class="foot"><span class="mono" style="font-size:11px">${tc(s.t_start)} → ${tc(s.t_end)}</span>
           <span class="steps-mini">${steps}</span></div>
@@ -985,7 +985,7 @@ function renderPlans(clip) {
     const toReview = shots.filter((s) => shotState(s) === "review");
     const gates = {};
     toReview.forEach((s) => { const g = gateOf(s); gates[g] = (gates[g] || 0) + 1; });
-    const leds = shots.map((s) => `<span class="led ${shotState(s)}" title="Plan ${s.num} · ${esc(statusLabel(s))}"></span>`).join("");
+    const leds = shots.map((s) => `<span class="led ${shotState(s)}" title="Plan ${s.num} · ${esc(statusLabel(s))}${s.owner ? ` · ${esc(s.owner.label)}` : ""}"></span>`).join("");
     const a = shots.length ? shots[0].t_start : 0; const z = shots.length ? shots[shots.length - 1].t_end : 0;
     const bulk = Object.entries(gates).filter(([g]) => g !== "hd" && APPROVE_LABEL[g]).map(([g, n]) => {
       const cost = g === "videoplan" ? shots.filter((s) => s.status === "video_review").reduce((t, s) => t + ((s.estimate || {}).cost_total_usd || 0), 0) : 0;
@@ -1165,7 +1165,7 @@ function renderDrawer() {
     </div>
     <div class="drawer-body">
       <div class="stack" style="gap:8px">
-        <div class="row">${pill(statusLabel(shot), st)}
+        <div class="row">${pill(statusLabel(shot), st)}${ownerTag(shot)}
           <span class="spacer"></span><button class="btn small ghost" data-playshot="${shot.id}">▶ Lire dans le morceau</button></div>
         <p>${mentionHtml(shot.script ?? shot.description)}</p>
         ${prodVersion(shot.description, shot.script ?? shot.description, shot.prod_outdated)}
@@ -1911,6 +1911,14 @@ function renderDecoupageRead(clip) {
           <br>${fitBadge(s.fit)}</span>
         <span>${s.singing ? "♪" : ""}</span></div>`).join("")}</div>`;
   }).join("") + `<p class="hint">Le découpage est validé : pour changer un plan, ouvre-le et demande une modif.</p>` + renderDeletedShots(clip);
+}
+
+/* R-F1 : qui est attendu sur ce plan (db.STATUS_OWNER, calculé par la régie) */
+function ownerTag(shot) {
+  const o = shot.owner;
+  if (!o || shot.status === "done") return "";
+  const mine = o.who === "michael";
+  return `<span class="tag ${mine ? "michael" : ""}" title="${esc(o.label)}">${mine ? "à toi" : esc(o.name)}${o.why ? ` · ${esc(o.why)}` : ""}</span>`;
 }
 
 /* R-A3 : la version de production (écrite par le scénariste) sous le texte de Michael, quand elle en diffère */
