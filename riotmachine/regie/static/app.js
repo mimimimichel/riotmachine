@@ -195,6 +195,26 @@ function toast(msg, kind = "ok") {
   toast._t = setTimeout(() => { t.className = ""; }, kind === "err" ? 5000 : 2600);
 }
 
+// Copie un texte dans le presse-papiers. navigator.clipboard n'existe qu'en HTTPS ;
+// la régie est servie en HTTP (Tailscale), on passe donc par un textarea
+// temporaire et execCommand, qui marchent sur Android, iOS et desktop.
+async function copyText(txt) {
+  if (navigator.clipboard && window.isSecureContext) {
+    try { await navigator.clipboard.writeText(txt); return true; } catch (e) { /* on retombe sur execCommand */ }
+  }
+  const ta = document.createElement("textarea");
+  ta.value = txt;
+  ta.setAttribute("readonly", "");
+  ta.style.cssText = "position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;font-size:16px";
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.setSelectionRange(0, txt.length);
+  let ok = false;
+  try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+  document.body.removeChild(ta);
+  return ok;
+}
+
 async function api(path, opts = {}) {
   const init = { ...opts };
   if (opts.json !== undefined) {
@@ -1463,8 +1483,10 @@ function renderPlanVideo(shot, isGate) {
       <h3>Prompt vidéo</h3>
       ${isGate ? `<textarea id="vp-${shot.id}" rows="6">${esc(shot.video_prompt || "")}</textarea>
         <div class="row"><button class="btn small" data-saveprompt="${shot.id}">Enregistrer le prompt</button>
+        <button class="btn small" data-copyprompt="vp-${shot.id}">Copier</button>
         <span class="hint">Le prompt est en anglais, c'est la langue des modèles.</span></div>`
-        : `<pre class="text">${esc(shot.video_prompt || "")}</pre>`}
+        : `<pre class="text" id="vp-${shot.id}">${esc(shot.video_prompt || "")}</pre>
+        <div class="row"><button class="btn small" data-copyprompt="vp-${shot.id}">Copier le prompt</button></div>`}
       ${shot.negative_prompt ? `<p class="hint">À éviter : ${esc(shot.negative_prompt)}</p>` : ""}
     </div>
     ${isGate ? `<div class="actionbox"><h3>À toi de valider</h3>
@@ -1513,8 +1535,9 @@ async function drawerClick(ev) {
     if (d.copyprompt) {
       const node = document.getElementById(d.copyprompt);
       const txt = (node && (node.value !== undefined ? node.value : node.textContent)) || "";
-      try { await navigator.clipboard.writeText(txt); toast("Prompt copié"); }
-      catch (e) { const r = document.createRange(); r.selectNodeContents(document.getElementById(d.copyprompt)); getSelection().removeAllRanges(); getSelection().addRange(r); toast("Sélectionné : copie-le avec le menu"); }
+      if (!txt.trim()) { toast("Pas de prompt à copier", "err"); return; }
+      if (await copyText(txt)) toast("Prompt copié");
+      else toast("Copie refusée par le navigateur", "err");
       return;
     }
     if (d.propcount) {

@@ -5,6 +5,9 @@ Format : date, identifiant, ce qui change pour Michael.
 
 ## Lot 1 : Fondations
 
+- 2026-11-05 correctif régie : « Copier le prompt » (image, vidéo, plan vidéo à valider)
+  copie le texte même en HTTP ; avant, le navigateur refusait et l'appui long prenait
+  l'image voisine. Un bouton Copier s'ajoute au prompt vidéo du plan à valider.
 - 2026-11-04 R-B5 (début, avancé du lot 3 à la demande de Michael) : dans un plan, un @ ou
   une puce de référence ouvre la fiche de la référence (décor, objet, figurant, tenue,
   personnage) ; un bouton flottant « Retour au plan N » ramène au plan en cours
