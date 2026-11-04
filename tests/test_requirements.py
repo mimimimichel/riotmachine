@@ -337,3 +337,30 @@ def test_r_f1_responsable_par_statut(studio):
     assert production.shot_view(conn, db.get_shot(conn, ids[1]))["owner"]["who"] == "fournisseur"
     db.update(conn, "shots", ids[1], {"status": "failed", "failed_step": "lipsync"})
     assert production.shot_view(conn, db.get_shot(conn, ids[1]))["owner"]["who"] == "agent:finition"
+
+
+# --- B. Découpage et plans ------------------------------------------------------
+
+def test_r_b5_navigation_vers_reference(studio):
+    """R-B5 (début) : un plan expose ses références avec leur slug, la régie en fait des liens vers la
+    fiche de la référence (route .../decors/ref/<slug>) avec un bouton de retour au plan.
+    Le critère complet (block, script, description, script_notes, reviews, references, history) arrive au lot 3."""
+    from fastapi.testclient import TestClient
+    from riotmachine import cli, elements, production
+    from riotmachine.regie.app import app
+
+    assert cli.main(["init"]) == 0
+    conn = db.connect()
+    db.init_db(conn)
+    production.create_clip(conn, "Nav", song=studio["song"], characters=["jj"])
+    elements.create(conn, "nav", "decor", "Jardin de JJ", description="le jardin")
+    production.import_shots(conn, "nav", {"blocks": [{"name": "B", "shots": [
+        {"t_start": 0, "t_end": 4, "script": "@jj dans le @jardin-de-jj", "characters": ["jj"]}]}]}, by="michael")
+    sid = conn.execute("SELECT id FROM shots").fetchone()[0]
+    shot = TestClient(app).get(f"/api/shots/{sid}").json()
+    assert [e["slug"] for e in shot["elements"]] == ["jardin-de-jj"]
+    assert shot["script"] == "@jj dans le @jardin-de-jj"
+
+    js = (Path(production.__file__).parent / "regie" / "static" / "app.js").read_text()
+    assert 'sub === "ref"' in js and "goToRef" in js and "backbtn" in js
+    assert 'id="look-${esc(lk.slug)}"' in js and "focusRefTarget" in js

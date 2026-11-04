@@ -359,8 +359,11 @@ async function router() {
       const sameView = lastRoute === `clip/${arg}/${tab || ""}` && state.clip && state.clip.slug === arg;
       lastRoute = `clip/${arg}/${tab || ""}`;
       state.shotId = sub === "p" && shot ? +shot : null;
-      if (sameView) { renderDrawer(); return; }
+      if (sub === "ref" && shot) state.refTarget = shot;
+      if (sameView) { renderDrawer(); if (state.refTarget && state.tab === "decors") loadDecors(state.clip); focusShotCard(); updateBackBtn(); return; }
       await showClip(arg, tab);
+      focusShotCard();
+      updateBackBtn();
       return;
     }
     lastRoute = hash;
@@ -372,6 +375,7 @@ async function router() {
     else if (page === "depenses") { setNav("depenses"); await showSpend(); }
     else if (page === "crew") { setNav("crew"); await showCrew(arg); }
     else { setNav("studio"); await showStudio(); }
+    updateBackBtn();
   } catch (e) {
     $view.innerHTML = `<p class="empty">${esc(e.message)}</p>`;
   }
@@ -3510,7 +3514,7 @@ async function loadDecors(clip, keep = false) {
     <section class="elsection k-tenue" style="margin-top:18px"><div class="elsection-h"><h2>Tenues</h2>
         <span class="hint">Les tenues de ce clip : créées pour lui, ou reprises d'un autre clip en les citant. Une tenue se cite partout avec
           @personnage-tenue, qui dit aussi qui la porte. Le scénariste les crée en écrivant les plans.</span></div>
-      ${(d.looks || []).map((lk) => `<div class="panel stack lookcard" style="margin-top:10px">
+      ${(d.looks || []).map((lk) => `<div class="panel stack lookcard" style="margin-top:10px" id="look-${esc(lk.slug)}">
           <div class="row" style="gap:8px"><b>${esc(lk.name)}</b><span class="mono hint">@${esc(lk.slug)}</span><span class="spacer"></span>
             ${lk.here ? "" : `<span class="pill wait">reprise ${lk.clip ? `de « ${esc(lk.clip)} »` : "(tenue signature)"}</span>`}
             ${lk.cited ? "" : `<span class="pill wait">pas encore citée dans un plan</span>`}</div>
@@ -3539,6 +3543,7 @@ async function loadDecors(clip, keep = false) {
 
       <div class="row"><button class="btn go" data-elnew>Ajouter</button><span class="hint">Tu y déposeras ton image de départ ensuite.</span></div>
     </section>`;
+  focusRefTarget(clip, d);
   box.querySelectorAll("details.elcard").forEach((el) => el.addEventListener("toggle", () => {
     const set = new Set(prefs("elopen:" + clip.slug) || []);
     if (el.open) set.add(el.dataset.elid); else set.delete(el.dataset.elid);
@@ -3731,7 +3736,7 @@ function refsCheck(desc, detail, shotId, refsOk) {
   return `<div class="refscheck"><span class="hint">Références envoyées au modèle :</span>${slugs.map((sl) => {
     const e = idx[sl];
     if (!e) return `<span class="refchip bad" title="Aucun personnage ni élément ne s'appelle @${esc(sl)} : renomme le @ ou crée l'élément">⚠ @${esc(sl)} introuvable</span>`;
-    return `<span class="refchip k-${e.kind}">${e.thumb ? `<img src="${media(e.thumb)}" alt="">` : ""}<b>${esc(e.name)}</b>
+    return `<span class="refchip k-${e.kind}" data-go="${e.kind}:${esc(sl)}" title="Ouvrir la référence">${e.thumb ? `<img src="${media(e.thumb)}" alt="">` : ""}<b>${esc(e.name)}</b>
       <span class="${e.sent ? (e.sent === "brouillon" ? "warn" : "") : "bad"}">${e.sent ? SENT_LABEL[e.sent] : e.kind === "tenue" ? "pas de photo : la description seule" : "aucune image : la fiche seule"}</span></span>`;
   }).join("")}</div>`;
 }
@@ -3739,7 +3744,85 @@ function refsCheck(desc, detail, shotId, refsOk) {
 function mentionHtml(text) {
   const idx = Object.fromEntries(mentionables().map((e) => [e.slug, e]));
   return esc(text || "").replace(/@([a-z0-9][a-z0-9-]*[a-z0-9]|[a-z0-9])/g, (m, slug) =>
-    idx[slug] ? `<span class="mention k-${idx[slug].kind}" title="@${slug}">${esc(idx[slug].name)}</span>` : m);
+    idx[slug] ? `<span class="mention k-${idx[slug].kind}" data-go="${idx[slug].kind}:${slug}" title="@${slug} · ouvrir la référence">${esc(idx[slug].name)}</span>` : m);
+}
+
+/* R-B5 : d'un plan à sa référence, et retour. Un @ ou une puce de référence ouvre la page de la
+   référence (personnage, tenue, décor…) ; un bouton flottant ramène au plan en cours d'édition. */
+function goToRef(go, from) {
+  const [kind, slug] = go.split(":");
+  const clip = state.clip;
+  let label = "la page précédente", shotId = null;
+  const card = from.closest(".dshot");
+  if (card && state.editor) {
+    const [bi, si] = card.id.replace("dshot-", "").split(":").map(Number);
+    const sh = state.editor[bi]?.shots[si];
+    const n = card.querySelector(".dshot-n")?.textContent?.trim();
+    label = `plan ${n || ""}`.trim() + " (découpage)"; shotId = sh?.id || null;
+  } else if (state.shotId) {
+    const sh = (clip?.shots || []).find((x) => x.id === state.shotId);
+    label = `plan ${sh ? sh.num : ""}`.trim(); shotId = state.shotId;
+  }
+  state.back = { hash: location.hash, label, shotId, tab: state.tab };
+  if (kind === "perso") location.hash = `#/personnages/${encodeURIComponent(slug)}`;
+  else if (clip) location.hash = `#/clip/${encodeURIComponent(clip.slug)}/decors/ref/${encodeURIComponent(slug)}`;
+  updateBackBtn();
+}
+document.addEventListener("click", (e) => {
+  const m = e.target.closest(".mention[data-go], .refchip[data-go]");
+  if (!m) return;
+  e.preventDefault(); e.stopPropagation();
+  goToRef(m.dataset.go, m);
+}, true);
+
+function updateBackBtn() {
+  let btn = document.getElementById("backbtn");
+  if (!btn) {
+    btn = document.createElement("button");
+    btn.id = "backbtn"; btn.className = "btn go";
+    btn.addEventListener("click", () => {
+      const b = state.back; state.back = null; btn.hidden = true;
+      if (!b) return;
+      state.focusShot = b.shotId;
+      if (location.hash === b.hash) router(); else location.hash = b.hash;
+    });
+    document.body.appendChild(btn);
+  }
+  const b = state.back;
+  btn.hidden = !b || location.hash === b.hash;
+  if (b) btn.textContent = `← Retour au ${b.label}`;
+}
+
+/* après un retour : ouvrir et montrer le plan d'où l'on venait */
+function focusShotCard() {
+  const id = state.focusShot;
+  if (!id) return;
+  state.focusShot = null;
+  if (state.tab === "decoupage" && state.editor) {
+    for (let bi = 0; bi < state.editor.length; bi++) {
+      const si = state.editor[bi].shots.findIndex((x) => x.id === id);
+      if (si >= 0) {
+        state.editor[bi]._open = true; state.editor[bi].shots[si]._open = true;
+        renderClip();
+        setTimeout(() => document.getElementById(`dshot-${bi}:${si}`)?.scrollIntoView({ block: "center", behavior: "smooth" }), 50);
+        return;
+      }
+    }
+  }
+}
+
+/* à l'arrivée sur Références depuis un @ : ouvrir la fiche visée et la montrer */
+function focusRefTarget(clip, d) {
+  const slug = state.refTarget;
+  if (!slug) return;
+  state.refTarget = null;
+  const el = (d.elements || []).find((e) => e.slug === slug);
+  let node = null;
+  if (el) {
+    node = document.getElementById(`el-${el.id}`);
+    if (node) { node.open = true; prefs("elopen:" + clip.slug, [...new Set([...(prefs("elopen:" + clip.slug) || []), String(el.id)])]); }
+  } else node = document.getElementById(`look-${slug}`);
+  if (node) setTimeout(() => node.scrollIntoView({ block: "start", behavior: "smooth" }), 50);
 }
 
 const mention = { box: null, ta: null, start: 0, items: [], sel: 0 };

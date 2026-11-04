@@ -669,6 +669,10 @@ textarea { overflow-y: hidden; }
 .elchip .x { background: none; border: 0; color: var(--muted); cursor: pointer; padding: 2px 4px; font-size: 13px; }
 .shot-els > .row > select { background: #14121d; color: inherit; border: 1px solid var(--line); border-radius: 8px; padding: 4px 6px; }
 .mention { color: var(--k); background: var(--k-soft); border-radius: 5px; padding: 0 4px; white-space: nowrap; }
+.mention[data-go], .refchip[data-go] { cursor: pointer; }
+.mention[data-go]:hover { text-decoration: underline; }
+#backbtn { position: fixed; left: 12px; bottom: 14px; z-index: 60; box-shadow: 0 6px 24px #0009; max-width: calc(100vw - 24px); }
+#backbtn[hidden] { display: none; }
 .mention-menu { position: fixed; z-index: 200; width: 290px; max-width: calc(100vw - 16px); max-height: 300px; overflow: auto;
   background: var(--raise); border: 1px solid var(--line-2); border-radius: 10px; box-shadow: 0 10px 30px #000a; padding: 4px; }
 .mention-menu .mi { display: flex; gap: 8px; align-items: center; padding: 6px; border-radius: 8px; cursor: pointer; }

@@ -5,6 +5,10 @@ Format : date, identifiant, ce qui change pour Michael.
 
 ## Lot 1 : Fondations
 
+- 2026-11-04 R-B5 (début, avancé du lot 3 à la demande de Michael) : dans un plan, un @ ou
+  une puce de référence ouvre la fiche de la référence (décor, objet, figurant, tenue,
+  personnage) ; un bouton flottant « Retour au plan N » ramène au plan en cours
+  d'édition, rouvert à sa place.
 - 2026-11-04 R-F1 : chaque statut de plan a un responsable unique (`STATUS_OWNER`),
   affiché sur chaque plan et dans la timeline (« En attente de : toi / le storyboard /
   le fournisseur… », avec la raison) ; `/api/shots/<id>` renvoie `owner`.
