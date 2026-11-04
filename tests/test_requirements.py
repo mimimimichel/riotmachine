@@ -49,3 +49,21 @@ def test_r_g3_migrations_idempotentes(studio):
     status = db.schema_status(conn=db.connect())
     assert status["version"] == db.SCHEMA_VERSION
     assert status["sauvegardes"] and status["migrations"]
+
+
+def test_r_g2_hook_et_tests_nommes():
+    """R-G2 : hook pre-commit installé, et chaque exigence du CHANGELOG a son test `test_r_<id>_`."""
+    import re
+    from pathlib import Path
+    repo = Path(__file__).resolve().parent.parent
+    hook = repo / "deploy" / "hooks" / "pre-commit"
+    assert hook.is_file() and hook.stat().st_mode & 0o111, "deploy/hooks/pre-commit manquant ou non exécutable"
+    assert "pytest" in hook.read_text()
+    installed = repo / ".git" / "hooks" / "pre-commit"
+    if (repo / ".git").exists():
+        assert installed.exists(), "hook non installé : bash deploy/install-hooks.sh"
+        assert installed.resolve() == hook.resolve()
+    delivered = set(re.findall(r"\bR-([A-G]\d+)\b", (repo / "CHANGELOG.md").read_text()))
+    tests = "\n".join(p.read_text() for p in (repo / "tests").glob("test_*.py"))
+    missing = sorted(i for i in delivered if not re.search(rf"def test_r_{i.lower()}_", tests))
+    assert not missing, f"exigences livrées sans test nommé : {missing}"

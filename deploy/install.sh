@@ -35,6 +35,9 @@ if [ ! -f .env ]; then
   echo "== .env créé : remplis FAL_KEY et Telegram (nano .env)"
 fi
 
+echo "== Hooks git (pytest avant chaque commit)"
+bash deploy/install-hooks.sh
+
 echo "== Base et référentiel"
 .venv/bin/riot init
 

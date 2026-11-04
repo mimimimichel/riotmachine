@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Hook pre-commit (R-G2) : pytest doit être vert avant tout commit.
+# Installé par `bash deploy/install-hooks.sh` (lien symbolique dans .git/hooks).
+# Pour un commit sans tests (urgence) : RIOT_SKIP_TESTS=1 git commit ...
+set -euo pipefail
+REPO="$(git rev-parse --show-toplevel)"
+cd "$REPO"
+if [ "${RIOT_SKIP_TESTS:-0}" = "1" ]; then
+  echo "pre-commit : tests sautés (RIOT_SKIP_TESTS=1)"
+  exit 0
+fi
+PY=".venv/bin/python"
+[ -x "$PY" ] || PY="python3"
+echo "pre-commit : pytest (environ une minute)…"
+if ! "$PY" -m pytest -q -x -p no:cacheprovider; then
+  echo
+  echo "pre-commit : des tests échouent, commit refusé. Corrige-les dans ce commit (R-G2)."
+  exit 1
+fi

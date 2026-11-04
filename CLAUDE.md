@@ -154,3 +154,16 @@ riot character show <slug> | riot character gen <slug> ... | riot character pack
   par lots, délègue aux agents spécialisés avec l'outil de sous-agents (Agent).
 - Termine chaque passage par un court résumé de ce qui a été fait et de ce qui
   attend Michael. Les notifications de validation partent toutes seules.
+
+## Faire évoluer la machine (pas la production)
+
+`docs/VISION.md` et `docs/REQUIREMENTS.md` font foi sur le produit (R-G1).
+Une fonctionnalité se code seulement si elle correspond à une exigence ; une
+idée nouvelle s'écrit d'abord dans `REQUIREMENTS.md`. Méthode (R-G5) : lot par
+lot, plan proposé à Michael avant de coder, puis pour chaque exigence un test
+nommé `test_r_<id>_…` dans `tests/test_requirements.py`, le code, une ligne
+dans `CHANGELOG.md`, la mise à jour de `PROCESS.md`, de ce fichier et des
+consignes d'agents si le process change. `pytest` doit être vert avant chaque
+commit : le hook `deploy/hooks/pre-commit` le garantit (`bash
+deploy/install-hooks.sh` après un clone). Les messages de commit citent les
+identifiants d'exigence.
