@@ -21,7 +21,7 @@ from .settings import get_settings
 # numérotées (SCHEMA + LATER_COLUMNS, idempotents). Chaque version suivante est une
 # fonction de MIGRATIONS, rejouable sans effet, précédée d'une sauvegarde de la base.
 BASELINE_VERSION = 4
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 
 # --- Cycle de vie ---------------------------------------------------------
 
@@ -496,9 +496,16 @@ def _migrate_v6(conn: sqlite3.Connection) -> None:
     conn.execute("CREATE INDEX IF NOT EXISTS idx_changes_row ON changes(table_name, row_id, id)")
 
 
+def _migrate_v7(conn: sqlite3.Connection) -> None:
+    """R-A2 : suppression logique d'un plan qui a des assets (deleted_at), restaurable."""
+    if "deleted_at" not in _columns(conn, "shots"):
+        conn.execute("ALTER TABLE shots ADD COLUMN deleted_at TEXT")
+
+
 MIGRATIONS = {
     5: _migrate_v5,
     6: _migrate_v6,
+    7: _migrate_v7,
 }
 
 
@@ -696,6 +703,9 @@ def get_shot(conn: sqlite3.Connection, shot_id: int) -> dict[str, Any]:
     return shot
 
 
+LIVE = "deleted_at IS NULL"   # plans présents dans le découpage (R-A2 : un plan retiré avec assets reste en base)
+
+
 def set_shot_status(conn: sqlite3.Connection, shot_id: int, status: str, by: str | None = None,
                     reason: str | None = None) -> None:
     if status not in SHOT_STATUSES:
@@ -785,17 +795,20 @@ def update_where(conn: sqlite3.Connection, table: str, where: str, params: tuple
     return sum(1 for k in keys if update(conn, table, k, fields, by=by, reason=reason))
 
 
-def free_shot_numbers(conn: sqlite3.Connection, clip_slug: str) -> None:
+def free_numbers(conn: sqlite3.Connection, table: str, clip_slug: str) -> None:
     """Étape transitoire d'une renumérotation (num unique par clip) : pas un changement, pas journalisée."""
-    conn.execute("UPDATE shots SET num=-id WHERE clip_slug=?", (clip_slug,))
+    assert table in ("shots", "blocks")
+    conn.execute(f"UPDATE {table} SET num=-id WHERE clip_slug=?", (clip_slug,))
 
 
-def renumber_shot(conn: sqlite3.Connection, shot_id: int, num: int, old_num: int | None, by: str | None = None) -> None:
-    """Pose le numéro final après `free_shot_numbers` ; journalisé seulement s'il a changé."""
-    conn.execute("UPDATE shots SET num=? WHERE id=?", (num, shot_id))
+def renumber(conn: sqlite3.Connection, table: str, row_id: int, num: int, old_num: int | None,
+             by: str | None = None) -> None:
+    """Pose le numéro final après `free_numbers` ; journalisé seulement s'il a changé."""
+    assert table in ("shots", "blocks")
+    conn.execute(f"UPDATE {table} SET num=? WHERE id=?", (num, row_id))
     if old_num is not None and old_num != num:
         conn.execute("INSERT INTO changes (table_name, row_id, field, old, new, author, reason, created_at) VALUES (?,?,?,?,?,?,?,?)",
-                     ("shots", str(shot_id), "num", str(old_num), str(num), by or _ACTOR, "renuméroté", now()))
+                     (table, str(row_id), "num", str(old_num), str(num), by or _ACTOR, "renuméroté", now()))
 
 
 def touch(conn: sqlite3.Connection, table: str, key: Any) -> None:

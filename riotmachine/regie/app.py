@@ -66,7 +66,7 @@ def overview() -> dict[str, Any]:
     for c in clips:
         c["cost_usd"] = round(db.clip_cost(conn, c["slug"]), 2)
         counts = {r["status"]: r["n"] for r in conn.execute(
-            "SELECT status, COUNT(*) n FROM shots WHERE clip_slug=? GROUP BY status", (c["slug"],))}
+            "SELECT status, COUNT(*) n FROM shots WHERE clip_slug=? AND deleted_at IS NULL GROUP BY status", (c["slug"],))}
         c["status_counts"] = counts
         c["shots"] = sum(counts.values())
         c["to_review"] = sum(counts.get(s, 0) for s in db.REVIEW_STATUSES) + (
@@ -337,6 +337,16 @@ def shot(shot_id: int) -> dict[str, Any]:
         return production.shot_view(conn, db.get_shot(conn, shot_id))
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
+
+
+@app.post("/api/shots/{shot_id}/restore")
+def restore_shot(shot_id: int) -> dict[str, Any]:
+    """Remet dans le découpage un plan retiré (R-A2)."""
+    try:
+        production.restore_shot(_conn(), shot_id)
+    except (production.ProductionError, LookupError) as exc:
+        raise _error(exc)
+    return {"ok": True}
 
 
 @app.get("/api/shots/{shot_id}/history")
@@ -1002,7 +1012,7 @@ def clip_elements(slug: str) -> dict[str, Any]:
     spend = [r for r in production.spend_requests(conn, "pending") if r["action"] == "element_image"
              and r["clip_slug"] == slug]
     shots = [{"id": r["id"], "num": r["num"], "description": r["description"]} for r in
-             conn.execute("SELECT id, num, description FROM shots WHERE clip_slug=? ORDER BY num", (slug,))]
+             conn.execute("SELECT id, num, description FROM shots WHERE clip_slug=? AND deleted_at IS NULL ORDER BY num", (slug,))]
     key, mcfg, cost = elements.hd_model()
     return {"elements": elements.clip_elements(conn, slug), "decors_status": clip.get("decors_status"),
             "spend": spend, "shots": shots, "hd_cost": round(cost, 3), "hd_model": mcfg.get("label", key),

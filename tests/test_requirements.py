@@ -117,3 +117,100 @@ def test_r_a4_historique(studio):
         if hits:
             direct[p.name] = hits
     assert not direct, f"UPDATE directs à passer par db.update : {direct}"
+
+
+def test_r_a2_identifiants_stables(studio, monkeypatch):
+    """R-A2 : une image sur le plan 3, la description du plan 2 modifiée et le découpage réimporté :
+    le plan 3 garde son id, son image et son statut. Blocs appariés par id, champ omis conservé,
+    suppression logique d'un plan qui a des assets, restauration."""
+    from riotmachine import cli, production, routing
+    from riotmachine import providers as prov
+
+    assert cli.main(["init"]) == 0
+    conn = db.connect()
+    db.init_db(conn)
+    production.create_clip(conn, "Stable", song=studio["song"], characters=["jj"])
+    slug = "stable"
+    dec = {"blocks": [
+        {"name": "Couplet", "shots": [
+            {"t_start": 0, "t_end": 4, "description": "plan un", "framing": "CU", "characters": ["jj"]},
+            {"t_start": 4, "t_end": 8, "description": "plan deux", "characters": ["jj"]}]},
+        {"name": "Refrain", "shots": [
+            {"t_start": 8, "t_end": 12, "description": "plan trois", "characters": ["jj"]}]},
+    ]}
+    production.import_shots(conn, slug, dec, by="michael")
+    blocks = production.decoupage(conn, slug)
+    ids = {sh["num"]: sh["id"] for b in blocks for sh in b["shots"]}
+    bids = {b["name"]: b["id"] for b in blocks}
+    assert sorted(ids) == [1, 2, 3]
+
+    # le refrain part en production : une image est générée sur le plan 3
+    production.set_cut_ok(conn, ids[3], True)
+    production.validate_block(conn, bids["Refrain"])
+    production.block_refs_checked(conn, slug, 2, "")
+    production.update_shot(conn, ids[3], image_prompt="x")
+    monkeypatch.setattr(prov, "simulated", lambda provider="fal": False)
+    monkeypatch.setattr(routing, "provider_has_key", lambda key: True)
+    real_submit = prov.submit
+    monkeypatch.setattr(prov, "submit", lambda *a, **k: real_submit(*a, **{**k, "force_mock": True}))
+    production.launch_image(conn, ids[3], approved=True, model="nano-banana-2", count=1)
+    shot3 = db.get_shot(conn, ids[3])
+    assert shot3["status"] == "image_gen"
+    asset = db.latest_asset(conn, ids[3], "image")
+    assert asset
+
+    # Michael modifie la description du plan 2 et réenregistre, sans renvoyer le cadrage du plan 1
+    dec2 = {"blocks": [
+        {"id": bids["Couplet"], "name": "Couplet", "shots": [
+            {"id": ids[1], "t_start": 0, "t_end": 4, "description": "plan un", "characters": ["jj"]},
+            {"id": ids[2], "t_start": 4, "t_end": 8, "description": "plan deux, revu", "characters": ["jj"]}]},
+        {"id": bids["Refrain"], "name": "Refrain", "shots": [
+            {"id": ids[3], "t_start": 8, "t_end": 12, "description": "plan trois", "characters": ["jj"]}]},
+    ]}
+    production.import_shots(conn, slug, dec2, by="michael")
+    after = {sh["num"]: sh for b in production.decoupage(conn, slug) for sh in b["shots"]}
+    assert after[3]["id"] == ids[3] and after[3]["status"] == "image_gen"
+    assert db.latest_asset(conn, ids[3], "image")["id"] == asset["id"]
+    assert after[2]["id"] == ids[2] and after[2]["description"] == "plan deux, revu"
+    assert after[1]["id"] == ids[1] and after[1]["framing"] == "CU"   # champ omis : conservé
+    assert {b["name"]: b["id"] for b in production.decoupage(conn, slug)} == bids
+
+    # les blocs se réordonnent par id sans changer d'id ni de plan
+    dec3 = {"blocks": [dec2["blocks"][1], dec2["blocks"][0]]}
+    production.import_shots(conn, slug, dec3, by="michael")
+    blocks3 = production.decoupage(conn, slug)
+    assert [b["id"] for b in blocks3] == [bids["Refrain"], bids["Couplet"]]
+    assert [sh["id"] for b in blocks3 for sh in b["shots"]] == [ids[3], ids[1], ids[2]]
+    production.import_shots(conn, slug, dec2, by="michael")   # retour à l'ordre initial
+
+    # un plan retiré qui a des assets est supprimé logiquement : image et historique conservés, restaurable
+    conn.execute("INSERT INTO assets (shot_id, kind, version, path, status, cost_usd, created_at) VALUES (?,?,?,?,?,?,?)",
+                 (ids[2], "image", 1, "x.png", "ready", 0.5, db.now()))
+    dec4 = {"blocks": [
+        {"id": bids["Couplet"], "name": "Couplet", "shots": [dec2["blocks"][0]["shots"][0]]},
+        dec2["blocks"][1]]}
+    production.import_shots(conn, slug, dec4, by="michael")
+    gone = db.get_shot(conn, ids[2])
+    assert gone["deleted_at"] and db.latest_asset(conn, ids[2], "image")["cost_usd"] == 0.5
+    assert [sh["id"] for b in production.decoupage(conn, slug) for sh in b["shots"]] == [ids[1], ids[3]]
+    snap = production.clip_snapshot(conn, slug)
+    assert [s["id"] for s in snap["shots"]] == [ids[1], ids[3]]
+    assert [s["id"] for s in snap["deleted_shots"]] == [ids[2]] and snap["deleted_shots"][0]["cost_usd"] == 0.5
+    assert any(c["field"] == "deleted_at" for c in db.history(conn, "shots", ids[2]))
+    production.restore_shot(conn, ids[2])
+    back = {sh["num"]: sh for b in production.decoupage(conn, slug) for sh in b["shots"]}
+    assert [back[n]["id"] for n in (1, 2, 3)] == [ids[1], ids[2], ids[3]]
+    assert db.get_shot(conn, ids[2])["deleted_at"] is None
+
+    # un plan sans asset est supprimé réellement
+    dec5 = {"blocks": [
+        {"id": bids["Couplet"], "name": "Couplet", "shots": [dec2["blocks"][0]["shots"][1]]},
+        dec2["blocks"][1]]}
+    production.import_shots(conn, slug, dec5, by="michael")
+    assert conn.execute("SELECT 1 FROM shots WHERE id=?", (ids[1],)).fetchone() is None
+
+    # valider le découpage entier ne remet pas à zéro un plan déjà avancé
+    production.set_cut_ok(conn, ids[2], True)
+    production.set_stage(conn, slug, "decoupage_review")
+    production.review_decoupage(conn, slug, "approve")
+    assert db.get_shot(conn, ids[3])["status"] == "image_gen"

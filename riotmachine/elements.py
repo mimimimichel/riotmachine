@@ -97,7 +97,7 @@ def delete(conn: sqlite3.Connection, element_id: int) -> None:
         conn.execute("DELETE FROM element_images WHERE element_id=?", (element_id,))
         conn.execute("DELETE FROM elements WHERE id=?", (element_id,))
         cited = [r["num"] for r in conn.execute(
-            "SELECT num FROM shots WHERE clip_slug=? AND (LOWER(description) LIKE ? OR LOWER(detail) LIKE ?) ORDER BY num",
+            "SELECT num FROM shots WHERE clip_slug=? AND deleted_at IS NULL AND (LOWER(description) LIKE ? OR LOWER(detail) LIKE ?) ORDER BY num",
             (e["clip_slug"], f"%@{e['slug']}%", f"%@{e['slug']}%")).fetchall()]
         db.log_event(conn, e["clip_slug"], "decors", f"{KIND_LABEL[e['kind']]} supprimé : {e['name']}"
                      + (f" (encore cité par @{e['slug']} dans les plans {', '.join(map(str, cited))})" if cited else ""))
@@ -561,7 +561,7 @@ def clip_elements(conn: sqlite3.Connection, clip_slug: str) -> list[dict]:
             "SELECT id, state, source, role, path, label, status, cost_usd, model_key, error, from_ids FROM element_images "
             "WHERE element_id=? AND status IN ('generating','proposed','kept','failed') ORDER BY id", (e["id"],)).fetchall())
         e["shots"] = [x["num"] for x in conn.execute(
-            "SELECT s.num FROM shot_elements se JOIN shots s ON s.id=se.shot_id WHERE se.element_id=? ORDER BY s.num",
+            "SELECT s.num FROM shot_elements se JOIN shots s ON s.id=se.shot_id WHERE se.element_id=? AND s.deleted_at IS NULL ORDER BY s.num",
             (e["id"],)).fetchall()]
         has_draft = any(i["role"] == "draft" and i["status"] == "kept" for i in e["images"])
         e["step"] = _step(e["images"])

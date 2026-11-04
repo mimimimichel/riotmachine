@@ -1810,7 +1810,7 @@ function renderDecoupageTab(clip) {
       </div>
     </section>`;
   }).join("");
-  return `${head}${summary}${renderDaBox(clip, true)}${renderSourcesBox(clip, true)}${tools}${blocks}
+  return `${head}${summary}${renderDaBox(clip, true)}${renderSourcesBox(clip, true)}${tools}${blocks}${renderDeletedShots(clip)}
     <div class="row" style="position:sticky;bottom:12px;z-index:5;background:#0a0911ee;padding:10px;border-radius:12px;border:1px solid var(--line)">
       <button class="btn" data-addblock>＋ Bloc</button><span class="spacer"></span>
       <span class="hint" id="dec-status">${state.editorDirty ? "Modifications non enregistrées" : `${n} plans`}</span>
@@ -1905,11 +1905,23 @@ function renderDecoupageRead(clip) {
         <span><a href="${shotHref(s.id)}">${mentionHtml(s.description)}</a><br><span class="hint">${esc([s.framing, s.motion, s.camera].filter(Boolean).join(" · "))}</span>
           <br>${fitBadge(s.fit)}</span>
         <span>${s.singing ? "♪" : ""}</span></div>`).join("")}</div>`;
-  }).join("") + `<p class="hint">Le découpage est validé : pour changer un plan, ouvre-le et demande une modif.</p>`;
+  }).join("") + `<p class="hint">Le découpage est validé : pour changer un plan, ouvre-le et demande une modif.</p>` + renderDeletedShots(clip);
+}
+
+/* R-A2 : plans retirés du découpage mais gardés (ils avaient des images ou des vidéos), restaurables */
+function renderDeletedShots(clip) {
+  const gone = clip.deleted_shots || [];
+  if (!gone.length) return "";
+  return `<details class="fold" style="margin-top:14px"><summary>Plans retirés du découpage (${gone.length}) · gardés avec leurs images, restaurables</summary>
+    ${gone.map((s) => `<div class="dec-shot" style="grid-template-columns:170px 1fr auto">
+      <span class="mono" style="padding-top:2px">${tc(s.t_start)} → ${tc(s.t_end)}</span>
+      <span>${mentionHtml(s.description)}<br><span class="hint">${s.n_assets} image(s) ou vidéo(s) · ${money(s.cost_usd)} dépensés · retiré le ${esc((s.deleted_at || "").replace("T", " ").slice(0, 16))}</span></span>
+      <span><button class="btn small" data-restore="${s.id}">Restaurer</button></span></div>`).join("")}</details>`;
 }
 
 function collectEditor() {
   const blocks = state.editor.map((b, bi) => ({
+    ...(b.id ? { id: b.id } : {}),
     name: b.name.trim(), intention: b.intention.trim() || null, look: (b.look || "").trim() || null,
     shots: b.shots.map((s, si) => {
       const a = parseTc(s.t_start); const z = parseTc(s.t_end);
@@ -2445,8 +2457,28 @@ function bindClip() {
       }
       if (d.delshot) {
         const [bi, si] = d.delshot.split(":").map(Number);
+        const sh = state.editor[bi].shots[si];
+        const live = sh && sh.id ? clip.shots.find((x) => x.id === sh.id) : null;
+        if (live && (live.assets || []).length) {   // R-A2 : le plan sera gardé avec ses images, restaurable
+          const key = "delshot" + sh.id;
+          if (state.confirmKey !== key) {
+            state.confirmKey = key;
+            const old = t.innerHTML;
+            t.innerHTML = `Confirmer ? ${live.assets.length} image(s) ou vidéo(s), ${money(live.cost_usd)} dépensés. Le plan est gardé, restaurable en bas de page.`;
+            t.classList.add("go");
+            setTimeout(() => { if (state.confirmKey === key) { state.confirmKey = null; t.innerHTML = old; t.classList.remove("go"); } }, 6000);
+            return;
+          }
+          state.confirmKey = null;
+        }
         state.editor[bi].shots.splice(si, 1);
         markDirty(); return renderClip();
+      }
+      if (d.restore) {
+        t.disabled = true;
+        await api(`/api/shots/${d.restore}/restore`, { method: "POST" });
+        toast("Plan restauré dans le découpage");
+        return reload("decoupage");
       }
       if (d.delblock) {
         if (needsConfirm(t, "delblock" + d.delblock)) return;

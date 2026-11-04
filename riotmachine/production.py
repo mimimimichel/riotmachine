@@ -1392,7 +1392,7 @@ def submit_brief(conn: sqlite3.Connection, slug: str) -> None:
         raise ProductionError("Le découpage est déjà fait")
     if not clip.get("song_path"):
         raise ProductionError("Ajoute d'abord le morceau")
-    has_shots = conn.execute("SELECT 1 FROM shots WHERE clip_slug=?", (slug,)).fetchone()
+    has_shots = conn.execute("SELECT 1 FROM shots WHERE clip_slug=? AND deleted_at IS NULL", (slug,)).fetchone()
     has_docs = conn.execute(
         "SELECT 1 FROM clip_files WHERE clip_slug=? AND kind IN ('dossier','lyrics')", (slug,)).fetchone()
     if not (has_shots or has_docs or clip.get("script_path")):
@@ -1449,8 +1449,8 @@ def _flatten_decoupage(data: Any) -> list[tuple[dict, list[dict]]]:
                 raise ProductionError(f"Bloc {i} : champs inconnus {sorted(unknown)}")
             if not str(b.get("name") or "").strip():
                 raise ProductionError(f"Bloc {i} : il faut un nom (intro, couplet 1, refrain…)")
-            out.append(({"name": b["name"].strip(), "intention": b.get("intention"), "look": b.get("look")},
-                        list(b.get("shots") or [])))
+            out.append(({"id": int(b["id"]) if b.get("id") else None, "name": b["name"].strip(),
+                         "intention": b.get("intention"), "look": b.get("look")}, list(b.get("shots") or [])))
         return out
     shots = data["shots"] if isinstance(data, dict) else data
     groups: list[tuple[dict, list[dict]]] = []
@@ -1476,9 +1476,10 @@ def import_shots(conn: sqlite3.Connection, slug: str, shots: Any, by: str = "age
         raise ProductionError("Le découpage est déjà validé : modifie les plans un par un avec `riot shot set`")
     cast = {c["character_slug"] for c in db.casting_for_clip(conn, slug)}
     blocks = _flatten_decoupage(shots)
-    existing = {r["id"]: db.row(r) for r in conn.execute("SELECT * FROM shots WHERE clip_slug=?", (slug,)).fetchall()}
+    existing = {r["id"]: db.row(r) for r in conn.execute("SELECT * FROM shots WHERE clip_slug=? AND deleted_at IS NULL",
+                                                          (slug,)).fetchall()}
     locked = {r["id"] for r in conn.execute(
-        "SELECT s.id FROM shots s JOIN blocks b ON b.id=s.block_id WHERE s.clip_slug=? AND b.validated=1", (slug,))}
+        "SELECT s.id FROM shots s JOIN blocks b ON b.id=s.block_id WHERE s.clip_slug=? AND b.validated=1 AND s.deleted_at IS NULL", (slug,))}
     sent_ids = {int(s["id"]) for _, items in _flatten_decoupage(shots) for s in items if s.get("id")}
     if locked - sent_ids:
         raise ProductionError("Un bloc validé ne se modifie plus : garde tous ses plans tels quels dans le découpage "
@@ -1509,13 +1510,19 @@ def import_shots(conn: sqlite3.Connection, slug: str, shots: Any, by: str = "age
                 raise ProductionError(f"{where} : personnages non castés dans ce clip : {sorted(missing)}")
     with db.tx(conn):
         old_blocks = {r["num"]: r["id"] for r in conn.execute("SELECT id, num FROM blocks WHERE clip_slug=?", (slug,))}
+        block_nums = {bid: bnum for bnum, bid in old_blocks.items()}
         who = "michael" if by == "michael" else None   # sinon : l'agent de la commande (db.actor())
-        db.free_shot_numbers(conn, slug)   # libère les numéros (étape transitoire, non journalisée)
+        db.free_numbers(conn, "shots", slug)    # libère les numéros (étape transitoire, non journalisée)
+        db.free_numbers(conn, "blocks", slug)
         kept: set[int] = set()
         num = 0
         for bi, (block, items) in enumerate(blocks, 1):
-            if bi in old_blocks:
-                bid = old_blocks.pop(bi)
+            bid = block.get("id") if block.get("id") in block_nums else None   # un bloc qui porte son id le garde
+            if bid is None and bi in old_blocks and old_blocks[bi] in block_nums:
+                bid = old_blocks[bi]   # sans id : apparié par position
+            if bid is not None:
+                old_blocks.pop(block_nums.pop(bid))
+                db.renumber(conn, "blocks", bid, bi, None)
                 bfields = {"name": block["name"], "intention": block.get("intention")}
                 if block.get("look") is not None:
                     bfields["look"] = block.get("look")
@@ -1536,17 +1543,21 @@ def import_shots(conn: sqlite3.Connection, slug: str, shots: Any, by: str = "age
                 elif by == "michael" and old is None and detail:
                     edited = 1
                 if sid in locked:   # plan d'un bloc validé : rien ne change, seul son numéro suit l'ordre
-                    db.renumber_shot(conn, sid, num, old["num"] if old else None, by=who)
+                    db.renumber(conn, "shots", sid, num, old["num"] if old else None, by=who)
                     kept.add(sid)
                     continue
+
+                def keep(k: str, val: Any) -> Any:   # un champ absent du découpage garde sa valeur
+                    return old[k] if (old is not None and k not in s) else val
                 fields = {"block_id": bid, "section": block["name"], "t_start": float(s["t_start"]),
                           "t_end": float(s["t_end"]), "description": s["description"].strip(), "detail": detail,
-                          "detail_edited": edited, "framing": s.get("framing") or None, "motion": s.get("motion") or None,
-                          "camera": s.get("camera") or None, "characters": json.dumps(s.get("characters") or []),
-                          "singing": 1 if s.get("singing") else 0, "notes": s.get("notes"),
+                          "detail_edited": edited, "framing": keep("framing", s.get("framing") or None),
+                          "motion": keep("motion", s.get("motion") or None), "camera": keep("camera", s.get("camera") or None),
+                          "characters": keep("characters", json.dumps(s.get("characters") or [])),
+                          "singing": keep("singing", 1 if s.get("singing") else 0), "notes": keep("notes", s.get("notes")),
                           "model_key": s.get("model_key") or (old or {}).get("model_key")}
                 if old is not None:
-                    db.renumber_shot(conn, sid, num, old["num"], by=who)
+                    db.renumber(conn, "shots", sid, num, old["num"], by=who)
                     db.update(conn, "shots", sid, fields, by=who, reason="découpage enregistré")
                     kept.add(sid)
                 else:
@@ -1567,13 +1578,19 @@ def import_shots(conn: sqlite3.Connection, slug: str, shots: Any, by: str = "age
                     db.update(conn, "shots", sid, {"cut_ok": 0}, by=who, reason="plan modifié par l'agent : à revalider")
         gone = set(existing) - kept
         for sid in gone:
+            conn.execute("UPDATE spend_requests SET status='refused', note='plan retiré du découpage' "
+                         "WHERE shot_id=? AND status='pending'", (sid,))
+            if conn.execute("SELECT 1 FROM assets WHERE shot_id=?", (sid,)).fetchone():
+                # un plan qui a déjà des images ou des vidéos : retiré du découpage, gardé en base, restaurable
+                db.update(conn, "shots", sid, {"deleted_at": db.now()}, by=who, reason="retiré du découpage")
+                db.renumber(conn, "shots", sid, -sid, None)   # hors découpage : numéro négatif, jamais en collision
+                continue
             conn.execute("DELETE FROM shot_notes WHERE shot_id=?", (sid,))
             conn.execute("DELETE FROM shot_elements WHERE shot_id=?", (sid,))
-            conn.execute("UPDATE spend_requests SET status='refused', note='plan supprimé du découpage' "
-                         "WHERE shot_id=? AND status='pending'", (sid,))
             conn.execute("DELETE FROM shots WHERE id=?", (sid,))
         for bid in old_blocks.values():
-            conn.execute("DELETE FROM blocks WHERE id=? AND validated=0", (bid,))
+            if not conn.execute("SELECT 1 FROM shots WHERE block_id=?", (bid,)).fetchone():   # un bloc qui garde un plan retiré reste
+                conn.execute("DELETE FROM blocks WHERE id=? AND validated=0", (bid,))
         db.touch(conn, "clips", slug)
         db.log_event(conn, slug, "decoupage", f"Découpage enregistré : {len(blocks)} blocs, {num} plans")
     from . import elements
@@ -1582,10 +1599,48 @@ def import_shots(conn: sqlite3.Connection, slug: str, shots: Any, by: str = "age
     return num
 
 
+def restore_shot(conn: sqlite3.Connection, shot_id: int) -> dict:
+    """Remet dans le découpage un plan retiré (R-A2) : il reprend sa place par temps dans son bloc."""
+    shot = db.get_shot(conn, shot_id)
+    if not shot.get("deleted_at"):
+        raise ProductionError("Ce plan est déjà dans le découpage")
+    with db.tx(conn):
+        db.update(conn, "shots", shot_id, {"deleted_at": None}, reason="plan restauré")
+        _renumber_clip(conn, shot["clip_slug"])
+        db.log_event(conn, shot["clip_slug"], "decoupage", f"Plan restauré dans le découpage : {shot['description'][:60]}")
+    return db.get_shot(conn, shot_id)
+
+
+def _renumber_clip(conn: sqlite3.Connection, slug: str) -> None:
+    """Renumérote les plans présents : par bloc, puis par temps. Les plans retirés gardent leur numéro."""
+    order = conn.execute(
+        "SELECT s.id, s.num FROM shots s LEFT JOIN blocks b ON b.id=s.block_id "
+        "WHERE s.clip_slug=? AND s.deleted_at IS NULL ORDER BY COALESCE(b.num, 1e9), s.t_start, s.id", (slug,)).fetchall()
+    old = {r["id"]: r["num"] for r in order}
+    db.free_numbers(conn, "shots", slug)
+    for i, r in enumerate(order, 1):
+        db.renumber(conn, "shots", r["id"], i, old[r["id"]])
+    for r in conn.execute("SELECT id FROM shots WHERE clip_slug=? AND deleted_at IS NOT NULL", (slug,)).fetchall():
+        db.renumber(conn, "shots", r["id"], -r["id"], None)   # hors découpage : numéro négatif, jamais en collision
+
+
+def deleted_shots(conn: sqlite3.Connection, slug: str) -> list[dict]:
+    """Les plans retirés du découpage mais gardés (ils ont des assets), avec ce qu'ils ont coûté."""
+    out = []
+    for r in conn.execute("SELECT * FROM shots WHERE clip_slug=? AND deleted_at IS NOT NULL ORDER BY deleted_at DESC",
+                          (slug,)).fetchall():
+        sh = db.row(r)
+        sh["cost_usd"] = round(conn.execute("SELECT COALESCE(SUM(cost_usd),0) FROM assets WHERE shot_id=?",
+                                            (sh["id"],)).fetchone()[0], 3)
+        sh["n_assets"] = conn.execute("SELECT COUNT(*) FROM assets WHERE shot_id=?", (sh["id"],)).fetchone()[0]
+        out.append(sh)
+    return out
+
+
 def decoupage(conn: sqlite3.Connection, slug: str) -> list[dict]:
     """Le découpage sous forme de blocs contenant leurs plans."""
     blocks = db.rows(conn.execute("SELECT * FROM blocks WHERE clip_slug=? ORDER BY num", (slug,)).fetchall())
-    shots = db.rows(conn.execute("SELECT * FROM shots WHERE clip_slug=? ORDER BY num", (slug,)).fetchall())
+    shots = db.rows(conn.execute("SELECT * FROM shots WHERE clip_slug=? AND deleted_at IS NULL ORDER BY num", (slug,)).fetchall())
     by_block: dict[int | None, list] = {}
     for sh in shots:
         by_block.setdefault(sh.get("block_id"), []).append(sh)
@@ -1654,7 +1709,7 @@ def validate_block(conn: sqlite3.Connection, block_id: int) -> dict:
         raise ProductionError("Bloc inconnu")
     if b["validated"]:
         return {"block": b["num"], "already": True}
-    shots = db.rows(conn.execute("SELECT * FROM shots WHERE block_id=? ORDER BY num", (block_id,)).fetchall())
+    shots = db.rows(conn.execute("SELECT * FROM shots WHERE block_id=? AND deleted_at IS NULL ORDER BY num", (block_id,)).fetchall())
     if not shots:
         raise ProductionError("Ce bloc n'a aucun plan")
     todo = [s["num"] for s in shots if not s.get("cut_ok")]
@@ -1772,7 +1827,7 @@ def block_reference(conn: sqlite3.Connection, shot: dict) -> tuple[Path | None, 
     b = conn.execute("SELECT look FROM blocks WHERE id=?", (shot["block_id"],)).fetchone()
     look = (b["look"] or "").strip() if b else ""
     r = conn.execute(
-        "SELECT a.path FROM assets a JOIN shots s ON s.id=a.shot_id WHERE s.block_id=? AND s.id!=? "
+        "SELECT a.path FROM assets a JOIN shots s ON s.id=a.shot_id WHERE s.block_id=? AND s.id!=? AND s.deleted_at IS NULL "
         "AND a.kind='image' AND a.status='validated' ORDER BY s.num, a.version DESC LIMIT 1",
         (shot["block_id"], shot["id"])).fetchone()
     ref = absp(r["path"]) if r and r["path"] else None
@@ -2635,7 +2690,7 @@ def approve_all(conn: sqlite3.Connection, slug: str, gate: str, block_id: int | 
     status = {v: k for k, v in db.REVIEW_STATUSES.items()}.get(gate)
     if not status:
         raise ProductionError(f"Porte inconnue : {gate}")
-    q, params = "SELECT id FROM shots WHERE clip_slug=? AND status=?", [slug, status]
+    q, params = "SELECT id FROM shots WHERE clip_slug=? AND status=? AND deleted_at IS NULL", [slug, status]
     if block_id:
         q += " AND block_id=?"
         params.append(block_id)
@@ -2683,8 +2738,8 @@ def handle_review(conn: sqlite3.Connection, review_id: int, route: str, note: st
 
 
 def _maybe_finish_clip(conn: sqlite3.Connection, slug: str) -> None:
-    left = conn.execute("SELECT COUNT(*) FROM shots WHERE clip_slug=? AND status!='done'", (slug,)).fetchone()[0]
-    total = conn.execute("SELECT COUNT(*) FROM shots WHERE clip_slug=?", (slug,)).fetchone()[0]
+    left = conn.execute("SELECT COUNT(*) FROM shots WHERE clip_slug=? AND status!='done' AND deleted_at IS NULL", (slug,)).fetchone()[0]
+    total = conn.execute("SELECT COUNT(*) FROM shots WHERE clip_slug=? AND deleted_at IS NULL", (slug,)).fetchone()[0]
     if total and not left:
         set_stage(conn, slug, "done")
 
@@ -2830,8 +2885,9 @@ def shot_waiting(conn: sqlite3.Connection, shot: dict) -> str | None:
 
 def clip_snapshot(conn: sqlite3.Connection, slug: str, compact: bool = False) -> dict:
     clip = db.get_clip(conn, slug)
-    shots = db.rows(conn.execute("SELECT * FROM shots WHERE clip_slug=? ORDER BY num", (slug,)).fetchall())
+    shots = db.rows(conn.execute("SELECT * FROM shots WHERE clip_slug=? AND deleted_at IS NULL ORDER BY num", (slug,)).fetchall())
     clip["casting"] = db.casting_for_clip(conn, slug)
+    clip["deleted_shots"] = deleted_shots(conn, slug)
     clip["cost_usd"] = round(db.clip_cost(conn, slug), 3)
     clip["credits_used_usd"] = round(db.clip_cost(conn, slug, "credits"), 3)
     clip["decors_pending"] = conn.execute(
@@ -2886,7 +2942,7 @@ def needs_agent(conn: sqlite3.Connection, slug: str) -> dict:
     """Ce qui demande un agent Claude sur ce clip (utilisé par le worker)."""
     clip = db.get_clip(conn, slug)
     reasons: list[str] = []
-    n_shots = conn.execute("SELECT COUNT(*) FROM shots WHERE clip_slug=?", (slug,)).fetchone()[0]
+    n_shots = conn.execute("SELECT COUNT(*) FROM shots WHERE clip_slug=? AND deleted_at IS NULL", (slug,)).fetchone()[0]
     if is_demo(slug):
         return {"clip": slug, "reasons": [], "fingerprint": "demo", "retry_on_backoff": False}
     if clip.get("scenario_status") == "requested":
@@ -2909,7 +2965,7 @@ def needs_agent(conn: sqlite3.Connection, slug: str) -> dict:
     if clip["stage"] in ("decoupage_review", "production") and n_shots:
         n_el = conn.execute("SELECT COUNT(*) FROM elements WHERE clip_slug=?", (slug,)).fetchone()[0]
         # le repérage part de plans complets (prompt détaillé écrit), pas des seules lignes courtes
-        n_bare = conn.execute("SELECT COUNT(*) FROM shots WHERE clip_slug=? AND COALESCE(detail,'')=''",
+        n_bare = conn.execute("SELECT COUNT(*) FROM shots WHERE clip_slug=? AND deleted_at IS NULL AND COALESCE(detail,'')=''",
                               (slug,)).fetchone()[0]
         if clip.get("decors_status") == "requested" or (clip.get("decors_status", "todo") == "todo" and not n_el
                                                         and not n_bare):
@@ -2918,7 +2974,7 @@ def needs_agent(conn: sqlite3.Connection, slug: str) -> dict:
                           (slug,)).fetchall():
         reasons.append(f"script_doctor: références du bloc {b['num']} « {b['name']} » à vérifier avant production")
     n_prod = n_shots if clip["stage"] == "production" else conn.execute(
-        "SELECT COUNT(*) FROM shots s JOIN blocks b ON b.id=s.block_id WHERE s.clip_slug=? AND b.validated=1",
+        "SELECT COUNT(*) FROM shots s JOIN blocks b ON b.id=s.block_id WHERE s.clip_slug=? AND b.validated=1 AND s.deleted_at IS NULL",
         (slug,)).fetchone()[0]
     if n_prod:
         prod_filter = (" AND COALESCE(block_id, 0) NOT IN (SELECT id FROM blocks WHERE clip_slug=s.clip_slug AND refs_checked=0)"
@@ -2926,7 +2982,7 @@ def needs_agent(conn: sqlite3.Connection, slug: str) -> dict:
                        " AND block_id IN (SELECT id FROM blocks WHERE clip_slug=s.clip_slug AND validated=1 AND refs_checked=1)")
         for status in db.AGENT_STATUSES:
             # rien n'attend les décors : un plan part avec les références qui existent (HD, sinon brouillon)
-            n = conn.execute("SELECT COUNT(*) FROM shots s WHERE clip_slug=? AND status=? AND id NOT IN "
+            n = conn.execute("SELECT COUNT(*) FROM shots s WHERE clip_slug=? AND status=? AND deleted_at IS NULL AND id NOT IN "
                              "(SELECT shot_id FROM spend_requests WHERE shot_id IS NOT NULL "
                              "AND status IN ('pending','approved'))" + prod_filter, (slug, status)).fetchone()[0]
             if n:
@@ -2961,7 +3017,7 @@ def update_script(conn: sqlite3.Connection, slug: str, text: str) -> None:
 def _shot_fingerprint(conn: sqlite3.Connection, slug: str) -> list:
     marks = ",".join("?" * len(db.AGENT_STATUSES))
     return [tuple(r) for r in conn.execute(
-        f"SELECT num, status, updated_at FROM shots WHERE clip_slug=? AND status IN ({marks}) ORDER BY num",
+        f"SELECT num, status, updated_at FROM shots WHERE clip_slug=? AND deleted_at IS NULL AND status IN ({marks}) ORDER BY num",
         (slug, *db.AGENT_STATUSES),
     ).fetchall()]
 
@@ -2969,7 +3025,7 @@ def _shot_fingerprint(conn: sqlite3.Connection, slug: str) -> list:
 def assemble_clip(conn: sqlite3.Connection, slug: str) -> Path:
     """Montage du clip sur le morceau avec la meilleure version disponible de chaque plan."""
     clip = db.get_clip(conn, slug)
-    shots = db.rows(conn.execute("SELECT * FROM shots WHERE clip_slug=? ORDER BY num", (slug,)).fetchall())
+    shots = db.rows(conn.execute("SELECT * FROM shots WHERE clip_slug=? AND deleted_at IS NULL ORDER BY num", (slug,)).fetchall())
     segments = []
     for s in shots:
         best = None
@@ -2995,13 +3051,13 @@ def review_digest(conn: sqlite3.Connection, slug: str) -> str | None:
     clip = db.get_clip(conn, slug)
     parts = []
     if clip["stage"] == "decoupage_review":
-        n = conn.execute("SELECT COUNT(*) FROM shots WHERE clip_slug=?", (slug,)).fetchone()[0]
+        n = conn.execute("SELECT COUNT(*) FROM shots WHERE clip_slug=? AND deleted_at IS NULL", (slug,)).fetchone()[0]
         parts.append(f"découpage en {n} plans")
     labels = {"image_review": "image(s)", "hd_review": "image(s) HD à vérifier",
               "video_review": "plan(s) vidéo (prompt, modèle, coût)", "draft_review": "brouillon(s) vidéo",
               "final_review": "final(s)"}
     for status, label in labels.items():
-        n = conn.execute("SELECT COUNT(*) FROM shots WHERE clip_slug=? AND status=?", (slug, status)).fetchone()[0]
+        n = conn.execute("SELECT COUNT(*) FROM shots WHERE clip_slug=? AND status=? AND deleted_at IS NULL", (slug, status)).fetchone()[0]
         if n:
             parts.append(f"{n} {label}")
     if not parts:

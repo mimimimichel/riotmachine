@@ -62,6 +62,13 @@ Après le découpage, chaque plan avance à son rythme, plan par plan. Un plan p
 
 ### Étape 2 : Découpage
 
+Identifiants stables (R-A2) : chaque plan et chaque bloc gardent leur `id` à
+travers toutes les éditions du découpage, avec leur statut, leurs images, leurs
+retours et leur historique. Un plan retiré du découpage qui a déjà des images ou
+des vidéos n'est pas effacé : il sort de la timeline et du montage, ses assets
+restent, et « Plans retirés » en bas du Découpage le restaure. Un plan sans
+asset est supprimé réellement.
+
 - **Michael** saisit ses blocs et leurs plans avec les timecodes (onglet
   **Découpage**), ou les met dans son dossier. Les timecodes viennent de lui,
   en écoutant le morceau. Aucun agent ne les invente.

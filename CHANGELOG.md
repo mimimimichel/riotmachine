@@ -5,6 +5,12 @@ Format : date, identifiant, ce qui change pour Michael.
 
 ## Lot 1 : Fondations
 
+- 2026-11-04 R-A2 : un plan et un bloc gardent leur id à travers toutes les éditions
+  du découpage (blocs appariés par id, champ omis conservé). Un plan retiré qui a
+  des images ou des vidéos est gardé avec elles, hors timeline, restaurable
+  (« Plans retirés » en bas du Découpage, `riot shot restore`) ; la régie demande
+  confirmation en affichant le montant dépensé. Valider le découpage entier ne
+  remet plus les plans avancés à zéro.
 - 2026-11-04 R-A4 : chaque changement d'un clip, bloc, plan, personnage, version ou
   élément est journalisé (avant, après, auteur, raison). `riot history …`,
   `GET /api/shots/<id>/history`, pli « Historique des changements » dans le détail

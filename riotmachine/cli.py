@@ -224,7 +224,7 @@ def _shot_ids(conn, clip: str, spec: str) -> list[int]:
             nums.append(int(part))
     ids = []
     for n in nums:
-        r = conn.execute("SELECT id FROM shots WHERE clip_slug=? AND num=?", (clip, n)).fetchone()
+        r = conn.execute("SELECT id FROM shots WHERE clip_slug=? AND num=? AND deleted_at IS NULL", (clip, n)).fetchone()
         if r is None:
             raise SystemExit(f"Plan {n} introuvable dans {clip}")
         ids.append(r["id"])
@@ -510,6 +510,9 @@ def build_parser() -> argparse.ArgumentParser:
     sp.set_defaults(func=cmd_shots_import)
 
     shot = sub.add_parser("shot", help="Un plan").add_subparsers(dest="action", required=True)
+    sp = shot.add_parser("restore", help="Remet dans le découpage un plan retiré (gardé car il avait des assets)")
+    sp.add_argument("id", type=int)
+    sp.set_defaults(func=lambda a: out(production.restore_shot(_conn(), a.id)))
     sp = shot.add_parser("show", help="Tout sur un plan, avec les références du casting")
     sp.add_argument("shot", type=int)
     sp.set_defaults(func=cmd_shot_show)

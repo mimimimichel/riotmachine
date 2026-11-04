@@ -69,7 +69,7 @@ def run_automatic_steps(conn: sqlite3.Connection) -> int:
                              ("draft_todo", production.launch_draft),
                              ("final_todo", production.launch_final),
                              ("lipsync_todo", production.launch_lipsync)):
-        for r in conn.execute("SELECT id, clip_slug, num FROM shots WHERE status=? ORDER BY id", (status,)).fetchall():
+        for r in conn.execute("SELECT id, clip_slug, num FROM shots WHERE status=? AND deleted_at IS NULL ORDER BY id", (status,)).fetchall():
             try:
                 res = launcher(conn, r["id"])
                 if not (isinstance(res, dict) and res.get("spend_request")):

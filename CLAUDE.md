@@ -122,7 +122,8 @@ riot shot show <id>                   # un plan + ADN et références des person
 riot shot set <id> --detail ... --image-prompt ... --video-prompt ... --negative-prompt ... --framing ... --motion ...
 riot block look <clip> <num> "<lumière et étalonnage>"
 riot scenario show|propose <clip> [fichier.json]   # agent scénariste
-riot shots import <clip> <fichier.json>   # découpage en blocs (avant validation seulement)
+riot shots import <clip> <fichier.json>   # découpage en blocs : chaque plan et chaque bloc garde son id ; un champ absent est conservé
+riot shot restore <id>                # remet dans le découpage un plan retiré (gardé car il avait des images)
 riot providers                        # fournisseurs branchés et modèles vidéo disponibles
 riot rodage [--model <clé>]           # carnet de rodage : résultats de chaque modèle vidéo
 riot route <id> --apply [--model <clé>] [--why "<raison montrée à Michael>"] [--tier …] [--keep-tier]
