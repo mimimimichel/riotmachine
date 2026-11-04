@@ -391,6 +391,11 @@ def cmd_events(a) -> None:
     out(db.rows(conn.execute(q, params).fetchall()))
 
 
+def cmd_db_status(a) -> None:
+    """Version du schéma, migrations appliquées, sauvegardes faites avant migration (R-G3)."""
+    out(db.schema_status(_conn()))
+
+
 def cmd_backup(a) -> None:
     """Copie la base (à chaud, sans risque) et le studio vers un autre disque."""
     import shutil
@@ -658,6 +663,10 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--clip")
     sp.add_argument("--limit", type=int, default=30)
     sp.set_defaults(func=cmd_events)
+
+    dbp = sub.add_parser("db", help="La base : version du schéma et sauvegardes").add_subparsers(dest="action", required=True)
+    sp = dbp.add_parser("status", help="Version du schéma, migrations appliquées, sauvegardes avant migration")
+    sp.set_defaults(func=cmd_db_status)
 
     sp = sub.add_parser("backup", help="Sauvegarde la base et le studio vers un dossier (disque externe…)")
     sp.add_argument("dest")

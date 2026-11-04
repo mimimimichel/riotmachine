@@ -11,6 +11,7 @@ __pycache__/
 # données de production (sur le PC, sauvegardées avec `riot backup`)
 studio/riot.db
 studio/riot.db-*
+studio/backups/
 studio/clips/*
 !studio/clips/.gitkeep
 studio/logs/

@@ -5,7 +5,9 @@ Format : date, identifiant, ce qui change pour Michael.
 
 ## Lot 1 : Fondations
 
-(en cours)
+- 2026-11-04 R-G3 : schéma versionné (table `schema_version`), migrations numérotées
+  et rejouables, sauvegarde automatique de `studio/riot.db` dans `studio/backups/`
+  avant toute migration, `riot db status`.
 
 ## Avant le lot 1
 

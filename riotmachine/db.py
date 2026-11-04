@@ -17,7 +17,11 @@ from typing import Any, Iterator
 
 from .settings import get_settings
 
-SCHEMA_VERSION = 4
+# Schéma versionné (R-G3) : `BASELINE_VERSION` est le schéma d'avant les migrations
+# numérotées (SCHEMA + LATER_COLUMNS, idempotents). Chaque version suivante est une
+# fonction de MIGRATIONS, rejouable sans effet, précédée d'une sauvegarde de la base.
+BASELINE_VERSION = 4
+SCHEMA_VERSION = 5
 
 # --- Cycle de vie ---------------------------------------------------------
 
@@ -371,6 +375,13 @@ CREATE TABLE IF NOT EXISTS agent_runs (
     exit_code INTEGER
 );
 
+-- Versions du schéma appliquées à cette base, avec la sauvegarde faite avant (R-G3)
+CREATE TABLE IF NOT EXISTS schema_version (
+    version INTEGER PRIMARY KEY,
+    applied_at TEXT NOT NULL,
+    backup_path TEXT
+);
+
 CREATE INDEX IF NOT EXISTS idx_shots_clip ON shots(clip_slug, num);
 CREATE INDEX IF NOT EXISTS idx_assets_shot ON assets(shot_id, kind, version);
 CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status);
@@ -400,14 +411,77 @@ def connect(path: Path | None = None) -> sqlite3.Connection:
 
 
 def init_db(conn: sqlite3.Connection) -> None:
+    """Amène la base au schéma courant. Rejouable : sans effet si elle y est déjà.
+
+    Une base existante en retard est d'abord sauvegardée dans `backups/` à côté
+    du fichier. Puis : schéma de base (idempotent), colonnes ajoutées après coup,
+    et les migrations numérotées manquantes, chacune enregistrée dans `schema_version`.
+    """
     version = conn.execute("PRAGMA user_version").fetchone()[0]
     has_tables = conn.execute("SELECT 1 FROM sqlite_master WHERE name='clips'").fetchone()
+    backup = _backup_before_migration(conn, version) if has_tables and version < SCHEMA_VERSION else None
     if has_tables and version < 2:
         _migrate_v2(conn)
     conn.executescript(SCHEMA)
     _ensure_columns(conn)
     _widen_jobs_targets(conn)
-    conn.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
+    conn.execute("INSERT OR IGNORE INTO schema_version (version, applied_at, backup_path) VALUES (?,?,?)",
+                 (BASELINE_VERSION, now(), backup if version < BASELINE_VERSION else None))
+    for target in range(max(version, BASELINE_VERSION) + 1, SCHEMA_VERSION + 1):
+        with tx(conn):
+            MIGRATIONS[target](conn)
+            conn.execute("INSERT OR REPLACE INTO schema_version (version, applied_at, backup_path) VALUES (?,?,?)",
+                         (target, now(), backup))
+        conn.execute(f"PRAGMA user_version={target}")
+    if version > SCHEMA_VERSION:
+        raise RuntimeError(f"La base est au schéma {version}, ce code ne connaît que le {SCHEMA_VERSION} : mets le code à jour")
+
+
+def _db_file(conn: sqlite3.Connection) -> Path | None:
+    for r in conn.execute("PRAGMA database_list"):
+        if r[1] == "main":
+            return Path(r[2]) if r[2] else None
+    return None
+
+
+def _backup_before_migration(conn: sqlite3.Connection, version: int) -> str | None:
+    """Copie à chaud de la base avant une migration : `backups/riot-<date>-v<version>.db`."""
+    src = _db_file(conn)
+    if src is None:
+        return None   # base en mémoire
+    dest_dir = src.parent / "backups"
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    dest = dest_dir / f"{src.stem}-{datetime.now().strftime('%Y%m%d-%H%M%S')}-v{version}.db"
+    target = sqlite3.connect(dest)
+    with target:
+        conn.backup(target)
+    target.close()
+    return str(dest)
+
+
+def schema_status(conn: sqlite3.Connection) -> dict[str, Any]:
+    """Version du schéma, migrations appliquées et sauvegardes présentes (`riot db status`)."""
+    src = _db_file(conn)
+    backups_dir = src.parent / "backups" if src else None
+    saved = sorted(backups_dir.glob("*.db")) if backups_dir and backups_dir.is_dir() else []
+    return {
+        "base": str(src) if src else None,
+        "version": conn.execute("PRAGMA user_version").fetchone()[0],
+        "version_code": SCHEMA_VERSION,
+        "migrations": rows(conn.execute("SELECT * FROM schema_version ORDER BY version").fetchall()),
+        "sauvegardes": [{"fichier": str(p), "octets": p.stat().st_size} for p in saved],
+    }
+
+
+# --- Migrations numérotées (R-G3) : chacune est rejouable sans effet -------------
+
+def _migrate_v5(conn: sqlite3.Connection) -> None:
+    """Schéma versionné : la table schema_version existe (créée par SCHEMA). Rien d'autre."""
+
+
+MIGRATIONS = {
+    5: _migrate_v5,
+}
 
 
 # Colonnes ajoutées après coup : ajoutées si elles manquent (sans effet sinon).
