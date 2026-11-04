@@ -518,8 +518,8 @@ def build_parser() -> argparse.ArgumentParser:
     sp.set_defaults(func=cmd_shot_show)
     sp = shot.add_parser("set", help="Modifie un plan")
     sp.add_argument("shot", type=int)
-    for f in ("section", "description", "detail", "camera", "image_prompt", "video_prompt", "negative_prompt", "notes",
-              "tier", "model_key"):
+    for f in ("section", "script", "description", "detail", "camera", "image_prompt", "video_prompt", "negative_prompt",
+              "notes", "tier", "model_key"):
         sp.add_argument(f"--{f.replace('_', '-')}", dest=f)
     sp.add_argument("--model", dest="model_key")
     sp.add_argument("--framing", choices=db.FRAMINGS)

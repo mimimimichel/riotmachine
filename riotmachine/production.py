@@ -1431,9 +1431,34 @@ def set_stage(conn: sqlite3.Connection, slug: str, stage: str) -> None:
     db.log_event(conn, slug, "stage", f"Étape : {stage}")
 
 
-SHOT_FIELDS = {"num", "section", "t_start", "t_end", "description", "detail", "framing", "motion", "camera",
+SHOT_FIELDS = {"num", "section", "t_start", "t_end", "script", "description", "detail", "framing", "motion", "camera",
                "characters", "singing", "notes", "id", "block", "model_key", "split_from"}
-BLOCK_FIELDS = {"name", "intention", "look", "shots", "num", "id"}
+BLOCK_FIELDS = {"name", "brief", "intention", "look", "shots", "num", "id"}
+
+
+def _norm(text: Any) -> str:
+    return " ".join(str(text or "").split())
+
+
+def _michael_text(old: dict | None, text: str, base: str, prod: str) -> dict:
+    """R-A3 : Michael écrit `base` (script, brief). La version de production `prod` (description,
+    intention) le suit tant qu'aucun agent ne l'a transformée ; ensuite elle reste et se marque à mettre à jour."""
+    fields: dict[str, Any] = {base: text}
+    untouched = old is None or _norm(old.get(prod)) in ("", _norm(old.get(base)))
+    if untouched:
+        fields[prod] = text
+        if base == "script":
+            fields["prod_outdated"] = 0
+    elif base == "script" and _norm(text) != _norm(old.get(base)):
+        fields["prod_outdated"] = 1
+    return fields
+
+
+def _check_agent_keeps_words(where: str, script: Any, description: Any) -> None:
+    """Un agent complète la description de Michael, il ne la reformule pas : ses mots restent tels quels."""
+    if _norm(script) and _norm(script) not in _norm(description):
+        raise ProductionError(f"{where} : garde les mots de Michael tels quels (« {_norm(script)[:80]} ») "
+                              "et ajoute tes compléments à la suite ; `script` ne se modifie pas")
 
 
 def _flatten_decoupage(data: Any) -> list[tuple[dict, list[dict]]]:
@@ -1450,7 +1475,8 @@ def _flatten_decoupage(data: Any) -> list[tuple[dict, list[dict]]]:
             if not str(b.get("name") or "").strip():
                 raise ProductionError(f"Bloc {i} : il faut un nom (intro, couplet 1, refrain…)")
             out.append(({"id": int(b["id"]) if b.get("id") else None, "name": b["name"].strip(),
-                         "intention": b.get("intention"), "look": b.get("look")}, list(b.get("shots") or [])))
+                         "intention": b.get("intention"), "brief": b.get("brief"), "look": b.get("look")},
+                        list(b.get("shots") or [])))
         return out
     shots = data["shots"] if isinstance(data, dict) else data
     groups: list[tuple[dict, list[dict]]] = []
@@ -1492,6 +1518,19 @@ def import_shots(conn: sqlite3.Connection, slug: str, shots: Any, by: str = "age
             unknown = set(s) - SHOT_FIELDS
             if unknown:
                 raise ProductionError(f"{where} : champs inconnus {sorted(unknown)}")
+            if by == "michael":
+                if s.get("description") in (None, "") and s.get("script") not in (None, ""):
+                    s["description"] = s["script"]   # la régie n'envoie que le texte de Michael
+            else:
+                if "script" in s:
+                    raise ProductionError(f"{where} : `script` est le texte de Michael, un agent n'y touche pas "
+                                          "(écris la version de production dans `description`)")
+                if block.get("brief") is not None:
+                    raise ProductionError(f"Bloc « {block['name']} » : `brief` est le texte de Michael, un agent "
+                                          "n'y touche pas (écris dans `intention`)")
+                prev = existing.get(int(s["id"])) if s.get("id") else None
+                if prev is not None:
+                    _check_agent_keeps_words(where, prev.get("script"), s.get("description"))
             for req in ("t_start", "t_end", "description"):
                 if s.get(req) in (None, ""):
                     raise ProductionError(f"{where} : il manque {'le début' if req == 't_start' else 'la fin' if req == 't_end' else 'la description'}")
@@ -1523,13 +1562,21 @@ def import_shots(conn: sqlite3.Connection, slug: str, shots: Any, by: str = "age
             if bid is not None:
                 old_blocks.pop(block_nums.pop(bid))
                 db.renumber(conn, "blocks", bid, bi, None)
-                bfields = {"name": block["name"], "intention": block.get("intention")}
+                bfields = {"name": block["name"]}
+                if who == "michael":
+                    oldb = db.row(conn.execute("SELECT * FROM blocks WHERE id=?", (bid,)).fetchone())
+                    text = block["brief"] if block.get("brief") is not None else block.get("intention")
+                    bfields.update(_michael_text(oldb, text, "brief", "intention"))
+                else:
+                    bfields["intention"] = block.get("intention")
                 if block.get("look") is not None:
                     bfields["look"] = block.get("look")
                 db.update_where(conn, "blocks", "id=? AND validated=0", (bid,), bfields, by=who, reason="découpage enregistré")
             else:
-                bid = conn.execute("INSERT INTO blocks (clip_slug, num, name, intention, look) VALUES (?,?,?,?,?)",
-                                   (slug, bi, block["name"], block.get("intention"), block.get("look"))).lastrowid
+                text = block["brief"] if block.get("brief") is not None else block.get("intention")
+                bid = conn.execute("INSERT INTO blocks (clip_slug, num, name, intention, brief, look) VALUES (?,?,?,?,?,?)",
+                                   (slug, bi, block["name"], text, text if who == "michael" else None,
+                                    block.get("look"))).lastrowid
             for s in sorted(items, key=lambda x: float(x["t_start"])):
                 num += 1
                 sid = int(s["id"]) if s.get("id") and int(s["id"]) in existing else None
@@ -1549,8 +1596,12 @@ def import_shots(conn: sqlite3.Connection, slug: str, shots: Any, by: str = "age
 
                 def keep(k: str, val: Any) -> Any:   # un champ absent du découpage garde sa valeur
                     return old[k] if (old is not None and k not in s) else val
+                if who == "michael":
+                    words = _michael_text(old, (s.get("script") or s["description"]).strip(), "script", "description")
+                else:
+                    words = {"description": s["description"].strip(), "prod_outdated": 0}
                 fields = {"block_id": bid, "section": block["name"], "t_start": float(s["t_start"]),
-                          "t_end": float(s["t_end"]), "description": s["description"].strip(), "detail": detail,
+                          "t_end": float(s["t_end"]), **words, "detail": detail,
                           "detail_edited": edited, "framing": keep("framing", s.get("framing") or None),
                           "motion": keep("motion", s.get("motion") or None), "camera": keep("camera", s.get("camera") or None),
                           "characters": keep("characters", json.dumps(s.get("characters") or [])),
@@ -1561,10 +1612,9 @@ def import_shots(conn: sqlite3.Connection, slug: str, shots: Any, by: str = "age
                     db.update(conn, "shots", sid, fields, by=who, reason="découpage enregistré")
                     kept.add(sid)
                 else:
+                    cols = ["num", *fields, "updated_at", "clip_slug", "status"]
                     new_id = conn.execute(
-                        "INSERT INTO shots (num, block_id, section, t_start, t_end, description, detail, detail_edited, "
-                        "framing, motion, camera, characters, singing, notes, model_key, updated_at, clip_slug, status) "
-                        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                        f"INSERT INTO shots ({', '.join(cols)}) VALUES ({', '.join('?' * len(cols))})",
                         (num, *fields.values(), db.now(), slug, "image_todo")).lastrowid
                     src = s.get("split_from")
                     if src and int(src) in existing:
@@ -1655,7 +1705,7 @@ def decoupage(conn: sqlite3.Connection, slug: str) -> list[dict]:
     return blocks
 
 
-SETTABLE = {"section", "description", "detail", "framing", "motion", "camera", "characters", "singing", "tier",
+SETTABLE = {"section", "script", "description", "detail", "framing", "motion", "camera", "characters", "singing", "tier",
             "model_key", "route_reason", "seed", "image_prompt", "video_prompt", "negative_prompt", "notes", "t_start", "t_end"}
 
 
@@ -1666,6 +1716,8 @@ def update_shot(conn: sqlite3.Connection, shot_id: int, **fields: Any) -> dict:
             continue
         if k not in SETTABLE:
             raise ProductionError(f"Champ non modifiable : {k}")
+        if k == "script" and db.actor() != "michael":
+            raise ProductionError("`script` est le texte de Michael : il se modifie dans la régie, jamais par un agent")
         if k == "detail" and db.get_shot(conn, shot_id).get("detail_edited"):
             raise ProductionError("Michael a écrit ce prompt détaillé lui-même : on ne le réécrit pas. "
                                   "Écris tes compléments dans le prompt image ou vidéo.")
@@ -1682,6 +1734,11 @@ def update_shot(conn: sqlite3.Connection, shot_id: int, **fields: Any) -> dict:
         if k == "singing":
             v = 1 if v in (True, 1, "1", "true", "oui", "yes") else 0
         clean[k] = v
+    if "script" in clean:
+        clean.update(_michael_text(db.get_shot(conn, shot_id), str(clean["script"]).strip(), "script", "description"))
+    elif "description" in clean and db.actor() != "michael":
+        _check_agent_keeps_words(f"Plan {shot_id}", db.get_shot(conn, shot_id).get("script"), clean["description"])
+        clean["prod_outdated"] = 0
     if clean:
         db.update(conn, "shots", shot_id, clean)
         if "description" in fields or "detail" in fields:
@@ -2958,6 +3015,10 @@ def needs_agent(conn: sqlite3.Connection, slug: str) -> dict:
     ).fetchone()[0]
     if pending_dec:
         reasons.append("script_doctor: retours sur le découpage")
+    n_out = conn.execute("SELECT COUNT(*) FROM shots WHERE clip_slug=? AND deleted_at IS NULL AND prod_outdated=1",
+                         (slug,)).fetchone()[0]
+    if n_out:
+        reasons.append(f"script_doctor: {n_out} plan(s) dont Michael a changé le texte : production à mettre à jour")
     n_look = conn.execute("SELECT COUNT(*) FROM elements WHERE clip_slug=? AND prompt_status='requested'",
                           (slug,)).fetchone()[0]
     if n_look:

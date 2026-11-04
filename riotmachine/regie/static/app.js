@@ -949,7 +949,7 @@ function renderTile(s, clip) {
         <span class="kind">${esc(stepLabel)}</span>
       </div>
       <div class="info">
-        <p class="desc">${mentionHtml(s.description)}</p>
+        <p class="desc">${mentionHtml(s.script ?? s.description)}${s.prod_outdated ? ` <span class="tag" title="Ton texte a changé : le scénariste met la version de production à jour">production à mettre à jour</span>` : ""}</p>
         <div class="foot">${s.en_production ? `${led(st)}<span>${esc(statusLabel(s))}</span>`
           : `${led("wait")}<span>${clip.stage === "decoupage_review" ? "Attend la validation du découpage" : "Découpage en préparation"}</span>`}</div>
         <div class="foot"><span class="mono" style="font-size:11px">${tc(s.t_start)} → ${tc(s.t_end)}</span>
@@ -1167,7 +1167,8 @@ function renderDrawer() {
       <div class="stack" style="gap:8px">
         <div class="row">${pill(statusLabel(shot), st)}
           <span class="spacer"></span><button class="btn small ghost" data-playshot="${shot.id}">▶ Lire dans le morceau</button></div>
-        <p>${mentionHtml(shot.description)}</p>
+        <p>${mentionHtml(shot.script ?? shot.description)}</p>
+        ${prodVersion(shot.description, shot.script ?? shot.description, shot.prod_outdated)}
         <div class="row" style="gap:6px">${tags.map((t) => `<span class="tag">${esc(t)}</span>`).join("")}</div>
       </div>
       ${detailBox}
@@ -1642,9 +1643,10 @@ function editorFromClip(clip) {
   const shotById = Object.fromEntries(clip.shots.map((s) => [s.id, s]));
   const blocks = clip.blocks.map((b) => ({
     id: b.id, validated: !!b.validated,
-    name: b.name, intention: b.intention || "", look: b.look || "",
+    name: b.name, intention: b.brief ?? b.intention ?? "", prod_intention: b.intention || "", look: b.look || "",
     shots: b.shot_ids.map((id) => shotById[id]).filter(Boolean).map((s) => ({
-      id: s.id, t_start: tc(s.t_start), t_end: tc(s.t_end), description: s.description, detail: s.detail || "",
+      id: s.id, t_start: tc(s.t_start), t_end: tc(s.t_end), description: s.script ?? s.description, detail: s.detail || "",
+      prod: s.description, prod_outdated: !!s.prod_outdated,
       detail_edited: !!s.detail_edited, model_key: s.model_key || "", singing: !!s.singing, cut_ok: !!s.cut_ok, refs_ok: !!s.refs_ok,
       pending: (clip.pending_reviews || []).filter((r) => r.gate === "decoupage" && r.shot_id === s.id).map((r) => r.comment),
       framing: s.framing, motion: s.motion, camera: s.camera, characters: s.characters, notes: s.notes,
@@ -1743,6 +1745,7 @@ function renderDecoupageTab(clip) {
         </div>
         <div class="dshot-sum" data-toggleshot="${key}">
           <p class="dshot-desc" data-desc="${key}">${mentionHtml(s.description) || `<i class="hint">Pas encore de description</i>`}</p>
+          ${s.prod_outdated ? `<p class="hint">⚠ Production à mettre à jour : ton texte a changé, le scénariste repasse.</p>` : ""}
           ${tech ? `<p class="dshot-tech">${esc(tech)}</p>` : ""}
         </div>
         <div class="dshot-body">
@@ -1754,6 +1757,7 @@ function renderDecoupageTab(clip) {
           </div>
           <label class="field"><span>Ce qu'on voit : ton idée, aussi détaillée que tu veux</span>
             <textarea rows="3" data-mention data-sf="${key}:description" placeholder="Décris le plan comme tu le vois : action, émotion, cadrage, détails qui comptent. Tape @ pour citer un personnage ou un décor.">${esc(s.description)}</textarea></label>
+          ${prodVersion(s.prod, s.description, s.prod_outdated)}
           <label class="field"><span>Prompt détaillé${s.detail_edited ? " · écrit par toi" : s.detail ? " · écrit par le scénariste" : " · à écrire"}</span>
             <textarea rows="5" data-mention data-sf="${key}:detail" placeholder="Le plan en détail : sujet, action, décor, lumière, cadrage. Le scénariste le remplit, tu peux le réécrire.">${esc(s.detail || "")}</textarea></label>
           ${pend ? `<div class="agentbar">${led("work")}Modif demandée au scénariste : « ${esc(s.pending[s.pending.length - 1])} ». Il s'en occupe.</div>` : ""}
@@ -1802,6 +1806,7 @@ function renderDecoupageTab(clip) {
         <details class="fold dblock-set"><summary>Nom, intention et lumière du bloc</summary><div class="stack" style="gap:8px">
           <label class="field"><span>Nom</span><input type="text" value="${esc(b.name)}" data-bf="${bi}:name" placeholder="Nom du bloc (couplet 1…)"></label>
           <label class="field"><span>Intention</span><textarea rows="2" data-bf="${bi}:intention" placeholder="Ce que raconte ce bloc">${esc(b.intention)}</textarea></label>
+          ${prodVersion(b.prod_intention, b.intention, false, "Intention de production")}
           <label class="field"><span>Lumière et étalonnage (en anglais)</span><textarea rows="2" data-bf="${bi}:look" placeholder="Lumière commune à tous les plans du bloc" title="Les plans du bloc partagent cette lumière. Le premier visuel validé du bloc sert de référence aux autres.">${esc(b.look || "")}</textarea></label>
           <div class="row"><button class="btn small ghost danger" data-delblock="${bi}">Supprimer le bloc</button></div>
         </div></details>
@@ -1908,6 +1913,12 @@ function renderDecoupageRead(clip) {
   }).join("") + `<p class="hint">Le découpage est validé : pour changer un plan, ouvre-le et demande une modif.</p>` + renderDeletedShots(clip);
 }
 
+/* R-A3 : la version de production (écrite par le scénariste) sous le texte de Michael, quand elle en diffère */
+function prodVersion(prod, mine, outdated, label = "Version de production") {
+  if (!prod || prod.trim() === (mine || "").trim()) return "";
+  return `<p class="hint" style="margin-top:4px"><b>${label}${outdated ? " · à mettre à jour, ton texte a changé" : " (le scénariste a complété)"} :</b> ${mentionHtml(prod)}</p>`;
+}
+
 /* R-A2 : plans retirés du découpage mais gardés (ils avaient des images ou des vidéos), restaurables */
 function renderDeletedShots(clip) {
   const gone = clip.deleted_shots || [];
@@ -1922,12 +1933,12 @@ function renderDeletedShots(clip) {
 function collectEditor() {
   const blocks = state.editor.map((b, bi) => ({
     ...(b.id ? { id: b.id } : {}),
-    name: b.name.trim(), intention: b.intention.trim() || null, look: (b.look || "").trim() || null,
+    name: b.name.trim(), brief: b.intention.trim() || null, look: (b.look || "").trim() || null,
     shots: b.shots.map((s, si) => {
       const a = parseTc(s.t_start); const z = parseTc(s.t_end);
       if (a == null || isNaN(a)) throw new Error(`Bloc « ${b.name || bi + 1} », plan ${si + 1} : début illisible`);
       if (z == null || isNaN(z)) throw new Error(`Bloc « ${b.name || bi + 1} », plan ${si + 1} : fin illisible`);
-      const out = { t_start: a, t_end: z, description: s.description.trim(), singing: !!s.singing,
+      const out = { t_start: a, t_end: z, script: s.description.trim(), singing: !!s.singing,
         detail: (s.detail || "").trim() };
       ["id", "framing", "motion", "camera", "notes", "model_key", "split_from"].forEach((k) => { if (s[k]) out[k] = s[k]; });
       out.characters = s.characters || [];

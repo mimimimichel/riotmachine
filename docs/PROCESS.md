@@ -62,6 +62,13 @@ Après le découpage, chaque plan avance à son rythme, plan par plan. Un plan p
 
 ### Étape 2 : Découpage
 
+Baseline de Michael (R-A3) : ce que Michael écrit (`script` d'un plan, `brief`
+d'un bloc) est stocké à part et jamais modifié par un agent. Les agents écrivent
+la version de production (`description`, `intention`) : ses mots tels quels,
+puis leurs compléments. Tant qu'aucun agent n'a transformé la production, elle
+suit le texte de Michael. Après, un changement de son texte laisse la production
+en place, la marque « à mettre à jour » dans la régie et rappelle le script-doctor.
+
 Identifiants stables (R-A2) : chaque plan et chaque bloc gardent leur `id` à
 travers toutes les éditions du découpage, avec leur statut, leurs images, leurs
 retours et leur historique. Un plan retiré du découpage qui a déjà des images ou

@@ -21,7 +21,7 @@ from .settings import get_settings
 # numérotées (SCHEMA + LATER_COLUMNS, idempotents). Chaque version suivante est une
 # fonction de MIGRATIONS, rejouable sans effet, précédée d'une sauvegarde de la base.
 BASELINE_VERSION = 4
-SCHEMA_VERSION = 7
+SCHEMA_VERSION = 8
 
 # --- Cycle de vie ---------------------------------------------------------
 
@@ -502,10 +502,24 @@ def _migrate_v7(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE shots ADD COLUMN deleted_at TEXT")
 
 
+def _migrate_v8(conn: sqlite3.Connection) -> None:
+    """R-A3 : la baseline de Michael (shots.script, blocks.brief) à part de la version de production."""
+    cols = _columns(conn, "shots")
+    if "script" not in cols:
+        conn.execute("ALTER TABLE shots ADD COLUMN script TEXT")
+        conn.execute("UPDATE shots SET script=description")
+    if "prod_outdated" not in cols:
+        conn.execute("ALTER TABLE shots ADD COLUMN prod_outdated INTEGER NOT NULL DEFAULT 0")
+    if "brief" not in _columns(conn, "blocks"):
+        conn.execute("ALTER TABLE blocks ADD COLUMN brief TEXT")
+        conn.execute("UPDATE blocks SET brief=intention")
+
+
 MIGRATIONS = {
     5: _migrate_v5,
     6: _migrate_v6,
     7: _migrate_v7,
+    8: _migrate_v8,
 }
 
 

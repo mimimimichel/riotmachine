@@ -5,6 +5,12 @@ Format : date, identifiant, ce qui change pour Michael.
 
 ## Lot 1 : Fondations
 
+- 2026-11-04 R-A3 : le texte de Michael (`script` d'un plan, `brief` d'un bloc) est
+  stocké à part et aucun agent ne peut l'écrire (import refusé, `riot shot set
+  --script` interdit). La version de production garde ses mots tels quels ; quand
+  il change son texte après transformation, la production reste, se marque « à
+  mettre à jour » et le script-doctor est rappelé. Le Découpage édite son texte et
+  montre la version de production dessous.
 - 2026-11-04 R-A2 : un plan et un bloc gardent leur id à travers toutes les éditions
   du découpage (blocs appariés par id, champ omis conservé). Un plan retiré qui a
   des images ou des vidéos est gardé avec elles, hors timeline, restaurable

@@ -141,11 +141,17 @@ relis les autres si besoin), mets la mémoire à jour, puis :
    alors mis à jour sur place et garde ses liens aux décors. Un plan sans `id` est
    un nouveau plan ; un plan absent du fichier est supprimé.
 
-   Chaque plan a deux textes :
-   - `description` : **ce qu'on voit, l'idée du plan en français**, aussi détaillée
-     que nécessaire (plusieurs phrases si besoin). C'est ce que Michael écrit et relit.
-     Garde ses mots, ne résume jamais son idée ; complète-la avec ce qui a été validé
-     dans le dossier, le brief et les sources quand ça manque.
+   Chaque plan a trois textes :
+   - `script` : **les mots de Michael**, tels qu'il les a écrits. Tu ne l'écris
+     jamais, tu ne l'envoies pas dans le fichier : l'import le refuse. De même
+     `brief` d'un bloc (son intention à lui) : tu écris `intention`.
+   - `description` : **la version de production, en français** : les mots de
+     Michael **repris tels quels, dans le même ordre**, puis tes compléments à la
+     suite (ce qui a été validé dans le dossier, le brief et les sources quand ça
+     manque). Tu complètes, tu ne reformules pas : l'import refuse une description
+     qui ne contient plus son texte. Quand `needs_agent` dit « production à mettre
+     à jour », Michael a changé `script` sur ces plans (`prod_outdated: 1` dans
+     `riot clip show`) : repars de son nouveau texte et réécris `description`.
    - `detail` : **le prompt détaillé**, en anglais, 80 à 150 mots. Le storyboard et
      le prompteur partent de ce texte, rien d'autre : tout ce qui compte pour ce
      plan doit y être. Dans l'ordre :
@@ -180,7 +186,7 @@ relis les autres si besoin), mets la mémoire à jour, puis :
    - `singing: true` si le personnage chante à l'écran, bouche visible (le
      lip-sync sera appliqué sur ce plan) : appuie-toi sur les paroles et les timecodes ;
    - `intention` du bloc : d'après le concept et le dossier, en une phrase.
-   Garde ses mots dans `description` ; tu peux préciser, pas réinterpréter ni résumer.
+   Ses mots restent tels quels en tête de `description` ; tu précises à la suite, tu ne réinterprètes ni ne résumes.
 
 3. Import : `riot shots import <clip> studio/clips/<clip>/script/shots.json`, puis
    `riot clip stage <clip> decoupage_review`.

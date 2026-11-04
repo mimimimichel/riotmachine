@@ -5,7 +5,11 @@
 
 from __future__ import annotations
 
+import json
 import sqlite3
+from pathlib import Path
+
+import pytest
 
 from riotmachine import db
 
@@ -88,17 +92,18 @@ def test_r_a4_historique(studio):
         {"t_start": 0, "t_end": 4, "description": "v1", "characters": ["jj"]}]}]}, by="michael")
     sid = conn.execute("SELECT id FROM shots").fetchone()[0]
     db.set_actor("michael")
-    production.update_shot(conn, sid, description="v2")
+    production.update_shot(conn, sid, script="v2")   # son texte ; la production le suit (pas encore transformée)
     db.set_actor("agent:script-doctor")
-    production.update_shot(conn, sid, description="v3", framing="CU")
-    production.update_shot(conn, sid, description="v3")   # rien ne change : rien n'est journalisé
+    production.update_shot(conn, sid, description="v2 complété", framing="CU")
+    production.update_shot(conn, sid, description="v2 complété")   # rien ne change : rien n'est journalisé
     db.set_actor("machine")
 
     hist = db.history(conn, "shots", sid)
     desc = [(r["old"], r["new"], r["author"]) for r in reversed(hist) if r["field"] == "description"]
-    assert desc == [("v1", "v2", "michael"), ("v2", "v3", "agent:script-doctor")]
+    assert desc == [("v1", "v2", "michael"), ("v2", "v2 complété", "agent:script-doctor")]
+    assert [(r["old"], r["new"], r["author"]) for r in hist if r["field"] == "script"] == [("v1", "v2", "michael")]
     assert [(r["field"], r["old"], r["new"]) for r in hist if r["field"] == "framing"] == [("framing", None, "CU")]
-    assert len(hist) == 3
+    assert len(hist) == 4
 
     # la CLI et la régie exposent le même historique, dans l'ordre
     assert cli.main(["history", "shot", str(sid)]) == 0
@@ -214,3 +219,76 @@ def test_r_a2_identifiants_stables(studio, monkeypatch):
     production.set_stage(conn, slug, "decoupage_review")
     production.review_decoupage(conn, slug, "approve")
     assert db.get_shot(conn, ids[3])["status"] == "image_gen"
+
+
+def test_r_a3_baseline_michael(studio):
+    """R-A3 : le texte de Michael (`script`, `brief`) n'est jamais écrit par un agent ; la production
+    (`description`, `intention`) le suit jusqu'à la première transformation, puis reste et se marque
+    « à mettre à jour » quand Michael change son texte ; l'agent complète sans reformuler."""
+    from riotmachine import cli, production
+
+    assert cli.main(["init"]) == 0
+    conn = db.connect()
+    db.init_db(conn)
+    production.create_clip(conn, "Base", song=studio["song"], characters=["jj"])
+    slug = "base"
+    production.import_shots(conn, slug, {"blocks": [{"name": "B", "brief": "mon intention", "shots": [
+        {"t_start": 0, "t_end": 4, "script": "JJ marche sous la pluie", "characters": ["jj"]}]}]}, by="michael")
+    sh = conn.execute("SELECT * FROM shots").fetchone()
+    b = conn.execute("SELECT * FROM blocks").fetchone()
+    assert sh["script"] == sh["description"] == "JJ marche sous la pluie"
+    assert b["brief"] == b["intention"] == "mon intention"
+    sid, bid = sh["id"], b["id"]
+
+    # le script-doctor complète : les mots de Michael, puis ses compléments
+    agent = {"blocks": [{"id": bid, "name": "B", "intention": "mon intention, lumière froide", "shots": [
+        {"id": sid, "t_start": 0, "t_end": 4, "description": "JJ marche sous la pluie, parapluie rouge, plan large",
+         "framing": "WS", "characters": ["jj"]}]}]}
+    production.import_shots(conn, slug, agent)
+    sh = db.get_shot(conn, sid)
+    assert sh["script"] == "JJ marche sous la pluie"
+    assert sh["description"] == "JJ marche sous la pluie, parapluie rouge, plan large" and sh["prod_outdated"] == 0
+    b = db.row(conn.execute("SELECT * FROM blocks WHERE id=?", (bid,)).fetchone())
+    assert b["brief"] == "mon intention" and b["intention"] == "mon intention, lumière froide"
+
+    # il ne reformule pas, il n'écrit ni le script ni le brief
+    bad = json.loads(json.dumps(agent))
+    bad["blocks"][0]["shots"][0]["description"] = "Une femme marche dehors"
+    with pytest.raises(production.ProductionError, match="mots de Michael"):
+        production.import_shots(conn, slug, bad)
+    bad = json.loads(json.dumps(agent))
+    bad["blocks"][0]["shots"][0]["script"] = "autre"
+    with pytest.raises(production.ProductionError, match="script"):
+        production.import_shots(conn, slug, bad)
+    bad = json.loads(json.dumps(agent))
+    bad["blocks"][0]["brief"] = "autre"
+    with pytest.raises(production.ProductionError, match="brief"):
+        production.import_shots(conn, slug, bad)
+    assert db.get_shot(conn, sid)["script"] == "JJ marche sous la pluie"
+
+    # Michael change son texte : la production reste, marquée à mettre à jour, le script-doctor est rappelé
+    mine = {"blocks": [{"id": bid, "name": "B", "brief": "mon intention", "shots": [
+        {"id": sid, "t_start": 0, "t_end": 4, "script": "JJ court sous la pluie", "characters": ["jj"]}]}]}
+    production.import_shots(conn, slug, mine, by="michael")
+    sh = db.get_shot(conn, sid)
+    assert sh["script"] == "JJ court sous la pluie"
+    assert sh["description"] == "JJ marche sous la pluie, parapluie rouge, plan large" and sh["prod_outdated"] == 1
+    assert any("production à mettre à jour" in r for r in production.needs_agent(conn, slug)["reasons"])
+    # le script-doctor remet la production à jour, à partir des nouveaux mots
+    with pytest.raises(production.ProductionError, match="mots de Michael"):
+        production.update_shot(conn, sid, description="JJ marche sous la pluie, parapluie rouge")
+    production.update_shot(conn, sid, description="JJ court sous la pluie, parapluie rouge, plan large")
+    assert db.get_shot(conn, sid)["prod_outdated"] == 0
+    assert not any("production à mettre à jour" in r for r in production.needs_agent(conn, slug)["reasons"])
+
+    # un agent ne peut pas écrire le script par la CLI ; la régie (Michael) le peut
+    db.set_actor("agent:script-doctor")
+    with pytest.raises(production.ProductionError, match="Michael"):
+        production.update_shot(conn, sid, script="x")
+    db.set_actor("michael")
+    production.update_shot(conn, sid, script="JJ court sous la pluie, essoufflée")
+    db.set_actor("machine")
+    sh = db.get_shot(conn, sid)
+    assert sh["script"] == "JJ court sous la pluie, essoufflée" and sh["prod_outdated"] == 1
+    settings = json.loads((Path(production.__file__).parent.parent / ".claude" / "settings.json").read_text())
+    assert any("--script" in d for d in settings["permissions"]["deny"])

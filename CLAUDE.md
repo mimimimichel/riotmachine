@@ -104,7 +104,11 @@ Michael (`author: michael`) reste prioritaire même s'il est ancien.
 
 ## Prompt détaillé, modèle choisi, lumière de bloc
 
-- Chaque plan a « ce qu'on voit » (`description`, l'idée de Michael, aussi détaillée qu'il veut) et un prompt détaillé (`detail`).
+- Chaque plan a trois textes : `script` (les mots de Michael, jamais écrits par un agent,
+  `riot shot set --script` est refusé), `description` (la version de production : ses mots
+  tels quels puis les compléments du script-doctor ; `prod_outdated: 1` quand Michael a
+  changé son texte depuis) et un prompt détaillé (`detail`). Un bloc a de même `brief`
+  (Michael) et `intention` (production).
   Le storyboard et le prompteur partent du `detail`. Un `detail` réécrit par
   Michael (`detail_edited: 1`) ne se modifie plus : `riot shot set --detail` le refuse.
 - Michael peut choisir le modèle vidéo et le lip-sync de chaque plan dans la
