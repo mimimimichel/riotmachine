@@ -29,6 +29,8 @@ Langue de travail : **français** (les prompts envoyés aux modèles sont en ang
    Chaque agent le lit avant chaque tâche.
 6. **Tout passe par la CLI `riot`** (base SQLite + fichiers dans `studio/`).
    Ne modifie pas la base à la main, ne déplace pas les fichiers de `studio/`.
+   Chaque changement de champ est journalisé avec son auteur (`riot history`) :
+   la CLI déduit l'agent de la commande, ou lit `RIOT_ACTOR` si tu le poses.
 
 ## Dépenses et mémoire des personnages
 
@@ -133,6 +135,7 @@ riot shot retry <id>                  # relance un plan en échec
 riot clip stage <clip> <étape>        # script | decoupage_review | production | done
 riot notify "<message>"               # message Telegram à Michael
 riot cost <clip> | riot events --clip <clip>
+riot history shot|block|clip|character|version|element <id>   # qui a changé quoi, avant / après
 riot character show <slug> | riot character gen <slug> ... | riot character pack-done <slug> --version N
 ```
 

@@ -104,7 +104,7 @@ def cmd_clip_stage(a) -> None:
 
 def cmd_clip_budget(a) -> None:
     conn = _conn()
-    conn.execute("UPDATE clips SET budget_usd=?, updated_at=? WHERE slug=?", (a.usd, db.now(), a.clip))
+    db.update(conn, "clips", a.clip, {"budget_usd": a.usd}, reason="budget")
     out({"clip": a.clip, "budget_usd": a.usd})
 
 
@@ -384,6 +384,18 @@ def cmd_cost(a) -> None:
     out({"clip": a.clip, "total_usd": round(sum(r["cost_usd"] for r in rows), 3), "detail": rows})
 
 
+HISTORY_TABLES = {"clip": "clips", "block": "blocks", "shot": "shots", "character": "characters",
+                  "version": "character_versions", "element": "elements"}
+
+
+def cmd_history(a) -> None:
+    """Les changements d'un objet (R-A4) : champ, avant, après, auteur, raison, date."""
+    conn = _conn()
+    table = HISTORY_TABLES[a.what]
+    key = a.id if table in ("clips", "characters") else int(a.id)
+    out(db.history(conn, table, key, a.limit))
+
+
 def cmd_events(a) -> None:
     conn = _conn()
     q = "SELECT * FROM events" + (" WHERE clip_slug=?" if a.clip else "") + " ORDER BY id DESC LIMIT ?"
@@ -659,6 +671,12 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("clip")
     sp.set_defaults(func=cmd_cost)
 
+    sp = sub.add_parser("history", help="Historique des changements d'un objet (qui, quand, avant, après)")
+    sp.add_argument("what", choices=sorted(HISTORY_TABLES))
+    sp.add_argument("id", help="id (plan, bloc, version, élément) ou slug (clip, personnage)")
+    sp.add_argument("--limit", type=int, default=200)
+    sp.set_defaults(func=cmd_history)
+
     sp = sub.add_parser("events", help="Journal")
     sp.add_argument("--clip")
     sp.add_argument("--limit", type=int, default=30)
@@ -685,8 +703,39 @@ def build_parser() -> argparse.ArgumentParser:
     return p
 
 
+def actor_for(args: Any) -> str:
+    """Qui écrit (R-A4) : RIOT_ACTOR si posé, sinon l'agent que la commande suppose."""
+    import os
+    forced = os.environ.get("RIOT_ACTOR")
+    if forced:
+        return forced
+    cmd, action = args.cmd, getattr(args, "action", None)
+    if cmd == "shots" and action == "import":
+        return "agent:script-doctor"
+    if cmd == "gen" and getattr(args, "kind", None) == "image":
+        return "agent:storyboard"
+    if cmd == "qc":
+        return "agent:controleur"
+    if cmd == "route":
+        return "agent:routeur"
+    if cmd == "shot" and action == "set" and getattr(args, "video_prompt", None):
+        return "agent:prompteur"
+    if cmd == "scenario":
+        return "agent:scenariste"
+    if cmd == "element":
+        return "agent:decorateur"
+    if cmd == "character":
+        return "agent:directeur-casting"
+    if cmd == "decide":
+        return "michael"
+    if cmd in ("worker", "regie"):
+        return "worker" if cmd == "worker" else "michael"
+    return "agent:orchestrateur"
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    db.set_actor(actor_for(args))
     try:
         args.func(args)
     except (production.ProductionError, routing.RoutingError, fal.FalError, media.MediaError,

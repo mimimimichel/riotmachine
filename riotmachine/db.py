@@ -21,7 +21,7 @@ from .settings import get_settings
 # numérotées (SCHEMA + LATER_COLUMNS, idempotents). Chaque version suivante est une
 # fonction de MIGRATIONS, rejouable sans effet, précédée d'une sauvegarde de la base.
 BASELINE_VERSION = 4
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 
 # --- Cycle de vie ---------------------------------------------------------
 
@@ -479,8 +479,26 @@ def _migrate_v5(conn: sqlite3.Connection) -> None:
     """Schéma versionné : la table schema_version existe (créée par SCHEMA). Rien d'autre."""
 
 
+def _migrate_v6(conn: sqlite3.Connection) -> None:
+    """R-A4 : historique des changements, un enregistrement par champ modifié."""
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS changes (
+            id INTEGER PRIMARY KEY,
+            table_name TEXT NOT NULL,
+            row_id TEXT NOT NULL,
+            field TEXT NOT NULL,
+            old TEXT,
+            new TEXT,
+            author TEXT NOT NULL,       -- michael | agent:<nom> | worker | machine
+            reason TEXT,
+            created_at TEXT NOT NULL
+        )""")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_changes_row ON changes(table_name, row_id, id)")
+
+
 MIGRATIONS = {
     5: _migrate_v5,
+    6: _migrate_v6,
 }
 
 
@@ -678,10 +696,118 @@ def get_shot(conn: sqlite3.Connection, shot_id: int) -> dict[str, Any]:
     return shot
 
 
-def set_shot_status(conn: sqlite3.Connection, shot_id: int, status: str) -> None:
+def set_shot_status(conn: sqlite3.Connection, shot_id: int, status: str, by: str | None = None,
+                    reason: str | None = None) -> None:
     if status not in SHOT_STATUSES:
         raise ValueError(f"Statut de plan invalide : {status}")
-    conn.execute("UPDATE shots SET status=?, updated_at=? WHERE id=?", (status, now(), shot_id))
+    update(conn, "shots", shot_id, {"status": status}, by=by, reason=reason)
+
+
+# --- Historique des changements (R-A4) -----------------------------------------
+#
+# Les tables suivies ne s'écrivent que par `update` (ou `update_where`) : chaque
+# champ modifié donne une ligne dans `changes` (avant, après, auteur, raison).
+# Un test lit le code source et refuse tout `UPDATE` direct sur ces tables hors de ce module.
+
+TRACKED = ("clips", "blocks", "shots", "characters", "character_versions", "elements")
+_KEYS = {"clips": "slug", "characters": "slug"}
+_ACTOR = "machine"
+
+
+def set_actor(name: str) -> None:
+    """Qui écrit dans ce processus : michael (régie), worker, agent:<nom> (CLI)."""
+    global _ACTOR
+    _ACTOR = name
+
+
+def actor() -> str:
+    return _ACTOR
+
+
+def _same(a: Any, b: Any) -> bool:
+    if a == b:
+        return True
+    if a is None or b is None:
+        return False
+    try:
+        return float(a) == float(b)
+    except (TypeError, ValueError):
+        return False
+
+
+def _text(v: Any) -> str | None:
+    if v is None:
+        return None
+    if isinstance(v, (dict, list)):
+        return json.dumps(v, ensure_ascii=False)
+    return str(v)
+
+
+def update(conn: sqlite3.Connection, table: str, key: Any, fields: dict[str, Any], *,
+           by: str | None = None, reason: str | None = None) -> dict[str, Any]:
+    """Écrit les champs qui changent et journalise chacun. Retourne les champs réellement modifiés."""
+    if table not in TRACKED:
+        raise ValueError(f"Table non suivie : {table}")
+    pk = _KEYS.get(table, "id")
+    cur = conn.execute(f"SELECT * FROM {table} WHERE {pk}=?", (key,)).fetchone()
+    if cur is None:
+        raise LookupError(f"{table} {key} : inconnu")
+    cols = cur.keys()
+    changed: dict[str, Any] = {}
+    for k, v in fields.items():
+        if k not in cols:
+            raise ValueError(f"{table}.{k} : colonne inconnue")
+        if isinstance(v, (dict, list)):
+            v = json.dumps(v, ensure_ascii=False)
+        if not _same(cur[k], v):
+            changed[k] = v
+    if not changed:
+        return {}
+    sets = [f"{k}=?" for k in changed]
+    params: list[Any] = list(changed.values())
+    if "updated_at" in cols and "updated_at" not in changed:
+        sets.append("updated_at=?")
+        params.append(now())
+    conn.execute(f"UPDATE {table} SET {', '.join(sets)} WHERE {pk}=?", (*params, key))
+    stamp = now()
+    conn.executemany(
+        "INSERT INTO changes (table_name, row_id, field, old, new, author, reason, created_at) VALUES (?,?,?,?,?,?,?,?)",
+        [(table, str(key), k, _text(cur[k]), _text(v), by or _ACTOR, reason, stamp)
+         for k, v in changed.items() if k != "updated_at"])
+    return changed
+
+
+def update_where(conn: sqlite3.Connection, table: str, where: str, params: tuple, fields: dict[str, Any], *,
+                 by: str | None = None, reason: str | None = None) -> int:
+    """Même chose pour toutes les lignes d'une condition. Retourne le nombre de lignes modifiées."""
+    pk = _KEYS.get(table, "id")
+    keys = [r[0] for r in conn.execute(f"SELECT {pk} FROM {table} WHERE {where}", params).fetchall()]
+    return sum(1 for k in keys if update(conn, table, k, fields, by=by, reason=reason))
+
+
+def free_shot_numbers(conn: sqlite3.Connection, clip_slug: str) -> None:
+    """Étape transitoire d'une renumérotation (num unique par clip) : pas un changement, pas journalisée."""
+    conn.execute("UPDATE shots SET num=-id WHERE clip_slug=?", (clip_slug,))
+
+
+def renumber_shot(conn: sqlite3.Connection, shot_id: int, num: int, old_num: int | None, by: str | None = None) -> None:
+    """Pose le numéro final après `free_shot_numbers` ; journalisé seulement s'il a changé."""
+    conn.execute("UPDATE shots SET num=? WHERE id=?", (num, shot_id))
+    if old_num is not None and old_num != num:
+        conn.execute("INSERT INTO changes (table_name, row_id, field, old, new, author, reason, created_at) VALUES (?,?,?,?,?,?,?,?)",
+                     ("shots", str(shot_id), "num", str(old_num), str(num), by or _ACTOR, "renuméroté", now()))
+
+
+def touch(conn: sqlite3.Connection, table: str, key: Any) -> None:
+    """Met à jour updated_at seul (une pièce jointe, un fichier) : pas un changement de champ."""
+    pk = _KEYS.get(table, "id")
+    conn.execute(f"UPDATE {table} SET updated_at=? WHERE {pk}=?", (now(), key))
+
+
+def history(conn: sqlite3.Connection, table: str, key: Any, limit: int = 200) -> list[dict[str, Any]]:
+    """Les changements d'un objet, du plus récent au plus ancien."""
+    return rows(conn.execute("SELECT * FROM changes WHERE table_name=? AND row_id=? ORDER BY id DESC LIMIT ?",
+                             (table, str(key), limit)).fetchall())
 
 
 def latest_asset(conn: sqlite3.Connection, shot_id: int, kind: str) -> dict[str, Any] | None:

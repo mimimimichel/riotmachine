@@ -50,6 +50,6 @@ def analyse_song(conn, slug: str, model: str = "small") -> dict[str, Any]:
     dest = studio() / clip["dir"] / "work" / "analyse.json"
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(json.dumps(out, ensure_ascii=False, indent=1), encoding="utf-8")
-    conn.execute("UPDATE clips SET bpm=?, updated_at=? WHERE slug=?", (out["tempo"], db.now(), slug))
+    db.update(conn, "clips", slug, {"bpm": out["tempo"]}, reason="analyse du morceau")
     db.log_event(conn, slug, "analyse", f"Morceau analysé : {out['tempo']} BPM, {len(lines)} lignes de paroles placées")
     return {"path": str(dest), "tempo": out["tempo"], "lines": len(lines), "beats": len(out["beats"])}

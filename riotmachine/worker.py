@@ -80,8 +80,8 @@ def run_automatic_steps(conn: sqlite3.Connection) -> int:
             except Exception as exc:
                 step = {"hd_todo": "image_hd", "draft_todo": "draft", "final_todo": "final",
                         "lipsync_todo": "lipsync"}[status]
-                conn.execute("UPDATE shots SET status='failed', failed_step=?, updated_at=? WHERE id=?",
-                             (step, db.now(), r["id"]))
+                db.update(conn, "shots", r["id"], {"status": "failed", "failed_step": step}, by="worker",
+                          reason=str(exc)[:200])
                 db.add_note(conn, r["id"], "machine", f"Échec du lancement ({status}) : {exc}"[:500])
                 db.log_event(conn, r["clip_slug"], "error", f"Plan {r['num']} : {exc}")
     return launched
@@ -229,6 +229,7 @@ def wake_casting(conn: sqlite3.Connection) -> list[str]:
 
 
 def tick(conn: sqlite3.Connection, wake: bool = True) -> dict:
+    db.set_actor("worker")
     out = {"jobs_done": poll_jobs(conn), "spend_launched": production.run_approved_spend(conn),
            "auto_launched": run_automatic_steps(conn)}
     notify_reviews(conn)
@@ -238,6 +239,7 @@ def tick(conn: sqlite3.Connection, wake: bool = True) -> dict:
 
 
 def run_forever() -> None:
+    db.set_actor("worker")
     s = get_settings()
     production.BACKGROUND = True   # le worker dure : les générations gratuites tournent en arrière-plan
     print(f"Riot Machine worker — studio {s.studio_root} — fal {'SIMULATION' if s.fal_mock else 'réel'} "

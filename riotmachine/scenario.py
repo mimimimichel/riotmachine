@@ -35,7 +35,7 @@ def submit_brainstorm(conn, slug: str, text: str) -> str:
         src = Path(tmp) / f"brainstorm-{stamp}.md"
         src.write_text(text.strip() + "\n", encoding="utf-8")
         f = add_clip_file(conn, slug, "dossier", src, label=f"Brainstorm du {stamp[:10]}")
-    conn.execute("UPDATE clips SET scenario_status='requested', updated_at=? WHERE slug=?", (db.now(), slug))
+    db.update(conn, "clips", slug, {"scenario_status": "requested"}, reason="brainstorm envoyé au scénariste")
     db.log_event(conn, slug, "scenario", "Brainstorm envoyé au scénariste")
     return f["path"]
 
@@ -61,7 +61,7 @@ def propose(conn, slug: str, data: Any) -> dict:
     dest = _file(clip)
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
-    conn.execute("UPDATE clips SET scenario_status='proposed', updated_at=? WHERE slug=?", (db.now(), slug))
+    db.update(conn, "clips", slug, {"scenario_status": "proposed"}, reason="propositions du scénariste")
     db.log_event(conn, slug, "scenario", f"Le scénariste propose {len(data['parts'])} parties")
     return {"parts": len(data["parts"]), "path": rel(dest)}
 
@@ -101,7 +101,7 @@ def decide(conn, slug: str, key: str, decision: str, text: str | None = None) ->
     f.write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
     left = [p for p in data["parts"] if p["status"] == "proposed"]
     if not left:
-        conn.execute("UPDATE clips SET scenario_status='none', updated_at=? WHERE slug=?", (db.now(), slug))
+        db.update(conn, "clips", slug, {"scenario_status": "none"}, reason="toutes les propositions tranchées")
     db.log_event(conn, slug, "scenario", f"Scénariste : « {part['title']} » "
                                          f"{'acceptée' if decision == 'accept' else 'écartée'} par Michael")
     return {"ok": True, "left": len(left)}

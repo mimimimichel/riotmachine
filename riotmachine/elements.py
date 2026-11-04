@@ -79,12 +79,12 @@ def update(conn: sqlite3.Connection, element_id: int, *, name: str | None = None
            states: list[str] | None = None) -> dict:
     e = _element(conn, element_id)
     if name is not None and name.strip():
-        conn.execute("UPDATE elements SET name=? WHERE id=?", (name.strip(), element_id))
+        db.update(conn, "elements", element_id, {"name": name.strip()})
     if description is not None:
-        conn.execute("UPDATE elements SET description=? WHERE id=?", (description.strip() or None, element_id))
+        db.update(conn, "elements", element_id, {"description": description.strip() or None})
     if states is not None:
-        conn.execute("UPDATE elements SET states=? WHERE id=?",
-                     (json.dumps([s.strip() for s in states if s.strip()], ensure_ascii=False), element_id))
+        db.update(conn, "elements", element_id,
+                  {"states": json.dumps([s.strip() for s in states if s.strip()], ensure_ascii=False)})
     return _element(conn, e["id"])
 
 
@@ -139,7 +139,7 @@ def add_image(conn: sqlite3.Connection, element_id: int, src: str | Path, state:
     if role == "draft":
         cancel_pending(conn, element_id, "remplacée : Michael a déposé son image de départ")
         # le décorateur regarde l'image et écrit la fiche et le prompt HD qui la décrivent
-        conn.execute("UPDATE elements SET prompt_status='requested' WHERE id=?", (element_id,))
+        db.update(conn, "elements", element_id, {"prompt_status": "requested"}, reason="image de départ déposée")
     return db.row(conn.execute("SELECT * FROM element_images WHERE id=?", (cur.lastrowid,)).fetchone())
 
 
@@ -198,7 +198,7 @@ def set_prompt(conn: sqlite3.Connection, element_id: int, text: str) -> dict:
     clean = text.strip()
     if clean and clean in (proposed_prompt(e, True), proposed_prompt(e, False)):
         clean = ""
-    conn.execute("UPDATE elements SET prompt=? WHERE id=?", (clean or None, element_id))
+    db.update(conn, "elements", element_id, {"prompt": clean or None}, reason="prompt HD réécrit")
     return _element(conn, element_id)
 
 
@@ -208,7 +208,7 @@ def request_describe(conn: sqlite3.Connection, element_id: int) -> dict:
     if not conn.execute("SELECT 1 FROM element_images WHERE element_id=? AND role='draft' AND status='kept'",
                         (element_id,)).fetchone():
         raise ProductionError("Dépose d'abord ton image de départ")
-    conn.execute("UPDATE elements SET prompt_status='requested' WHERE id=?", (element_id,))
+    db.update(conn, "elements", element_id, {"prompt_status": "requested"}, reason="prompt HD demandé au décorateur")
     db.log_event(conn, e["clip_slug"], "decors", f"Prompt HD demandé au décorateur : {e['name']}")
     return _element(conn, element_id)
 
@@ -220,8 +220,9 @@ def describe(conn: sqlite3.Connection, element_id: int, prompt: str, description
         raise ProductionError("Le prompt est vide")
     with db.tx(conn):
         if description is not None and description.strip():
-            conn.execute("UPDATE elements SET description=? WHERE id=?", (description.strip(), element_id))
-        conn.execute("UPDATE elements SET prompt_agent=?, prompt_status='none' WHERE id=?", (prompt.strip(), element_id))
+            db.update(conn, "elements", element_id, {"description": description.strip()}, reason="fiche du décorateur")
+        db.update(conn, "elements", element_id, {"prompt_agent": prompt.strip(), "prompt_status": "none"},
+                  reason="prompt HD du décorateur")
         cancel_pending(conn, element_id, "remplacée : le décorateur a écrit le prompt d'après l'image de départ")
         db.log_event(conn, e["clip_slug"], "decors", f"Prompt HD écrit d'après l'image de départ : {e['name']}")
     return _element(conn, element_id)
@@ -326,7 +327,7 @@ KIND_EN = {"decor": "location", "objet": "object", "figurant": "person or animal
 
 def set_brief(conn: sqlite3.Connection, element_id: int, text: str) -> dict:
     _element(conn, element_id)
-    conn.execute("UPDATE elements SET brief=? WHERE id=?", (text.strip() or None, element_id))
+    db.update(conn, "elements", element_id, {"brief": text.strip() or None})
     return _element(conn, element_id)
 
 
@@ -470,7 +471,7 @@ def pick(conn: sqlite3.Connection, image_id: int, decision: str) -> None:
         if img["role"] == "draft":
             # un brouillon gardé devient l'image de départ : le décorateur écrit le prompt HD d'après lui
             cancel_pending(conn, img["element_id"], "remplacée : nouvelle image de départ")
-            conn.execute("UPDATE elements SET prompt_status='requested' WHERE id=?", (img["element_id"],))
+            db.update(conn, "elements", img["element_id"], {"prompt_status": "requested"}, reason="nouvelle image de départ")
     elif decision == "reject":
         p = absp(img["path"])
         if p and p.is_file():
@@ -607,7 +608,7 @@ def link_mentions(conn: sqlite3.Connection, shot_id: int) -> list[str]:
     looks = json.loads(looks) if isinstance(looks, str) and looks else dict(looks or {})
     kept = looks if shot.get("looks_manual") else {c: l for c, l in looks.items() if f"{c}-{l}" in cited}
     if kept != looks:
-        conn.execute("UPDATE shots SET looks=? WHERE id=?", (json.dumps(kept) if kept else None, shot_id))
+        db.update(conn, "shots", shot_id, {"looks": json.dumps(kept) if kept else None}, reason="les @ du texte font foi")
     linked = []
     for slug in dict.fromkeys(MENTION.findall(text)):
         r = conn.execute("SELECT id FROM elements WHERE clip_slug=? AND slug=?", (shot["clip_slug"], slug)).fetchone()
@@ -637,7 +638,7 @@ def add_character(conn: sqlite3.Connection, shot_id: int, slug: str) -> None:
     chars = json.loads(shot.get("characters") or "[]") if isinstance(shot.get("characters"), str) else list(shot.get("characters") or [])
     if slug not in chars:
         chars.append(slug)
-        conn.execute("UPDATE shots SET characters=? WHERE id=?", (json.dumps(chars), shot_id))
+        db.update(conn, "shots", shot_id, {"characters": json.dumps(chars)}, reason="personnage cité")
 
 
 def set_shot_look(conn: sqlite3.Connection, shot_id: int, character_slug: str, look_slug: str | None) -> None:
@@ -648,24 +649,24 @@ def set_shot_look(conn: sqlite3.Connection, shot_id: int, character_slug: str, l
         looks[character_slug] = look_slug
     else:
         looks.pop(character_slug, None)
-    conn.execute("UPDATE shots SET looks=? WHERE id=?", (json.dumps(looks) if looks else None, shot_id))
+    db.update(conn, "shots", shot_id, {"looks": json.dumps(looks) if looks else None}, reason="tenue du plan")
 
 
 def remove_character(conn: sqlite3.Connection, shot_id: int, slug: str) -> None:
     shot = db.get_shot(conn, shot_id)
     chars = json.loads(shot.get("characters") or "[]") if isinstance(shot.get("characters"), str) else list(shot.get("characters") or [])
-    conn.execute("UPDATE shots SET characters=? WHERE id=?", (json.dumps([c for c in chars if c != slug]), shot_id))
+    db.update(conn, "shots", shot_id, {"characters": json.dumps([c for c in chars if c != slug])}, reason="personnage retiré")
 
 
 def request(conn: sqlite3.Connection, clip_slug: str) -> None:
     """Michael demande à l'agent décorateur de repérer (ou compléter) les éléments du clip."""
     db.get_clip(conn, clip_slug)
-    conn.execute("UPDATE clips SET decors_status='requested', updated_at=? WHERE slug=?", (db.now(), clip_slug))
+    db.update(conn, "clips", clip_slug, {"decors_status": "requested"}, reason="repérage des décors demandé")
     db.log_event(conn, clip_slug, "decors", "Repérage des décors demandé")
 
 
 def done(conn: sqlite3.Connection, clip_slug: str) -> None:
-    conn.execute("UPDATE clips SET decors_status='done', updated_at=? WHERE slug=?", (db.now(), clip_slug))
+    db.update(conn, "clips", clip_slug, {"decors_status": "done"}, reason="décors repérés")
     db.log_event(conn, clip_slug, "decors", "Décors, objets et figurants repérés")
 
 

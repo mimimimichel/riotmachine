@@ -44,6 +44,9 @@ async def token_guard(request: Request, call_next):
     return await call_next(request)
 
 
+db.set_actor("michael")   # dans la régie, c'est Michael qui écrit (R-A4)
+
+
 def _conn():
     conn = db.connect()
     db.init_db(conn)
@@ -327,6 +330,26 @@ def decide_decoupage(slug: str, body: Decision) -> dict[str, Any]:
     return {"ok": True}
 
 
+@app.get("/api/shots/{shot_id}")
+def shot(shot_id: int) -> dict[str, Any]:
+    conn = _conn()
+    try:
+        return production.shot_view(conn, db.get_shot(conn, shot_id))
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+
+@app.get("/api/shots/{shot_id}/history")
+def shot_history(shot_id: int) -> list[dict[str, Any]]:
+    """Les changements du plan (R-A4), du plus récent au plus ancien."""
+    conn = _conn()
+    try:
+        db.get_shot(conn, shot_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    return db.history(conn, "shots", shot_id)
+
+
 @app.post("/api/shots/{shot_id}/review")
 def decide_shot(shot_id: int, body: Decision) -> dict[str, Any]:
     try:
@@ -365,7 +388,7 @@ class Budget(BaseModel):
 @app.post("/api/clips/{slug}/budget")
 def set_budget(slug: str, body: Budget) -> dict[str, Any]:
     conn = _conn()
-    conn.execute("UPDATE clips SET budget_usd=?, updated_at=? WHERE slug=?", (body.budget_usd, db.now(), slug))
+    db.update(conn, "clips", slug, {"budget_usd": body.budget_usd}, reason="budget")
     return {"ok": True}
 
 
@@ -610,7 +633,7 @@ def shot_refs_ok(shot_id: int, body: CutOk) -> dict[str, Any]:
     """Michael confirme qu'un plan n'a pas besoin de référence @ : plus aucun signalement."""
     conn = _conn()
     db.get_shot(conn, shot_id)
-    conn.execute("UPDATE shots SET refs_ok=? WHERE id=?", (1 if body.ok else 0, shot_id))
+    db.update(conn, "shots", shot_id, {"refs_ok": 1 if body.ok else 0}, reason="pas de référence @ voulue")
     return {"ok": True}
 
 

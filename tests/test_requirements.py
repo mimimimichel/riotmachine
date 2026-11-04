@@ -67,3 +67,53 @@ def test_r_g2_hook_et_tests_nommes():
     tests = "\n".join(p.read_text() for p in (repo / "tests").glob("test_*.py"))
     missing = sorted(i for i in delivered if not re.search(rf"def test_r_{i.lower()}_", tests))
     assert not missing, f"exigences livrées sans test nommé : {missing}"
+
+
+# --- A. Données ----------------------------------------------------------------
+
+def test_r_a4_historique(studio):
+    """R-A4 : trois modifications successives donnent trois lignes avant/après avec leur auteur ;
+    `riot history`, l'API et l'absence d'UPDATE direct hors db.py."""
+    import re
+    from pathlib import Path
+    from fastapi.testclient import TestClient
+    from riotmachine import cli, production
+    from riotmachine.regie.app import app
+
+    assert cli.main(["init"]) == 0
+    assert cli.main(["clip", "new", "Histo", "--song", str(studio["song"]), "--characters", "jj"]) == 0
+    conn = db.connect()
+    db.init_db(conn)
+    production.import_shots(conn, "histo", {"blocks": [{"name": "B", "shots": [
+        {"t_start": 0, "t_end": 4, "description": "v1", "characters": ["jj"]}]}]}, by="michael")
+    sid = conn.execute("SELECT id FROM shots").fetchone()[0]
+    db.set_actor("michael")
+    production.update_shot(conn, sid, description="v2")
+    db.set_actor("agent:script-doctor")
+    production.update_shot(conn, sid, description="v3", framing="CU")
+    production.update_shot(conn, sid, description="v3")   # rien ne change : rien n'est journalisé
+    db.set_actor("machine")
+
+    hist = db.history(conn, "shots", sid)
+    desc = [(r["old"], r["new"], r["author"]) for r in reversed(hist) if r["field"] == "description"]
+    assert desc == [("v1", "v2", "michael"), ("v2", "v3", "agent:script-doctor")]
+    assert [(r["field"], r["old"], r["new"]) for r in hist if r["field"] == "framing"] == [("framing", None, "CU")]
+    assert len(hist) == 3
+
+    # la CLI et la régie exposent le même historique, dans l'ordre
+    assert cli.main(["history", "shot", str(sid)]) == 0
+    client = TestClient(app)
+    api = client.get(f"/api/shots/{sid}/history").json()
+    assert [r["field"] for r in api] == [r["field"] for r in hist]
+    assert client.get(f"/api/shots/{sid}").json()["id"] == sid
+
+    # aucun UPDATE direct sur les tables suivies hors db.py
+    pkg = Path(production.__file__).parent
+    direct = {}
+    for p in pkg.rglob("*.py"):
+        if p.name == "db.py":
+            continue
+        hits = re.findall(r"UPDATE\s+(clips|blocks|shots|characters|character_versions|elements)\s+SET", p.read_text())
+        if hits:
+            direct[p.name] = hits
+    assert not direct, f"UPDATE directs à passer par db.update : {direct}"

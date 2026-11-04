@@ -5,6 +5,10 @@ Format : date, identifiant, ce qui change pour Michael.
 
 ## Lot 1 : Fondations
 
+- 2026-11-04 R-A4 : chaque changement d'un clip, bloc, plan, personnage, version ou
+  élément est journalisé (avant, après, auteur, raison). `riot history …`,
+  `GET /api/shots/<id>/history`, pli « Historique des changements » dans le détail
+  d'un plan. Toutes les écritures passent par `db.update`.
 - 2026-11-04 R-G2 : hook `pre-commit` (pytest vert avant tout commit, installé par
   `deploy/install-hooks.sh`), tests nommés par exigence dans
   `tests/test_requirements.py`, test qui vérifie que chaque exigence du changelog a

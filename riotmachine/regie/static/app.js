@@ -152,6 +152,29 @@ function modelSelect(clip, current, attrs) {
       <optgroup label="Non branchés">${ms.filter((m) => !m.usable).map(opt).join("")}</optgroup></select>`;
 }
 const NOTE_AUTHOR = { michael: "Toi", controleur: "Contrôleur", machine: "Machine", orchestrateur: "Orchestrateur" };
+// Historique des changements (R-A4) : noms des champs et des auteurs en français
+const FIELD_LABEL = { description: "ce qu'on voit", script: "ton texte", detail: "prompt détaillé", t_start: "début", t_end: "fin",
+  framing: "cadrage", motion: "mouvement", camera: "caméra", characters: "personnages", singing: "chanté", notes: "note",
+  status: "statut", model_key: "modèle", tier: "palier", image_prompt: "prompt image", video_prompt: "prompt vidéo",
+  negative_prompt: "prompt négatif", seed: "seed", num: "numéro", block_id: "bloc", section: "bloc", cut_ok: "validé au découpage",
+  looks: "tenues", lipsync_key: "lip-sync", qc_retries: "essais de contrôle", failed_step: "étape en échec", refs_ok: "références",
+  detail_edited: "prompt détaillé réécrit", looks_manual: "tenue à la main", route_reason: "raison du routage" };
+function changeAuthor(a) {
+  if (a === "michael") return "Toi";
+  if (a === "worker") return "Worker";
+  if (a === "machine") return "Machine";
+  return a.startsWith("agent:") ? a.slice(6) : a;
+}
+function changeValue(v) {
+  if (v === null || v === undefined || v === "") return "vide";
+  const s = String(v);
+  return s.length > 80 ? s.slice(0, 77) + "…" : s;
+}
+function changesFold(changes) {
+  if (!changes || !changes.length) return "";
+  return `<details class="fold"><summary>Historique des changements (${changes.length})</summary><div class="journal">${changes.map((c) =>
+    `<div><span class="t">${esc(c.created_at.replace("T", " ").slice(5, 16))}</span><span><b>${esc(changeAuthor(c.author))}</b> · ${esc(FIELD_LABEL[c.field] || c.field)} : ${esc(changeValue(c.old))} → ${esc(changeValue(c.new))}${c.reason ? ` <i>(${esc(c.reason)})</i>` : ""}</span></div>`).join("")}</div></details>`;
+}
 
 function parseTc(v) {
   v = String(v ?? "").trim().replace(",", ".");
@@ -1052,6 +1075,7 @@ function renderDrawer() {
         `<div><span class="t">${esc(n.created_at.replace("T", " ").slice(5, 16))}</span><span><b>${esc(NOTE_AUTHOR[n.author] || n.author)}</b> : ${esc(n.text)}</span></div>`).join("")}</div></details>`);
     }
   }
+  notes.push(changesFold(shot.changes));
   const wait = waitingText(shot);
   if (wait) notes.unshift(`<p class="note michael">${esc(wait)}</p>`);
   if (shot.status === "change_requested") {
