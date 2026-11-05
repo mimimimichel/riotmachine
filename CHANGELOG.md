@@ -14,6 +14,8 @@ Format : date, identifiant, ce qui change pour Michael.
   sans fichier ne s'affiche plus en image cassée ; la page Crew ne plante plus
   (en-têtes d'agents mal formés) ; les vidéos Vertex ne gonflent plus l'API de 3 Mo
   par plan ; message clair quand le GPU gratuit de Hugging Face refuse.
+- 2026-11-05 R-B5 (suite) : l'onglet Références a un sous-menu Tout / Décors /
+  Figurants / Objets / Tenues, collé en haut de l'écran ; venir d'un plan ouvre la bonne famille.
 - 2026-11-05 correctif régie : « Copier le prompt » (image, vidéo, plan vidéo à valider)
   copie le texte même en HTTP ; avant, le navigateur refusait et l'appui long prenait
   l'image voisine. Un bouton Copier s'ajoute au prompt vidéo du plan à valider.
