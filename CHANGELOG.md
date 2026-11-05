@@ -5,6 +5,9 @@ Format : date, identifiant, ce qui change pour Michael.
 
 ## Lot 1 : Fondations
 
+- 2026-11-06 R-B8 : chaque proposition d'un plan s'écarte (bouton « Écarter » sous chaque
+  visuel proposé, « Écarter cette version » sous la HD et les vidéos). Plus aucune
+  proposition : le visuel repart chez le storyboard, les autres étapes chez l'orchestrateur.
 - 2026-11-06 correctif régie : « Enregistrer » dans le découpage ne remonte plus en haut de
   la page, le plan où l'on a cliqué reste à sa place ; une action dans le détail d'un plan
   ne fait plus remonter la page du dessous.

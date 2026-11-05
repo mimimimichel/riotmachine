@@ -383,6 +383,20 @@ def decide_shot(shot_id: int, body: Decision) -> dict[str, Any]:
     return {"ok": True, "status": status}
 
 
+class Discard(BaseModel):
+    note: str = ""
+
+
+@app.post("/api/assets/{asset_id}/discard")
+def discard(asset_id: int, body: Discard) -> dict[str, Any]:
+    """R-B8 : écarter une proposition d'un plan."""
+    try:
+        out = production.discard_asset(_conn(), asset_id, body.note)
+    except (production.ProductionError, LookupError) as exc:
+        raise _error(exc)
+    return {"ok": True, **out}
+
+
 class Redo(BaseModel):
     step: str
     comment: str = ""

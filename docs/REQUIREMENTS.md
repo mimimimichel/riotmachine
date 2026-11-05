@@ -190,6 +190,19 @@ demande sur le visuel ; l'image, la HD et la vidéo draft passent en `rejected`
 ou `superseded` ; un retour `route=storyboard` est enregistré avec le texte de
 Michael ; refus pendant une génération en cours et sans texte.
 
+### R-B8 [P0] Écarter une proposition
+**Énoncé.** Chaque proposition d'un plan (visuel draft, visuel HD, vidéo draft,
+vidéo HD, lip-sync) a un bouton « Écarter », avec un motif facultatif. Une
+proposition écartée par Michael disparaît des choix (elle reste en base). Quand
+il n'en reste plus aucune à l'étape en attente : le visuel draft repart chez le
+storyboard ; pour les autres étapes, le plan passe en « modif demandée » et
+l'orchestrateur trie. Une proposition déjà validée ne s'écarte pas : on passe par
+R-B7.
+**Raison.** Michael ne pouvait que garder une proposition, jamais en refuser une.
+**Critère.** Test : écarter une des deux propositions laisse le plan à l'étape ;
+écarter la dernière renvoie le visuel en `image_todo` et une vidéo draft en
+`change_requested` avec un retour enregistré ; refus sur un asset validé.
+
 ---
 
 ## C. Modes de production et sauts d'étapes
@@ -426,6 +439,7 @@ pour Michael.
 ## Changelog du document
 
 - 1.2 (05/11/2026) : R-E5, suppression d'une tenue, à la demande de Michael.
+- 1.5 (06/11/2026) : R-B8, écarter une proposition, à la demande de Michael.
 - 1.4 (06/11/2026) : R-B7, corriger une étape déjà validée, à la demande de Michael.
 - 1.3 (06/11/2026) : R-F4, liens précis de la liste « À faire » et retour, à la demande de Michael.
 - 1.1 (04/11/2026) : après audit du code et décisions de Michael pour le lot 1.

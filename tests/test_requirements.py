@@ -466,3 +466,40 @@ def test_r_b7_corriger_une_etape_validee(studio):
 
     js = (Path(production.__file__).parent / "regie" / "static" / "app.js").read_text()
     assert "function redoBox" in js and "/redo`" in js
+
+
+def test_r_b8_ecarter_une_proposition(studio):
+    """R-B8 : Michael écarte une proposition ; la dernière écartée fait repartir l'étape."""
+    from fastapi.testclient import TestClient
+    from riotmachine import cli, production
+    from riotmachine.regie.app import app
+
+    assert cli.main(["init"]) == 0
+    conn = db.connect()
+    db.init_db(conn)
+    production.create_clip(conn, "Ecart", song=studio["song"], characters=["jj"])
+    production.import_shots(conn, "ecart", {"blocks": [{"name": "A", "shots": [
+        {"t_start": 0, "t_end": 4, "script": "un", "characters": ["jj"]},
+        {"t_start": 4, "t_end": 8, "script": "deux", "characters": ["jj"]}]}]}, by="michael")
+    s1, s2 = [r[0] for r in conn.execute("SELECT id FROM shots WHERE clip_slug='ecart' ORDER BY num")]
+    add = lambda sid, kind, v, st: conn.execute(
+        "INSERT INTO assets (shot_id, kind, version, status, created_at) VALUES (?,?,?,?,?)",
+        (sid, kind, v, st, db.now())).lastrowid
+    i1, i2 = add(s1, "image", 1, "ready"), add(s1, "image", 2, "ready")
+    ok = add(s1, "image", 3, "validated")
+    d1 = add(s2, "draft", 1, "ready")
+    conn.execute("UPDATE shots SET status='image_review' WHERE id=?", (s1,))
+    conn.execute("UPDATE shots SET status='draft_review' WHERE id=?", (s2,))
+    conn.commit()
+    c = TestClient(app)
+    r = c.post(f"/api/assets/{i1}/discard", json={"note": "trop sombre"}).json()
+    assert r["left"] == 1 and db.get_shot(conn, s1)["status"] == "image_review"
+    a = conn.execute("SELECT status, error FROM assets WHERE id=?", (i1,)).fetchone()
+    assert a["status"] == "rejected" and a["error"].startswith("Écartée par Michael")
+    assert c.post(f"/api/assets/{i2}/discard", json={}).json()["status"] == "image_todo"
+    assert c.post(f"/api/assets/{ok}/discard", json={}).status_code >= 400
+    assert c.post(f"/api/assets/{d1}/discard", json={}).json()["status"] == "change_requested"
+    assert conn.execute("SELECT COUNT(*) FROM reviews WHERE shot_id=? AND handled=0", (s2,)).fetchone()[0] == 1
+
+    js = (Path(production.__file__).parent / "regie" / "static" / "app.js").read_text()
+    assert "data-discard" in js and "function byMichael" in js

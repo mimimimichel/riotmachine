@@ -156,6 +156,11 @@ n'a rien à router. Ce qui avait été produit après (HD, vidéos) passe en `su
 la demande de dépense en attente est annulée, et la chaîne se rejoue avec les
 validations habituelles. La note commence par « Modif du visuel draft : ».
 
+Michael peut écarter une proposition (R-B8) : elle passe en `rejected` avec l'erreur
+« Écartée par Michael ». Plus aucune proposition de visuel : le plan repart en
+`image_todo` chez le storyboard. Plus aucune HD ou vidéo à valider : le plan passe en
+`change_requested` avec un retour « J'ai écarté la … », à trier comme les autres.
+
 ## 5. Le choix du fournisseur et du modèle
 
 **Règle : le modèle le moins cher qui est adapté au besoin du plan.**

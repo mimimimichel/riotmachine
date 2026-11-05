@@ -1306,6 +1306,9 @@ function renderDrawer() {
   };
 }
 
+/* R-B8 : une proposition que Michael a écartée (le contrôleur, lui, écarte avec « QC : ») */
+function byMichael(a) { return a.status === "rejected" && String(a.error || "").startsWith("Écartée par Michael"); }
+
 function viewerFor(shot, kinds, clip, emptyText) {
   const list = assetsOf(shot, kinds);
   const key = `${shot.id}:${kinds.join(",")}`;
@@ -1325,7 +1328,9 @@ function viewerFor(shot, kinds, clip, emptyText) {
   const versions = list.length > 1 || (picked && list.length) ? `<div class="versions">${list.map((a) =>
     `<button class="${a.id === picked?.id ? "on" : ""} ${a.status}" data-pick="${key}|${a.id}" title="${esc(a.status)}${a.error ? " · " + esc(a.error) : ""}">v${a.version}${a.status === "validated" ? " ✓" : ""}</button>`).join("")}
     ${picked && picked.model_key ? `<span class="hint">${esc(picked.model_key)} · ${money(picked.cost_usd)}</span>` : ""}
-    ${picked && isVideo(picked.path) ? `<a class="hint" href="${media(picked.path)}" target="_blank" rel="noopener">ouvrir la vidéo</a>` : ""}</div>` : "";
+    ${picked && isVideo(picked.path) ? `<a class="hint" href="${media(picked.path)}" target="_blank" rel="noopener">ouvrir la vidéo</a>` : ""}
+    ${picked && picked.status === "ready" ? `<button class="btn small" data-discard="${picked.id}">Écarter cette version</button>` : ""}
+    ${picked && byMichael(picked) ? `<span class="hint">écartée par toi</span>` : ""}</div>` : "";
   return { html: `<div class="viewer">${inner}</div>${versions}`, asset: picked };
 }
 
@@ -1458,7 +1463,7 @@ function renderStepPanel(shot, step) {
   }[step]);
   // propositions du visuel draft : toutes visibles côte à côte, Michael garde celle qu'il veut
   const props = step === "image" && ["image_todo", "image_qc", "image_review"].includes(shot.status)
-    ? assetsOf(shot, ["image"]).filter((a) => ["ready", "rejected"].includes(a.status)) : [];
+    ? assetsOf(shot, ["image"]).filter((a) => ["ready", "rejected"].includes(a.status) && !byMichael(a)) : [];
   const stale = props.length && ["image_todo", "change_requested"].includes(shot.status);
   let html = props.length ? "" : v.html;
   if (stale) {
@@ -1476,7 +1481,8 @@ function renderStepPanel(shot, step) {
       <div class="propgrid ${aspectClass(clip)}">${props.map((a) => `<figure class="prop">
         <img src="${media(a.path)}" alt="" data-zoom="${media(a.path)}">
         <figcaption>v${a.version}${a.status === "rejected" ? " · écartée par le contrôleur" : ""}${a.model_key ? ` · ${esc(a.model_key)}` : ""}</figcaption>
-        <button class="btn small ok" data-keepimg="${shot.id}:${a.id}">Garder celle-ci</button></figure>`).join("")}</div>
+        <div class="row" style="gap:6px"><button class="btn small ok" data-keepimg="${shot.id}:${a.id}">Garder celle-ci</button>
+          <button class="btn small" data-discard="${a.id}">Écarter</button></div></figure>`).join("")}</div>
       <div class="row">
         ${shot.image_prompt ? `${modelPicker(shotModelKey(shot), state.clip.image_models?.visuel)}<button class="btn" data-regenimage="${shot.id}">Relancer</button>${countPicker(shot)}` : ""}
         <button class="btn ghost" data-openchange="${shot.id}">Demander une modif au storyboardeur</button>
@@ -1610,6 +1616,15 @@ async function drawerClick(ev) {
       fb.hidden = false; fb.querySelector("textarea").focus(); return;
     }
     if (d.cancelchange) { document.getElementById("fb-" + d.cancelchange).hidden = true; return; }
+    if (d.discard) {
+      if (needsConfirm(t, "discard" + d.discard)) return;
+      t.disabled = true;
+      const r = await api(`/api/assets/${d.discard}/discard`, { json: { note: "" } });
+      toast(r.left ? `Écartée. Il reste ${r.left} proposition${r.left > 1 ? "s" : ""}.`
+        : r.status === "image_todo" ? "Écartée. Plus aucune proposition : le storyboardeur en prépare d'autres."
+        : r.status === "change_requested" ? "Écartée. Plus rien à valider ici : l'orchestrateur relance l'étape." : "Écartée.");
+      return reload();
+    }
     if (d.openredo) {
       const box = document.getElementById("rd-" + d.openredo.replace(":", "-"));
       box.hidden = !box.hidden; if (!box.hidden) box.querySelector("textarea").focus(); return;

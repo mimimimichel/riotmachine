@@ -2841,6 +2841,46 @@ def handle_review(conn: sqlite3.Connection, review_id: int, route: str, note: st
     return {"review": review_id, "shot": shot["num"], "route": route, "status": status}
 
 
+DISCARD_GATE = {"image": ("image_review", "image_qc"), "image_hd": ("hd_review",), "draft": ("draft_review",),
+                "final": ("final_review",), "lipsync": ("final_review",)}
+DISCARD_LABEL = {"image": "proposition de visuel", "image_hd": "version HD du visuel", "draft": "vidéo draft",
+                 "final": "vidéo HD", "lipsync": "version lip-sync"}
+
+
+def discard_asset(conn: sqlite3.Connection, asset_id: int, note: str = "") -> dict:
+    """R-B8 : Michael écarte une proposition. S'il n'en reste plus à l'étape en attente, le plan repart."""
+    a = db.row(conn.execute("SELECT * FROM assets WHERE id=?", (asset_id,)).fetchone())
+    if a is None or a["kind"] not in DISCARD_GATE:
+        raise ProductionError("Proposition inconnue")
+    if a["status"] == "validated":
+        raise ProductionError("Déjà validée : passe par « Corriger » sur cette étape")
+    if a["status"] not in ("ready", "rejected"):
+        raise ProductionError("Cette proposition n'est pas prête")
+    shot = db.get_shot(conn, a["shot_id"])
+    label = DISCARD_LABEL[a["kind"]]
+    with db.tx(conn):
+        conn.execute("UPDATE assets SET status='rejected', error=? WHERE id=?",
+                     ("Écartée par Michael" + (f" : {note.strip()}" if note.strip() else ""), asset_id))
+        if note.strip():
+            db.add_note(conn, shot["id"], "michael", f"{label} v{a['version']} écartée : {note.strip()}")
+        db.log_event(conn, shot["clip_slug"], "retour", f"Plan {shot['num']} : {label} v{a['version']} écartée par Michael")
+    left = conn.execute("SELECT COUNT(*) FROM assets WHERE shot_id=? AND kind=? AND status='ready'",
+                        (shot["id"], a["kind"])).fetchone()[0]
+    status = shot["status"]
+    if not left and status in DISCARD_GATE[a["kind"]]:
+        if a["kind"] == "image":
+            with db.tx(conn):
+                db.add_note(conn, shot["id"], "michael", "Toutes les propositions du visuel sont écartées"
+                            + (f" : {note.strip()}" if note.strip() else ", propose autre chose."))
+                db.update(conn, "shots", shot["id"], {"seed": None, "qc_retries": 0}, reason="propositions écartées par Michael")
+                db.set_shot_status(conn, shot["id"], "image_todo")
+            status = "image_todo"
+        else:
+            status = review_shot(conn, shot["id"], "change",
+                                 f"J'ai écarté la {label}" + (f" : {note.strip()}" if note.strip() else "."), asset_id)
+    return {"asset": asset_id, "left": left, "status": status}
+
+
 REDO_STEPS = {
     # étape à refaire : (porte, route, sorte de l'asset validé, sortes produites ensuite)
     "image": ("images", "storyboard", "image", ("image_hd", "draft", "final", "lipsync")),
