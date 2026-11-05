@@ -338,6 +338,21 @@ clip démo.
 **Énoncé.** `riot events` et l'onglet Journal présentent les événements en
 français, groupés par lot, filtrables par plan.
 
+### R-F4 [P0] « À faire maintenant » mène au bon endroit et y ramène
+**Énoncé.** Chaque ligne de la liste « À faire maintenant » ouvre l'endroit exact
+où agir : le plan à valider (son détail ouvert), le premier bloc du découpage à
+valider, la fiche du décor dont les images sont à trier, les images du personnage
+à trier, le groupe de dépenses concerné. L'endroit visé est mis en évidence, sans
+avoir à faire défiler la page. Une fois l'action faite (dépenses lancées ou
+refusées, détail du plan refermé), la régie ramène à la liste « À faire », et un
+bouton « Retour à la liste À faire » reste affiché entre-temps.
+**Raison.** Michael arrivait sur une page générale et devait chercher quoi
+regarder ; après « Tout lancer » il restait sur la page Dépenses vide.
+**Critère.** Test : `/api/overview` renvoie pour chaque ligne un lien précis
+(`/plans/p/<id>`, `/decoupage/avalider`, `/decors/ref/<slug>`,
+`/personnages/<slug>/trier`, `/depenses/<groupe>`), un plan par ligne ;
+revue sur téléphone du parcours aller et retour.
+
 ---
 
 ## G. Qualité logicielle et méthode
@@ -396,6 +411,7 @@ pour Michael.
 ## Changelog du document
 
 - 1.2 (05/11/2026) : R-E5, suppression d'une tenue, à la demande de Michael.
+- 1.3 (06/11/2026) : R-F4, liens précis de la liste « À faire » et retour, à la demande de Michael.
 - 1.1 (04/11/2026) : après audit du code et décisions de Michael pour le lot 1.
   R-A2 : raison mise à jour (l'import met déjà à jour par `id`), suppression
   logique `deleted_at`. R-A3 : règle script / description et marqueur

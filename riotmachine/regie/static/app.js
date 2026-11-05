@@ -380,6 +380,7 @@ async function router() {
       lastRoute = `clip/${arg}/${tab || ""}`;
       state.shotId = sub === "p" && shot ? +shot : null;
       if (sub === "ref" && shot) state.refTarget = shot;
+      if (sub === "avalider") state.focusBlock = true;
       if (sameView) { renderDrawer(); if (state.refTarget && state.tab === "decors") loadDecors(state.clip); focusShotCard(); updateBackBtn(); return; }
       await showClip(arg, tab);
       focusShotCard();
@@ -388,11 +389,11 @@ async function router() {
     }
     lastRoute = hash;
     closeDrawerUi();
-    if (page === "personnages" && arg) { setNav("personnages"); await showCharacter(arg); }
+    if (page === "personnages" && arg) { setNav("personnages"); await showCharacter(arg); if (tab === "trier") focusToSort(); }
     else if (page === "personnages") { setNav("personnages"); await showCharacters(); }
     else if (page === "nouveau") { setNav("studio"); await showNewClip(); }
     else if (page === "fournisseurs") { setNav("fournisseurs"); await showProviders(); }
-    else if (page === "depenses") { setNav("depenses"); await showSpend(); }
+    else if (page === "depenses") { setNav("depenses"); await showSpend(arg); }
     else if (page === "crew") { setNav("crew"); await showCrew(arg); }
     else { setNav("studio"); await showStudio(); }
     updateBackBtn();
@@ -535,7 +536,7 @@ async function showStudio() {
       </div></a>`;
   }).join("");
   const todo = (d.todo || []).length ? `<section class="panel todo"><h2>À faire maintenant</h2>
-      <ul>${d.todo.map((x) => `<li><a href="${x.href}">${led("review")}${esc(x.label)}</a></li>`).join("")}</ul></section>` : "";
+      <ul>${d.todo.map((x) => `<li><a href="${x.href}" data-todo="${esc(x.href)}">${led("review")}${esc(x.label)}</a></li>`).join("")}</ul></section>` : "";
   $view.innerHTML = `
     ${todo}
     <div class="pagehead"><h1>Studio</h1>
@@ -547,7 +548,57 @@ async function showStudio() {
     <div class="legend" style="margin-top:22px">
       <span>${led("review")}en attente de validation</span><span>${led("work")}la machine travaille</span>
       <span>${led("done")}validé</span><span>${led("change")}modif demandée</span><span>${led("failed")}échec</span></div>`;
+  // R-F4 : une ligne « À faire » mène à l'endroit exact ; la régie mémorise d'où l'on vient pour y revenir
+  $view.querySelectorAll("[data-todo]").forEach((a) => a.addEventListener("click", () => {
+    state.back = { hash: "#/", text: "← Retour à la liste À faire", todo: a.dataset.todo };
+  }));
+  if (state.todoReturn) {
+    const href = state.todoReturn; state.todoReturn = null;
+    spotlight([...$view.querySelectorAll("[data-todo]")].find((a) => a.dataset.todo === href)?.closest("li")
+      || $view.querySelector(".panel.todo"));
+  }
   every(20000, () => { if (!isBusy()) showStudio(); });
+}
+
+/* met en évidence l'endroit où agir, centré à l'écran */
+function spotlight(node) {
+  if (!node) return;
+  setTimeout(() => {
+    node.scrollIntoView({ block: "center", behavior: "smooth" });
+    node.classList.remove("flash"); void node.offsetWidth; node.classList.add("flash");
+  }, 80);
+}
+
+/* revenir là d'où l'on venait (liste À faire, plan en cours…) */
+function goBack() {
+  const b = state.back;
+  state.back = b && b.prev ? b.prev : null;
+  if (!b) return false;
+  state.focusShot = b.shotId || null;
+  if (b.todo) state.todoReturn = b.todo;
+  if ((location.hash || "#/") === b.hash) router(); else location.hash = b.hash;
+  return true;
+}
+
+/* fermer le détail d'un plan : retour à la liste À faire si on en venait, sinon à l'onglet */
+function closeShot() {
+  if (state.back && state.back.todo && goBack()) return;
+  location.hash = `#/clip/${encodeURIComponent(state.clip.slug)}/${state.tab}`;
+}
+
+/* page d'un personnage ouverte depuis « À faire » : montrer la première image à trier */
+function focusToSort() {
+  // l'image proposée elle-même : bouton Garder, ou Choisir parmi les propositions (pas « Canon tête » d'une image déjà gardée)
+  const first = () => $view.querySelector('.packitem.proposed [data-pickasset$=":keep"], [data-lookimg$=":keep"]')
+    || [...$view.querySelectorAll("[data-makecanon]")].find((n) => n.textContent.trim() === "Choisir");
+  const btn = first();
+  if (btn) { spotlight(btn.closest(".packitem") || btn); return; }
+  const ch = state.character;
+  const v = ch && ch.versions.find((x) => (x.assets || []).some((a) => a.status === "proposed"));
+  if (v && v.version !== state.charVersion) {
+    state.charVersion = v.version;
+    showCharacter(ch.slug).then(() => { const b2 = first(); if (b2) spotlight(b2.closest(".packitem") || b2); });
+  }
 }
 
 /* ---------- Clip ---------- */
@@ -1173,7 +1224,7 @@ function renderDrawer() {
   if (!document.querySelector(".drawer-backdrop")) {
     const bd = document.createElement("div");
     bd.className = "drawer-backdrop";
-    bd.addEventListener("click", () => { location.hash = `#/clip/${encodeURIComponent(clip.slug)}/${state.tab}`; });
+    bd.addEventListener("click", () => closeShot());
     document.body.appendChild(bd);
   }
   $drawer.hidden = false;
@@ -1511,7 +1562,7 @@ async function drawerClick(ev) {
   const reload = () => showClip(clip.slug, state.tab, false);
   try {
     if (d.zoom) return lightbox(d.zoom);
-    if (d.closedrawer !== undefined) { location.hash = `#/clip/${encodeURIComponent(clip.slug)}/${state.tab}`; return; }
+    if (d.closedrawer !== undefined) { closeShot(); return; }
     if (d.goshot) { location.hash = shotHref(d.goshot); return; }
     if (d.step) { state.step = d.step; $drawer.dataset.json = ""; renderDrawer(); return; }
     if (d.pick) {
@@ -3328,7 +3379,7 @@ async function showProviders() {
 document.addEventListener("keydown", (e) => {
   if (isBusy()) return;
   if (e.key === "Escape" && !$drawer.hidden) {
-    location.hash = `#/clip/${encodeURIComponent(state.clip.slug)}/${state.tab}`;
+    closeShot();
   } else if (e.key === " " && state.clip && document.getElementById("console")) {
     e.preventDefault();
     if (song.paused) song.play().catch(() => {}); else song.pause();
@@ -3347,9 +3398,10 @@ router();
 const FUNDING_LABEL = { credits: "crédits gratuits", cash: "payé en argent" };
 const ACTION_LABEL = { image: "Visuel draft", image_hd: "Visuel HD", canon_hd: "Canon HD", character_asset: "Pack de référence" };
 
-async function showSpend() {
+async function showSpend(focus) {
   const d = await api("/api/spend");
   const groups = {};
+  const gkey = (r) => r.clip_slug ? `clip:${r.clip_slug}` : `perso:${r.character_slug || ""}`;
   for (const r of d.pending) {
     const g = r.clip_slug ? `Clip ${r.clip_slug}` : `Personnage ${r.character_slug || ""}`;
     (groups[g] = groups[g] || []).push(r);
@@ -3367,7 +3419,7 @@ async function showSpend() {
     </div>`;
   const blocks = Object.entries(groups).map(([g, items]) => {
     const total = items.reduce((a, r) => a + r.est_usd, 0);
-    return `<section class="panel stack">
+    return `<section class="panel stack" data-g="${esc(gkey(items[0]))}">
       <div class="row"><h2>${esc(g)}</h2><span class="spacer"></span>
         ${items.length > 1 ? `<button class="btn go" data-spend="approve" data-ids="${items.map((r) => r.id).join(",")}">Tout lancer (${items.length}) · ${money(total)}</button>` : ""}</div>
       ${items.map(card).join("")}
@@ -3383,13 +3435,18 @@ async function showSpend() {
       ${blocks || `<p class="empty">Aucune dépense en attente.</p>`}
       ${recent ? `<section class="panel"><h2>Dernières décisions</h2><ul class="hint">${recent}</ul></section>` : ""}
     </div>`;
+  if (focus) spotlight($view.querySelector(`[data-g="${CSS.escape(focus)}"]`));
   $view.querySelectorAll("[data-spend]").forEach((b) => b.addEventListener("click", async () => {
     b.disabled = true;
     try {
       const ids = b.dataset.ids.split(",").map(Number);
       await api("/api/spend/decide", { json: { ids, decision: b.dataset.spend } });
       toast(b.dataset.spend === "approve" ? "Lancé : la génération part dans moins d'une minute" : "Pas lancé");
-      await refreshSys(); await showSpend();
+      await refreshSys();
+      // R-F4 : venu de « À faire » et plus rien à décider dans ce groupe : retour à la liste
+      const left = (await api("/api/spend")).pending.filter((r) => !focus || gkey(r) === focus);
+      if (state.back && state.back.todo && !left.length && goBack()) return;
+      await showSpend(focus);
     } catch (e) { toast(e.message, "err"); b.disabled = false; }
   }));
 }
@@ -3815,7 +3872,7 @@ function goToRef(go, from) {
     const sh = (clip?.shots || []).find((x) => x.id === state.shotId);
     label = `plan ${sh ? sh.num : ""}`.trim(); shotId = state.shotId;
   }
-  state.back = { hash: location.hash, label, shotId, tab: state.tab };
+  state.back = { hash: location.hash, label, shotId, tab: state.tab, prev: state.back };
   if (kind === "perso") location.hash = `#/personnages/${encodeURIComponent(slug)}`;
   else if (clip) location.hash = `#/clip/${encodeURIComponent(clip.slug)}/decors/ref/${encodeURIComponent(slug)}`;
   updateBackBtn();
@@ -3833,21 +3890,25 @@ function updateBackBtn() {
   if (!btn) {
     btn = document.createElement("button");
     btn.id = "backbtn"; btn.className = "btn go";
-    btn.addEventListener("click", () => {
-      const b = state.back; state.back = null; btn.hidden = true;
-      if (!b) return;
-      state.focusShot = b.shotId;
-      if (location.hash === b.hash) router(); else location.hash = b.hash;
-    });
+    btn.addEventListener("click", () => { btn.hidden = true; goBack(); updateBackBtn(); });
     document.body.appendChild(btn);
   }
   const b = state.back;
-  btn.hidden = !b || location.hash === b.hash;
-  if (b) btn.textContent = `← Retour au ${b.label}`;
+  btn.hidden = !b || (location.hash || "#/") === b.hash;
+  if (b) btn.textContent = b.text || `← Retour au ${b.label}`;
 }
 
 /* après un retour : ouvrir et montrer le plan d'où l'on venait */
 function focusShotCard() {
+  if (state.focusBlock && state.tab === "decoupage" && state.editor) {
+    state.focusBlock = false;
+    const bi = state.editor.findIndex((b) => !b.validated);
+    if (bi >= 0) {
+      state.editor[bi]._open = true;
+      renderClip();
+      spotlight(document.getElementById(`decblock-${bi}`));
+    }
+  }
   const id = state.focusShot;
   if (!id) return;
   state.focusShot = null;
@@ -3892,7 +3953,11 @@ function focusRefTarget(clip, d) {
     node = document.getElementById(`el-${el.id}`);
     if (node) { node.open = true; prefs("elopen:" + clip.slug, [...new Set([...(prefs("elopen:" + clip.slug) || []), String(el.id)])]); }
   } else node = document.getElementById(`look-${slug}`);
-  if (node) setTimeout(() => node.scrollIntoView({ block: "start", behavior: "smooth" }), 50);
+  if (!node) return;
+  // venu de « À faire » : montrer d'abord l'image à garder ou écarter, sinon la fiche
+  const pick = state.back && state.back.todo ? node.querySelector('[data-elpick$=":keep"]') : null;
+  if (pick) spotlight(pick.closest(".packitem") || pick);
+  else { setTimeout(() => node.scrollIntoView({ block: "start", behavior: "smooth" }), 50); node.classList.add("flash"); }
 }
 
 const mention = { box: null, ta: null, start: 0, items: [], sel: 0 };

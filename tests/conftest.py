@@ -19,6 +19,7 @@ def studio(tmp_path, monkeypatch):
     monkeypatch.setenv("RIOT_AGENTS_ENABLED", "0")
     monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
     monkeypatch.delenv("FAL_KEY", raising=False)
+    monkeypatch.setenv("RIOT_REGIE_TOKEN", "")   # le jeton du .env ne doit pas bloquer les tests de la régie
     from riotmachine import settings
     settings.reset_caches()
     song = tmp_path / "song.mp3"

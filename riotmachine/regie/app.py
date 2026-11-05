@@ -100,34 +100,45 @@ def overview() -> dict[str, Any]:
 
 
 def _todo(conn, clips: list[dict], characters: list[dict]) -> list[dict[str, Any]]:
-    """Ce qui attend une validation, tous clips confondus, du plus urgent au moins urgent."""
+    """Ce qui attend Michael, tous clips confondus, du plus urgent au moins urgent.
+    R-F4 : chaque ligne mène à l'endroit exact où agir (un plan, un bloc, une fiche, un groupe de dépenses)."""
     out: list[dict[str, Any]] = []
-    sp = _spend_summary(conn)
-    if sp["pending"]:
-        out.append({"label": f"{sp['pending']} dépense{'s' if sp['pending'] > 1 else ''} en attente de validation "
-                             f"(~{sp['usd']:.2f} $)", "href": "#/depenses"})
+    titles = {c["slug"]: c["title"] for c in clips}
+    names = {ch["slug"]: ch["name"] for ch in characters}
+    for r in conn.execute("SELECT clip_slug, character_slug, COUNT(*) n, COALESCE(SUM(est_usd),0) usd "
+                          "FROM spend_requests WHERE status='pending' GROUP BY clip_slug, character_slug"):
+        who = titles.get(r["clip_slug"], r["clip_slug"]) if r["clip_slug"] else names.get(r["character_slug"], r["character_slug"] or "")
+        grp = f"clip:{r['clip_slug']}" if r["clip_slug"] else f"perso:{r['character_slug'] or ''}"
+        out.append({"label": f"{who} : {r['n']} génération{'s' if r['n'] > 1 else ''} à lancer ou refuser (~{r['usd']:.2f} $)",
+                    "href": f"#/depenses/{grp}"})
     gate_label = {"image_review": "visuel", "hd_review": "visuel HD", "video_review": "plan vidéo",
                   "draft_review": "vidéo draft", "final_review": "final"}
     for c in clips:
         base = f"#/clip/{c['slug']}"
         if c["stage"] == "decoupage_review":
-            out.append({"label": f"{c['title']} : découpage en attente de validation", "href": base + "/decoupage"})
+            left = conn.execute("SELECT num FROM blocks WHERE clip_slug=? AND validated=0 ORDER BY num",
+                                (c["slug"],)).fetchall()
+            lab = (f"bloc {left[0]['num']} à valider" + (f" ({len(left)} blocs restants)" if len(left) > 1 else "")
+                   if left else "à valider")
+            out.append({"label": f"{c['title']} : découpage, {lab}", "href": base + "/decoupage/avalider"})
         if c.get("scenario_status") == "proposed":
             out.append({"label": f"{c['title']} : propositions du scénariste à relire", "href": base + "/dossier"})
-        for st, lab in gate_label.items():
-            n = c["status_counts"].get(st, 0)
-            if n:
-                out.append({"label": f"{c['title']} : {n} {lab}{'s' if n > 1 else ''} en attente de validation",
-                            "href": base + "/plans"})
-        n_prop = conn.execute("SELECT COUNT(*) FROM element_images i JOIN elements e ON e.id=i.element_id "
-                              "WHERE e.clip_slug=? AND i.status='proposed'", (c["slug"],)).fetchone()[0]
-        if n_prop:
-            out.append({"label": f"{c['title']} : {n_prop} image{'s' if n_prop > 1 else ''} de décor à garder ou écarter",
-                        "href": base + "/decors"})
+        marks = ",".join("?" * len(gate_label))
+        waiting = conn.execute(f"SELECT id, num, status FROM shots WHERE clip_slug=? AND deleted_at IS NULL "
+                               f"AND status IN ({marks}) ORDER BY num", (c["slug"], *gate_label)).fetchall()
+        for s in waiting[:8]:
+            out.append({"label": f"{c['title']} : plan {s['num']}, {gate_label[s['status']]} à valider",
+                        "href": f"{base}/plans/p/{s['id']}"})
+        if len(waiting) > 8:
+            out.append({"label": f"{c['title']} : {len(waiting) - 8} autres plans à valider", "href": base + "/plans"})
+        for e in conn.execute("SELECT e.slug, e.name, COUNT(*) n FROM element_images i JOIN elements e ON e.id=i.element_id "
+                              "WHERE e.clip_slug=? AND i.status='proposed' GROUP BY e.id ORDER BY e.name", (c["slug"],)):
+            out.append({"label": f"{c['title']} : {e['name']}, {e['n']} image{'s' if e['n'] > 1 else ''} à garder ou écarter",
+                        "href": f"{base}/decors/ref/{e['slug']}"})
     for ch in characters:
         if ch.get("to_review"):
             out.append({"label": f"{ch['name']} : {ch['to_review']} image{'s' if ch['to_review'] > 1 else ''} "
-                                 "en attente de validation", "href": f"#/personnages/{ch['slug']}"})
+                                 "à garder ou écarter", "href": f"#/personnages/{ch['slug']}/trier"})
     return out
 
 

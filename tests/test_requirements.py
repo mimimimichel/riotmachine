@@ -397,3 +397,37 @@ def test_r_e5_supprimer_une_tenue(studio):
     assert any(h["field"] == "looks" and "supprimée" in (h["reason"] or "") for h in db.history(conn, "shots", sid))
     assert not old_dir.exists() and (old_dir.parent / ".supprimees").is_dir()
     assert TestClient(app).delete("/api/characters/jj/looks/bureau").status_code >= 400
+
+
+def test_r_f4_a_faire_mene_au_bon_endroit(studio):
+    """R-F4 : chaque ligne « À faire » porte un lien précis (un plan, le bloc à valider, le groupe de
+    dépenses) ; la régie mémorise d'où l'on vient et y ramène."""
+    from fastapi.testclient import TestClient
+    from riotmachine import cli, production
+    from riotmachine.regie.app import app
+
+    assert cli.main(["init"]) == 0
+    conn = db.connect()
+    db.init_db(conn)
+    production.create_clip(conn, "Todo", song=studio["song"], characters=["jj"])
+    production.import_shots(conn, "todo", {"blocks": [
+        {"name": "A", "shots": [{"t_start": 0, "t_end": 4, "script": "un", "characters": ["jj"]},
+                                {"t_start": 4, "t_end": 8, "script": "deux", "characters": ["jj"]}]},
+        {"name": "B", "shots": [{"t_start": 8, "t_end": 12, "script": "trois", "characters": ["jj"]}]}]}, by="michael")
+    ids = [r[0] for r in conn.execute("SELECT id FROM shots WHERE clip_slug='todo' ORDER BY num")]
+    conn.execute("UPDATE shots SET status='draft_review' WHERE id=?", (ids[1],))
+    conn.execute("UPDATE clips SET stage='decoupage_review' WHERE slug='todo'")
+    conn.execute("INSERT INTO spend_requests (action, args, dedupe, label, clip_slug, shot_id, est_usd, status, created_at) "
+                 "VALUES ('image', '{}', 'x', 'Plan 1', 'todo', ?, 0, 'pending', '2026-11-06T00:00:00Z')", (ids[0],))
+    conn.commit()
+    todo = TestClient(app).get("/api/overview").json()["todo"]
+    hrefs = [t["href"] for t in todo]
+    assert "#/depenses/clip:todo" in hrefs
+    assert "#/clip/todo/decoupage/avalider" in hrefs
+    assert f"#/clip/todo/plans/p/{ids[1]}" in hrefs
+    assert any("plan 2, vidéo draft" in t["label"] for t in todo)
+    assert any("bloc 1 à valider" in t["label"] for t in todo)
+
+    js = (Path(production.__file__).parent / "regie" / "static" / "app.js").read_text()
+    assert "data-todo" in js and "function goBack" in js and "function closeShot" in js
+    assert 'sub === "avalider"' in js and "focusToSort" in js and "showSpend(arg)" in js

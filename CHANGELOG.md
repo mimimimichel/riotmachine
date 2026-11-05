@@ -5,6 +5,13 @@ Format : date, identifiant, ce qui change pour Michael.
 
 ## Lot 1 : Fondations
 
+- 2026-11-06 R-F4 : chaque ligne « À faire maintenant » ouvre l'endroit exact (le plan à
+  valider, le bloc du découpage, l'image de décor ou de personnage à trier, le groupe de
+  dépenses), mis en évidence. Après l'action (plan refermé, dépenses décidées), la régie
+  ramène à la liste ; un bouton « Retour à la liste À faire » reste affiché entre-temps.
+- 2026-11-06 correctif régie : dans le détail d'un plan, les blocs se chevauchaient sur
+  téléphone ; le panneau est une simple colonne, vérifié sur les 65 plans. Les tests
+  ignorent le jeton d'accès de la régie.
 - 2026-11-05 R-E5 : une tenue se supprime (page du personnage ou onglet Références,
   avec confirmation). Elle sort des castings et des plans ; ses photos sont gardées
   dans `looks/.supprimees/`.
