@@ -2841,6 +2841,49 @@ def handle_review(conn: sqlite3.Connection, review_id: int, route: str, note: st
     return {"review": review_id, "shot": shot["num"], "route": route, "status": status}
 
 
+REDO_STEPS = {
+    # étape à refaire : (porte, route, sorte de l'asset validé, sortes produites ensuite)
+    "image": ("images", "storyboard", "image", ("image_hd", "draft", "final", "lipsync")),
+    "hd": ("hd", "hd", "image_hd", ("draft", "final", "lipsync")),
+    "plan": ("videoplan", "prompteur", None, ("draft", "final", "lipsync")),
+}
+
+
+def redo_from(conn: sqlite3.Connection, shot_id: int, step: str, comment: str) -> dict:
+    """R-B7 : Michael demande une modif d'une étape déjà validée ; le plan repart de là."""
+    if step not in REDO_STEPS:
+        raise ProductionError(f"Étape à refaire : {', '.join(REDO_STEPS)}")
+    if not comment.strip():
+        raise ProductionError("Explique la modification souhaitée")
+    shot = db.get_shot(conn, shot_id)
+    if shot["status"].endswith("_gen"):
+        raise ProductionError("Une génération est en cours sur ce plan : attends qu'elle finisse")
+    gate, route, kind, after = REDO_STEPS[step]
+    asset = db.row(conn.execute(
+        "SELECT * FROM assets WHERE shot_id=? AND kind=? AND status='validated' ORDER BY id DESC LIMIT 1",
+        (shot_id, kind)).fetchone()) if kind else None
+    label = {"image": "visuel draft", "hd": "visuel HD", "plan": "plan vidéo"}[step]
+    with db.tx(conn):
+        cur = conn.execute(
+            "INSERT INTO reviews (clip_slug, shot_id, asset_id, gate, decision, comment, handled, created_at) "
+            "VALUES (?,?,?,?,?,?,0,?)",
+            (shot["clip_slug"], shot_id, asset["id"] if asset else None, gate, "change", comment, db.now()))
+        db.add_note(conn, shot_id, "michael", f"Modif du {label} : {comment}")
+        if asset:
+            conn.execute("UPDATE assets SET status='rejected' WHERE id=?", (asset["id"],))
+        marks = ",".join("?" * len(after))
+        conn.execute(f"UPDATE assets SET status='superseded' WHERE shot_id=? AND kind IN ({marks}) "
+                     "AND status IN ('ready','validated')", (shot_id, *after))
+        conn.execute("UPDATE spend_requests SET status='refused', note='remplacé par une demande de modif', "
+                     "decided_at=? WHERE shot_id=? AND status='pending'", (db.now(), shot_id))
+        # l'ancien retour non traité est remplacé par celui-ci
+        conn.execute("UPDATE reviews SET handled=1, route=?, handled_note='remplacé par une demande sur une étape antérieure' "
+                     "WHERE shot_id=? AND handled=0 AND id!=?", (route, shot_id, cur.lastrowid))
+    out = handle_review(conn, cur.lastrowid, route, f"demande de Michael sur le {label}")
+    db.log_event(conn, shot["clip_slug"], "retour", f"Plan {shot['num']} : Michael fait refaire le {label}, la chaîne repart")
+    return out
+
+
 def _maybe_finish_clip(conn: sqlite3.Connection, slug: str) -> None:
     left = conn.execute("SELECT COUNT(*) FROM shots WHERE clip_slug=? AND status!='done' AND deleted_at IS NULL", (slug,)).fetchone()[0]
     total = conn.execute("SELECT COUNT(*) FROM shots WHERE clip_slug=? AND deleted_at IS NULL", (slug,)).fetchone()[0]

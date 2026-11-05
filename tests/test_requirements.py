@@ -431,3 +431,38 @@ def test_r_f4_a_faire_mene_au_bon_endroit(studio):
     js = (Path(production.__file__).parent / "regie" / "static" / "app.js").read_text()
     assert "data-todo" in js and "function goBack" in js and "function closeShot" in js
     assert 'sub === "avalider"' in js and "focusToSort" in js and "showSpend(arg)" in js
+
+
+def test_r_b7_corriger_une_etape_validee(studio):
+    """R-B7 : depuis la vidéo draft, Michael fait refaire le visuel ; le plan repart chez le storyboard."""
+    from fastapi.testclient import TestClient
+    from riotmachine import cli, production
+    from riotmachine.regie.app import app
+
+    assert cli.main(["init"]) == 0
+    conn = db.connect()
+    db.init_db(conn)
+    production.create_clip(conn, "Redo", song=studio["song"], characters=["jj"])
+    production.import_shots(conn, "redo", {"blocks": [{"name": "A", "shots": [
+        {"t_start": 0, "t_end": 4, "script": "un réveil", "characters": ["jj"]}]}]}, by="michael")
+    sid = conn.execute("SELECT id FROM shots WHERE clip_slug='redo'").fetchone()[0]
+    for kind, st in (("image", "validated"), ("image_hd", "validated"), ("draft", "ready")):
+        conn.execute("INSERT INTO assets (shot_id, kind, version, status, created_at) VALUES (?,?,1,?,?)",
+                     (sid, kind, st, db.now()))
+    conn.execute("UPDATE shots SET status='draft_review' WHERE id=?", (sid,))
+    conn.commit()
+    client = TestClient(app)
+    assert client.post(f"/api/shots/{sid}/redo", json={"step": "image", "comment": ""}).status_code >= 400
+    r = client.post(f"/api/shots/{sid}/redo", json={"step": "image", "comment": "le réveil doit être de face"})
+    assert r.status_code == 200, r.text
+    assert db.get_shot(conn, sid)["status"] == "image_todo"
+    st = dict(conn.execute("SELECT kind, status FROM assets WHERE shot_id=?", (sid,)).fetchall())
+    assert st == {"image": "rejected", "image_hd": "superseded", "draft": "superseded"}
+    rv = conn.execute("SELECT route, handled, comment FROM reviews WHERE shot_id=? ORDER BY id DESC", (sid,)).fetchone()
+    assert rv["route"] == "storyboard" and rv["handled"] == 1 and "de face" in rv["comment"]
+    conn.execute("UPDATE shots SET status='image_gen' WHERE id=?", (sid,))
+    conn.commit()
+    assert client.post(f"/api/shots/{sid}/redo", json={"step": "image", "comment": "x"}).status_code >= 400
+
+    js = (Path(production.__file__).parent / "regie" / "static" / "app.js").read_text()
+    assert "function redoBox" in js and "/redo`" in js

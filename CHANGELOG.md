@@ -5,6 +5,9 @@ Format : date, identifiant, ce qui change pour Michael.
 
 ## Lot 1 : Fondations
 
+- 2026-11-06 R-B7 : une étape déjà validée se corrige. Dans le plan, sur le visuel draft,
+  le visuel HD ou le plan vidéo : « Demander une modif de ce visuel ». Le plan repart de
+  là chez le bon agent, ce qui avait été fait après est mis de côté, la chaîne se rejoue.
 - 2026-11-06 R-F4 : chaque ligne « À faire maintenant » ouvre l'endroit exact (le plan à
   valider, le bloc du découpage, l'image de décor ou de personnage à trier, le groupe de
   dépenses), mis en évidence. Après l'action (plan refermé, dépenses décidées), la régie

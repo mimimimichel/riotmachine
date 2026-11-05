@@ -96,6 +96,9 @@ route, puis `riot review handle <id> --route <route> --note "<ce que tu as compr
 | `finition` | seul le rendu HD ou le lip-sync pose problème |
 | `script` | le plan lui-même change (idée, durée) : mets à jour description et timecodes |
 
+Un retour donné sur une étape déjà validée (R-B7, « Modif du visuel draft : … »)
+arrive déjà trié : le plan est revenu seul chez le bon agent, ne le route pas.
+
 Ensuite, dans le même passage, fais avancer le plan. Après `prompteur` ou
 `routeur`, le plan repasse par la validation du plan vidéo (`riot shot submit`).
 Chaque remarque (retour de Michael, refus du contrôleur, erreur de la machine,

@@ -175,6 +175,21 @@ et par bloc, en plus de `script/notes.md`.
 **Critère.** Test : après passage simulé, chaque plan complété a une
 `agent_notes` non vide quand l'agent en a une.
 
+### R-B7 [P0] Corriger une étape déjà validée
+**Énoncé.** Sur un plan, Michael peut demander une modification d'une étape déjà
+validée (visuel draft, visuel HD, plan vidéo), même quand le plan attend sa
+décision à une étape plus loin. Il écrit ce qu'il veut ; le plan repart de cette
+étape vers le bon agent (storyboard, HD, prompteur) et toute la chaîne se rejoue
+ensuite avec les validations habituelles. Ce qui a été produit à partir de
+l'ancienne version (HD, vidéos) est mis de côté, pas effacé ; aucune génération
+en cours n'est interrompue.
+**Raison.** Sur la vidéo draft du réveil, le défaut vient du visuel d'entrée :
+il fallait pouvoir corriger le visuel et relancer la chaîne.
+**Critère.** Test : un plan en `draft_review` repart en `image_todo` après une
+demande sur le visuel ; l'image, la HD et la vidéo draft passent en `rejected`
+ou `superseded` ; un retour `route=storyboard` est enregistré avec le texte de
+Michael ; refus pendant une génération en cours et sans texte.
+
 ---
 
 ## C. Modes de production et sauts d'étapes
@@ -411,6 +426,7 @@ pour Michael.
 ## Changelog du document
 
 - 1.2 (05/11/2026) : R-E5, suppression d'une tenue, à la demande de Michael.
+- 1.4 (06/11/2026) : R-B7, corriger une étape déjà validée, à la demande de Michael.
 - 1.3 (06/11/2026) : R-F4, liens précis de la liste « À faire » et retour, à la demande de Michael.
 - 1.1 (04/11/2026) : après audit du code et décisions de Michael pour le lot 1.
   R-A2 : raison mise à jour (l'import met déjà à jour par `id`), suppression

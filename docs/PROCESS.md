@@ -149,6 +149,13 @@ Michael écrit simplement ce qu'il veut. L'orchestrateur choisit la route :
 Le commentaire de Michael est recopié dans les notes du plan. Tous les agents le
 lisent en priorité.
 
+Michael peut aussi corriger une étape déjà validée (R-B7) : dans le plan, sur le
+visuel draft, le visuel HD ou le plan vidéo, « Demander une modif de ce visuel ».
+Le retour arrive déjà trié (route `storyboard`, `hd` ou `prompteur`), l'orchestrateur
+n'a rien à router. Ce qui avait été produit après (HD, vidéos) passe en `superseded`,
+la demande de dépense en attente est annulée, et la chaîne se rejoue avec les
+validations habituelles. La note commence par « Modif du visuel draft : ».
+
 ## 5. Le choix du fournisseur et du modèle
 
 **Règle : le modèle le moins cher qui est adapté au besoin du plan.**

@@ -383,6 +383,21 @@ def decide_shot(shot_id: int, body: Decision) -> dict[str, Any]:
     return {"ok": True, "status": status}
 
 
+class Redo(BaseModel):
+    step: str
+    comment: str = ""
+
+
+@app.post("/api/shots/{shot_id}/redo")
+def redo_shot(shot_id: int, body: Redo) -> dict[str, Any]:
+    """R-B7 : refaire une étape déjà validée (visuel draft, visuel HD, plan vidéo)."""
+    try:
+        out = production.redo_from(_conn(), shot_id, body.step, body.comment)
+    except (production.ProductionError, LookupError) as exc:
+        raise _error(exc)
+    return {"ok": True, **out}
+
+
 @app.post("/api/clips/{slug}/approve-all/{gate}")
 def decide_all(slug: str, gate: str, block: int | None = None) -> dict[str, Any]:
     try:

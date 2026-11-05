@@ -1385,6 +1385,25 @@ function countPicker(shot) {
     <span class="hint">proposition${n > 1 ? "s" : ""} · ${cost}</span></span>`;
 }
 
+/* R-B7 : une étape déjà validée (visuel draft, visuel HD, plan vidéo) se corrige ; le plan repart de là */
+function redoBox(shot, step) {
+  const meta = { image: ["ce visuel", "storyboardeur", "Ce qui ne va pas sur le visuel et ce que tu veux à la place (ex. : réveil posé de face, chiffres lisibles)", "image"],
+                 hd: ["ce visuel HD", "passage en HD", "Ce que la HD doit garder ou corriger", "image_hd"],
+                 plan: ["ce plan vidéo", "prompteur", "Mouvement, caméra, action, ou modèle à revoir", null] }[step];
+  if (!meta || shot.status.endsWith("_gen")) return "";
+  const cur = STEP_INDEX[currentStep(shot)] ?? 0;
+  if (cur <= STEP_INDEX[step]) return "";
+  if (meta[3] && !assetsOf(shot, [meta[3]]).some((a) => a.status === "validated")) return "";
+  if (!meta[3] && !shot.video_prompt) return "";
+  return `<div class="actionbox redo"><h3>Corriger ${meta[0]}</h3>
+      <p class="hint">Le plan repart de cette étape, chez le ${meta[1]}. Tout ce qui a été fait après (HD, vidéos) est mis de côté, et la suite se rejoue avec tes validations habituelles.</p>
+      <div class="row"><button class="btn" data-openredo="${shot.id}:${step}">Demander une modif de ${meta[0]}</button></div>
+      <div class="feedback stack" id="rd-${shot.id}-${step}" hidden>
+        <textarea placeholder="${esc(meta[2])}"></textarea>
+        <div class="row"><button class="btn go" data-sendredo="${shot.id}:${step}">Refaire à partir d'ici</button>
+          <button class="btn ghost" data-openredo="${shot.id}:${step}">Annuler</button></div></div></div>`;
+}
+
 function feedbackBox(shot, placeholder) {
   return `<div class="feedback stack" id="fb-${shot.id}" hidden>
       <textarea placeholder="${esc(placeholder)}"></textarea>
@@ -1397,7 +1416,7 @@ function renderStepPanel(shot, step) {
   const clip = state.clip;
   const gate = gateOf(shot);
   const isGate = gate && GATE_STEP[gate] === step || (gate === "finals" && step === "lipsync");
-  if (step === "plan") return renderPlanVideo(shot, gate === "videoplan");
+  if (step === "plan") return renderPlanVideo(shot, gate === "videoplan") + redoBox(shot, step);
   const def = STEPS[STEP_INDEX[step]];
   if (step === "hd" && gate === "hd") {
     const work = bestAsset(shot, ["image"]);
@@ -1484,6 +1503,7 @@ function renderStepPanel(shot, step) {
     const hd = bestAsset(shot, ["image_hd"]);
     if (work && hd) html += `<details class="fold"><summary>Comparer avec le visuel draft</summary><div>${compareWidget(media(work.path), media(hd.path), "Visuel draft", "Visuel HD")}</div></details>`;
   }
+  html += redoBox(shot, step);
   if (shot.status === "failed") {
     html += `<div class="actionbox" style="border-color:#ff4d6688"><h3 style="color:var(--red)">Échec</h3>
       ${shot.failed_step === "image" ? `<p class="hint">Le message en haut du plan dit ce qui a échoué. Choisis un autre modèle au-dessus et relance le visuel.</p>`
@@ -1575,6 +1595,22 @@ async function drawerClick(ev) {
       fb.hidden = false; fb.querySelector("textarea").focus(); return;
     }
     if (d.cancelchange) { document.getElementById("fb-" + d.cancelchange).hidden = true; return; }
+    if (d.openredo) {
+      const box = document.getElementById("rd-" + d.openredo.replace(":", "-"));
+      box.hidden = !box.hidden; if (!box.hidden) box.querySelector("textarea").focus(); return;
+    }
+    if (d.sendredo) {
+      const [sid, step] = d.sendredo.split(":");
+      const text = document.querySelector(`#rd-${sid}-${step} textarea`).value.trim();
+      if (!text) { toast("Explique la modification souhaitée", "err"); return; }
+      t.disabled = true;
+      await api(`/api/shots/${sid}/redo`, { json: { step, comment: text } });
+      toast({ image: "Le storyboardeur refait le visuel avec ta remarque. La suite se relancera derrière.",
+        hd: "La HD se refait avec ta remarque. La suite se relancera derrière.",
+        plan: "Le prompteur reprend le plan vidéo avec ta remarque." }[step]);
+      state.step = null;
+      return reload();
+    }
     if (d.model) {
       await api(`/api/shots/${d.model}/model`, { json: { model_key: t.value } });
       toast("Modèle changé");
