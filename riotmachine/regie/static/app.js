@@ -388,6 +388,7 @@ async function router() {
       return;
     }
     lastRoute = hash;
+    state.clipShown = null;
     closeDrawerUi();
     if (page === "personnages" && arg) { setNav("personnages"); await showCharacter(arg); if (tab === "trier") focusToSort(); }
     else if (page === "personnages") { setNav("personnages"); await showCharacters(); }
@@ -560,6 +561,17 @@ async function showStudio() {
   every(20000, () => { if (!isBusy()) showStudio(); });
 }
 
+/* après un enregistrement qui redessine la page : rester au même endroit, le plan ou le bloc
+   où l'on a cliqué garde sa place à l'écran (au lieu de remonter tout en haut) */
+async function keepPlace(from, redraw) {
+  const anchor = from.closest("[id^='dshot-'], [id^='decblock-']");
+  const id = anchor && anchor.id, top = anchor ? anchor.getBoundingClientRect().top : 0, y = window.scrollY;
+  await redraw();
+  const again = id && document.getElementById(id);
+  if (again) window.scrollBy(0, again.getBoundingClientRect().top - top);
+  else window.scrollTo(0, y);
+}
+
 /* met en évidence l'endroit où agir, centré à l'écran */
 function spotlight(node) {
   if (!node) return;
@@ -627,6 +639,8 @@ async function showClip(slug, tab, keep = false) {
     }
   }
   state.tab = tab || defaultTab(clip);
+  const sameTab = state.clipShown === `${slug}/${state.tab}`;   // on était déjà sur cet onglet de ce clip
+  state.clipShown = `${slug}/${state.tab}`;
   if (keep && !changed) return;
   if (keep && isBusy()) return;
   if (keep && state.tab === "decoupage" && state.editorDirty) { renderDrawer(); return; }
@@ -634,7 +648,8 @@ async function showClip(slug, tab, keep = false) {
   if (keep && state.tab === "decors") { if (!isBusy()) loadDecors(state.clip, true); return; }
   const scroll = window.scrollY;
   renderClip();
-  if (keep) window.scrollTo(0, scroll);
+  // on ne remonte en haut qu'en changeant de clip ou d'onglet ; un enregistrement garde la place
+  if (keep || sameTab) window.scrollTo(0, scroll);
   else window.scrollTo(0, 0);
   renderDrawer();
   every(8000, () => showClip(slug, state.tab, true));
@@ -2634,7 +2649,7 @@ function bindClip() {
         const r = await api(`/api/clips/${encodeURIComponent(clip.slug)}/decoupage-edit`, { json: { blocks } });
         state.editorDirty = false;
         toast(`Découpage enregistré : ${r.shots} plans`);
-        return reload("decoupage");
+        return keepPlace(t, () => reload("decoupage"));
       }
       if (d.cut === "open") { const fb = document.getElementById("fb-cut"); fb.hidden = false; fb.querySelector("textarea").focus(); return; }
       if (d.cut === "approve" || d.cut === "change") {

@@ -5,6 +5,9 @@ Format : date, identifiant, ce qui change pour Michael.
 
 ## Lot 1 : Fondations
 
+- 2026-11-06 correctif régie : « Enregistrer » dans le découpage ne remonte plus en haut de
+  la page, le plan où l'on a cliqué reste à sa place ; une action dans le détail d'un plan
+  ne fait plus remonter la page du dessous.
 - 2026-11-06 R-B7 : une étape déjà validée se corrige. Dans le plan, sur le visuel draft,
   le visuel HD ou le plan vidéo : « Demander une modif de ce visuel ». Le plan repart de
   là chez le bon agent, ce qui avait été fait après est mis de côté, la chaîne se rejoue.
