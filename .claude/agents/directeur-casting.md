@@ -1,6 +1,6 @@
 ---
 name: directeur-casting
-description: Directeur de casting : construit les packs de référence photoréalistes des personnages (canon, angles, silhouette, expressions, lumières) à partir des intentions de Michael. À utiliser pour créer ou faire évoluer un personnage.
+description: "Directeur de casting : construit les packs de référence photoréalistes des personnages (canon, angles, silhouette, expressions, lumières) à partir des intentions de Michael. À utiliser pour créer ou faire évoluer un personnage."
 tools: Bash, Read, Write, Edit, Glob, Grep
 model: opus
 ---

@@ -519,6 +519,12 @@ def character_snapshot(conn: sqlite3.Connection, slug: str) -> dict:
         v["assets"] = db.rows(conn.execute(
             "SELECT * FROM character_assets WHERE version_id=? ORDER BY kind, id", (v["id"],)
         ).fetchall())
+        for a in v["assets"]:
+            if str(a.get("remote_url") or "").startswith("data:"):
+                a["remote_url"] = None
+        # un fichier disparu du disque ne s'affiche pas en image cassée (la ligne reste en base)
+        v["missing_files"] = [a["path"] for a in v["assets"] if a.get("path") and not absp(a["path"]).is_file()]
+        v["assets"] = [a for a in v["assets"] if not (a.get("path") and not absp(a["path"]).is_file())]
         adn = absp(v["dir"]) / "adn.md"
         v["adn"] = adn.read_text(encoding="utf-8") if adn.is_file() else ""
         res = absp(v["dir"]) / "resume.md"
@@ -636,6 +642,44 @@ def move_look(conn: sqlite3.Connection, slug: str, look: str, new_slug: str) -> 
                                (f"%@{new_key}%", f"%@{new_key}%")).fetchall():
         elements.link_mentions(conn, sid)   # le nouveau porteur joue dans ces plans
     return new_key
+
+
+def delete_look(conn: sqlite3.Connection, slug: str, look: str) -> dict:
+    """Michael supprime une tenue (R-E5).
+
+    Elle sort des castings et des plans qui la portaient ; le texte des plans n'est pas
+    réécrit (le @ qui reste est signalé). Les photos et feuilles ne sont pas détruites :
+    le dossier part dans looks/.supprimees/."""
+    lk = db.row(conn.execute("SELECT * FROM looks WHERE character_slug=? AND slug=?", (slug, look)).fetchone())
+    if lk is None:
+        raise ProductionError(f"Tenue inconnue : {look}")
+    key = look_key(slug, look)
+    worn, cited = [], []
+    with db.tx(conn):
+        conn.execute("UPDATE castings SET look_slug=NULL WHERE character_slug=? AND look_slug=?", (slug, look))
+        for sh in conn.execute("SELECT id, num, looks FROM shots WHERE looks LIKE ?", (f'%"{look}"%',)).fetchall():
+            looks = json.loads(sh["looks"] or "{}")
+            if looks.get(slug) != look:
+                continue
+            looks.pop(slug)
+            db.update(conn, "shots", sh["id"], {"looks": json.dumps(looks) if looks else None},
+                      reason=f"tenue @{key} supprimée")
+            worn.append(sh["num"])
+        cited = [r["num"] for r in conn.execute(
+            "SELECT num FROM shots WHERE deleted_at IS NULL AND (LOWER(description) LIKE ? OR LOWER(detail) LIKE ?) "
+            "ORDER BY num", (f"%@{key}%", f"%@{key}%")).fetchall()]
+        conn.execute("DELETE FROM look_images WHERE look_id=?", (lk["id"],))
+        conn.execute("DELETE FROM looks WHERE id=?", (lk["id"],))
+        db.log_event(conn, lk["clip_slug"], "casting", f"Tenue @{key} supprimée"
+                     + (f" (encore citée dans les plans {', '.join(map(str, cited))})" if cited else ""))
+    src = absp(lk["dir"]) if lk.get("dir") else None
+    kept = None
+    if src and src.is_dir():
+        dest = src.parent / ".supprimees" / f"{look}-{db.now().replace(':', '').replace('-', '')}"
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        src.rename(dest)
+        kept = rel(dest)
+    return {"key": key, "worn": worn, "cited": cited, "kept": kept}
 
 
 def clip_looks(conn: sqlite3.Connection, clip_slug: str) -> list[dict]:
@@ -2503,7 +2547,7 @@ def on_job_done(conn: sqlite3.Connection, job: dict, result: dict) -> None:
         providers.download(url, dest, job.get("provider") or "fal")
         with db.tx(conn):
             conn.execute("UPDATE character_assets SET status='proposed', path=?, remote_url=? WHERE id=?",
-                         (rel(dest), url, asset["id"]))
+                         (rel(dest), None if str(url).startswith("data:") else url, asset["id"]))
             conn.execute("UPDATE jobs SET status='done', updated_at=? WHERE id=?", (db.now(), job["id"]))
         return
 
@@ -2527,10 +2571,13 @@ def on_job_done(conn: sqlite3.Connection, job: dict, result: dict) -> None:
         "final": "lipsync_todo" if shot["singing"] and not routing.native_lipsync(shot.get("model_key")) else "final_review",
         "lipsync": "final_review",
     }[asset["kind"]]
+    # Une URL « data: » (Vertex renvoie la vidéo en base64) ne se garde pas en base :
+    # le fichier est sur disque, et 3 Mo de base64 partiraient dans chaque réponse de l'API.
+    remote = None if str(url).startswith("data:") else url
     with db.tx(conn):
         conn.execute(
             "UPDATE assets SET status='ready', path=?, remote_url=?, seed=COALESCE(seed, ?) WHERE id=?",
-            (rel(dest), url, seed, asset["id"]),
+            (rel(dest), remote, seed, asset["id"]),
         )
         conn.execute("UPDATE jobs SET status='done', updated_at=? WHERE id=?", (db.now(), job["id"]))
         if not _siblings_generating(conn, asset) and shot["status"] != "change_requested":
@@ -2879,6 +2926,11 @@ def shot_view(conn: sqlite3.Connection, shot: dict) -> dict:
     assets = db.rows(conn.execute(
         "SELECT * FROM assets WHERE shot_id=? ORDER BY kind, version", (shot["id"],)
     ).fetchall())
+    for a in assets:   # une vidéo en base64 (Vertex) ne part pas dans l'API : le fichier est sur disque
+        if str(a.get("remote_url") or "").startswith("data:"):
+            a["remote_url"] = None
+        # une génération échouée garde son chemin prévu sans fichier : la régie ne l'affiche pas
+        a["missing"] = bool(a.get("path")) and not absp(a["path"]).is_file()
     s = dict(shot)
     s["assets"] = assets
     s["reviews"] = db.rows(conn.execute(

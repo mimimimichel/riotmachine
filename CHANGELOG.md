@@ -5,6 +5,15 @@ Format : date, identifiant, ce qui change pour Michael.
 
 ## Lot 1 : Fondations
 
+- 2026-11-05 R-E5 : une tenue se supprime (page du personnage ou onglet Références,
+  avec confirmation). Elle sort des castings et des plans ; ses photos sont gardées
+  dans `looks/.supprimees/`.
+- 2026-11-05 correctifs régie après test complet sur téléphone : la vidéo draft
+  s'affiche dans le plan (le lecteur tombait à 2 pixels de haut) ; les cartes de
+  référence d'un plan ouvrent la fiche, avec retour au plan ; une génération échouée
+  sans fichier ne s'affiche plus en image cassée ; la page Crew ne plante plus
+  (en-têtes d'agents mal formés) ; les vidéos Vertex ne gonflent plus l'API de 3 Mo
+  par plan ; message clair quand le GPU gratuit de Hugging Face refuse.
 - 2026-11-05 correctif régie : « Copier le prompt » (image, vidéo, plan vidéo à valider)
   copie le texte même en HTTP ; avant, le navigateur refusait et l'appui long prenait
   l'image voisine. Un bouton Copier s'ajoute au prompt vidéo du plan à valider.

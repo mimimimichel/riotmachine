@@ -489,7 +489,7 @@ function stepStates(shot) {
 
 function assetsOf(shot, kinds) {
   return (shot.assets || [])
-    .filter((a) => kinds.includes(a.kind) && a.path && a.status !== "generating")
+    .filter((a) => kinds.includes(a.kind) && a.path && !a.missing && a.status !== "generating")
     .sort((a, b) => a.version - b.version);
 }
 
@@ -1156,12 +1156,12 @@ function renderDrawer() {
         <a class="hint" href="#/clip/${encodeURIComponent(clip.slug)}/decors">toutes les références</a></div>
       <p class="hint">Leur image sert de référence au visuel du plan. Pour en ajouter : touche ＋, ou tape @ dans le prompt détaillé. Tout se gère dans l'onglet Références.</p>
       <div class="eltiles2">
-        ${shotChars.map((c) => charTile(c, "", `<button class="x" data-charunlink="${esc(c.slug)}" title="Retirer du plan" aria-label="Retirer du plan">✕</button>`)).join("")}
+        ${shotChars.map((c) => charTile(c, `data-go="perso:${esc(c.slug)}" title="Ouvrir la fiche"`, `<button class="x" data-charunlink="${esc(c.slug)}" title="Retirer du plan" aria-label="Retirer du plan">✕</button>`)).join("")}
         ${(() => { let lk = shot.looks; try { lk = typeof lk === "string" ? JSON.parse(lk) : (lk || {}); } catch (e) { lk = {}; }
           return Object.entries(lk || {}).map(([c, l]) => { const L = (clip.looks_all || []).find((x) => x.character === c && x.look === l);
-            return `<div class="eltile2 k-tenue"><div class="img" style="${L && L.thumb ? `background-image:url('${media(L.thumb)}')` : ""}">${L && L.thumb ? "" : `<span>pas encore de photo</span>`}</div>
+            return `<div class="eltile2 k-tenue" ${L ? `data-go="tenue:${esc(L.slug)}" title="Ouvrir la tenue"` : ""}><div class="img" style="${L && L.thumb ? `background-image:url('${media(L.thumb)}')` : ""}">${L && L.thumb ? "" : `<span>pas encore de photo</span>`}</div>
               <span class="nm">${esc(L ? L.name : `${c} · ${l}`)}</span><span class="kd">Tenue · @${esc(c)}-${esc(l)}</span></div>`; }).join(""); })()}
-        ${(shot.elements || []).map((e) => elTile(e, "", `<button class="x" data-elunlink="${e.id}" title="Retirer du plan" aria-label="Retirer du plan">✕</button>`)).join("")}
+        ${(shot.elements || []).map((e) => elTile(e, `data-go="${e.kind}:${esc(e.slug)}" title="Ouvrir la fiche"`, `<button class="x" data-elunlink="${e.id}" title="Retirer du plan" aria-label="Retirer du plan">✕</button>`)).join("")}
         ${free.length || freeChars.length ? `<button class="eltile2 add" data-elpick><span class="plus">＋</span><span class="nm">Ajouter</span></button>` : ""}
       </div>
       <div class="elpicker" id="elpicker" hidden>
@@ -1250,13 +1250,16 @@ function viewerFor(shot, kinds, clip, emptyText) {
     inner = `<div class="none">${generating ? `${led("work")} Génération en cours…` : esc(emptyText)}</div>`;
   } else if (isVideo(picked.path)) {
     const poster = thumbOf(shot);
-    inner = `<video src="${media(picked.path)}" controls playsinline preload="metadata" muted ${poster ? `poster="${media(poster.path)}"` : ""}></video>`;
+    // aspect-ratio explicite : sans lui, certains navigateurs mobiles donnent une hauteur nulle au lecteur
+    const ar = (clip?.aspect_ratio || "16:9").replace(":", " / ");
+    inner = `<video src="${media(picked.path)}" controls playsinline preload="metadata" muted style="aspect-ratio:${ar}" ${poster ? `poster="${media(poster.path)}"` : ""}></video>`;
   } else {
     inner = `<img src="${media(picked.path)}" alt="" data-zoom="${media(picked.path)}">`;
   }
   const versions = list.length > 1 || (picked && list.length) ? `<div class="versions">${list.map((a) =>
     `<button class="${a.id === picked?.id ? "on" : ""} ${a.status}" data-pick="${key}|${a.id}" title="${esc(a.status)}${a.error ? " · " + esc(a.error) : ""}">v${a.version}${a.status === "validated" ? " ✓" : ""}</button>`).join("")}
-    ${picked && picked.model_key ? `<span class="hint">${esc(picked.model_key)} · ${money(picked.cost_usd)}</span>` : ""}</div>` : "";
+    ${picked && picked.model_key ? `<span class="hint">${esc(picked.model_key)} · ${money(picked.cost_usd)}</span>` : ""}
+    ${picked && isVideo(picked.path) ? `<a class="hint" href="${media(picked.path)}" target="_blank" rel="noopener">ouvrir la vidéo</a>` : ""}</div>` : "";
   return { html: `<div class="viewer">${inner}</div>${versions}`, asset: picked };
 }
 
@@ -2926,7 +2929,8 @@ function looksSection(ch) {
         <span class="hint">${lk.clips.length ? "Dans : " + lk.clips.map(esc).join(", ") : "Dans aucun clip pour l'instant"}</span></div>
       <p class="hint mono">Dans un plan : @${esc(ch.slug)}-${esc(lk.slug)} · ${lk.clip_slug ? `créée pour « ${esc(lk.clip_slug)} »` : "tenue signature"}</p>
       <textarea rows="3" data-lookdesc="${esc(lk.slug)}" placeholder="Description : vêtements, couleurs, matières, chaussures, accessoires">${esc(lk.description || "")}</textarea>
-      <div class="row"><button class="btn small" data-looksave="${esc(lk.slug)}">Enregistrer la description</button></div>
+      <div class="row"><button class="btn small" data-looksave="${esc(lk.slug)}">Enregistrer la description</button>
+        <span class="spacer"></span><button class="btn small ghost danger" data-lookdel="${esc(ch.slug)}:${esc(lk.slug)}">Supprimer la tenue</button></div>
       ${lookMedia(lk, ch.slug, ch.image_models?.feuille_tenue)}
     </div>`).join("");
   return charPanel("Tenues",
@@ -3102,6 +3106,13 @@ async function characterClick(e, ch, v) {
       await api(`${base}/versions/${v.version}/canon-hd`, { method: "POST" });
       toast("Version HD lancée : elle arrive dans les candidates dans une à deux minutes");
       refreshSys(); return reload();
+    }
+    if (d.lookdel) {
+      if (needsConfirm(t, "lookdel" + d.lookdel)) return;
+      const [, lk] = d.lookdel.split(":");
+      const r = await api(`${base}/looks/${encodeURIComponent(lk)}`, { method: "DELETE" });
+      toast(r.cited && r.cited.length ? `Tenue supprimée. @${r.key} reste écrit dans les plans ${r.cited.join(", ")}` : "Tenue supprimée");
+      return reload();
     }
     if (d.looksave) {
       await api(`${base}/looks/${encodeURIComponent(d.looksave)}`, { json: { description: $view.querySelector(`[data-lookdesc="${d.looksave}"]`).value } });
@@ -3512,15 +3523,19 @@ async function loadDecors(clip, keep = false) {
     }).join("")}</div></div>`).join("");
 
   const sections = Object.entries(byKind).map(([k, list]) => `
-    <section class="elsection k-${k}">
+    <section class="elsection k-${k}" data-sec="${k}">
       <div class="elsection-h"><h2>${EL_KIND[k][0]}</h2><span class="hint">${list.length} · ${EL_KIND[k][1]}</span></div>
       ${list.map(card).join("") || `<p class="hint">Aucun pour l'instant.</p>`}</section>`).join("");
   const status = { todo: "L'agent décorateur repérera les décors dès que le découpage sera prêt.",
     requested: "L'agent décorateur repère les décors : la page se met à jour toute seule.",
     done: "" }[d.decors_status] || "";
   const nDone = d.elements.filter((e) => e.step === "done").length;
-  box.innerHTML = `
-    <section class="panel stack">
+  const nLooks = (d.looks || []).length;
+  const subnav = `<nav class="subtabs" id="refsec-nav">${[["all", "Tout", ""], ["decor", "Décors", byKind.decor.length],
+      ["figurant", "Figurants", byKind.figurant.length], ["objet", "Objets", byKind.objet.length], ["tenue", "Tenues", nLooks]]
+    .map(([k, l, n]) => `<button data-refsec="${k}">${l}${n !== "" ? ` <span class="count">${n}</span>` : ""}</button>`).join("")}</nav>`;
+  box.innerHTML = `${subnav}
+    <section class="panel stack" data-sec="all">
       <p class="hint helptext">Tout ce que les plans citent avec @ : décors, figurants, objets et tenues. Pour chaque décor, objet ou figurant : <b>1.</b> dépose des images et écris ce que tu veux,
         <b>2.</b> crée un brouillon gratuit (ou dépose le tien) et garde le bon, <b>3.</b> génère l'image HD et garde la bonne.
         L'image HD gardée sert de référence à tous les plans où l'élément apparaît. Dans un plan, tape <b>@</b> pour citer un élément.</p>
@@ -3534,7 +3549,7 @@ async function loadDecors(clip, keep = false) {
       ${d.elements.length ? `<div class="eltiles-wrap">${tiles}</div>` : ""}
     </section>
     ${sections}
-    <section class="elsection k-tenue" style="margin-top:18px"><div class="elsection-h"><h2>Tenues</h2>
+    <section class="elsection k-tenue" data-sec="tenue" style="margin-top:18px"><div class="elsection-h"><h2>Tenues</h2>
         <span class="hint">Les tenues de ce clip : créées pour lui, ou reprises d'un autre clip en les citant. Une tenue se cite partout avec
           @personnage-tenue, qui dit aussi qui la porte. Le scénariste les crée en écrivant les plans.</span></div>
       ${(d.looks || []).map((lk) => `<div class="panel stack lookcard" style="margin-top:10px" id="look-${esc(lk.slug)}">
@@ -3547,7 +3562,8 @@ async function loadDecors(clip, keep = false) {
           ${lookMedia(lk, lk.character, d.image_models?.feuille_tenue)}
           <label class="field"><span>Description (ce qui doit rester identique)</span>
             <textarea rows="3" data-lookdesc="${esc(lk.character)}:${esc(lk.look)}">${esc(lk.description)}</textarea></label>
-          <div class="row"><button class="btn small" data-looksave="${esc(lk.character)}:${esc(lk.look)}">Enregistrer</button></div>
+          <div class="row"><button class="btn small" data-looksave="${esc(lk.character)}:${esc(lk.look)}">Enregistrer</button>
+            <span class="spacer"></span><button class="btn small ghost danger" data-lookdel="${esc(lk.character)}:${esc(lk.look)}">Supprimer la tenue</button></div>
         </div>`).join("") || `<p class="hint">Aucune tenue pour ce clip pour l'instant.</p>`}
       ${(d.other_looks || []).length ? `<details class="fold" style="margin-top:10px"><summary>Tenues des autres clips (${d.other_looks.length}) : cite-les avec @ pour les reprendre</summary>
         <div class="stack" style="gap:6px">${d.other_looks.map((lk) => `<div class="row" style="gap:8px">
@@ -3560,13 +3576,14 @@ async function loadDecors(clip, keep = false) {
         <textarea id="look-new-desc" rows="3" placeholder="Description : vêtements, couleurs, matières, chaussures, accessoires"></textarea>
         <div class="row"><button class="btn go" data-looknew>Créer la tenue</button></div></div>
     </section>
-    <section class="panel stack" style="margin-top:18px"><h2>Ajouter un élément</h2>
+    <section class="panel stack" data-sec="add" style="margin-top:18px"><h2>Ajouter un élément</h2>
       <div class="row" style="gap:8px"><select id="el-kind"><option value="decor">Décor</option><option value="objet">Objet clé</option><option value="figurant">Figurant</option></select>
       <input type="text" id="el-name" placeholder="Nom (ex. Maison et jardin, le chien, le vélo)" style="flex:1;min-width:200px"></div>
 
       <div class="row"><button class="btn go" data-elnew>Ajouter</button><span class="hint">Tu y déposeras ton image de départ ensuite.</span></div>
     </section>`;
   focusRefTarget(clip, d);
+  applyRefSec(clip);
   box.querySelectorAll("details.elcard").forEach((el) => el.addEventListener("toggle", () => {
     const set = new Set(prefs("elopen:" + clip.slug) || []);
     if (el.open) set.add(el.dataset.elid); else set.delete(el.dataset.elid);
@@ -3618,6 +3635,11 @@ async function loadDecors(clip, keep = false) {
       if (await lookAction(dd, reload)) return;
       if (await styleAction(dd, reload)) return;
       if (dd.zoom) { ev.preventDefault(); return lightbox(dd.zoom); }
+      if (dd.refsec) {
+        prefs("refsec:" + clip.slug, dd.refsec); applyRefSec(clip);
+        document.getElementById("refsec-nav")?.scrollIntoView({ block: "start" });
+        return;
+      }
       if (dd.eljump) {
         remember(dd.eljump);
         const c = document.getElementById("el-" + dd.eljump);
@@ -3647,6 +3669,13 @@ async function loadDecors(clip, keep = false) {
           kind: document.getElementById("el-kind").value, name, description: "" } });
         remember(e.id);
         toast("Ajouté : dépose ton image de départ"); return reload();
+      }
+      if (dd.lookdel) {
+        if (needsConfirm(t, "lookdel" + dd.lookdel)) return;
+        const [ch, lk] = dd.lookdel.split(":");
+        const r = await api(`/api/characters/${encodeURIComponent(ch)}/looks/${encodeURIComponent(lk)}`, { method: "DELETE" });
+        toast(r.cited && r.cited.length ? `Tenue supprimée. @${r.key} reste écrit dans les plans ${r.cited.join(", ")}` : "Tenue supprimée");
+        return reload();
       }
       if (dd.looksave) {
         const [ch, lk] = dd.looksave.split(":");
@@ -3792,7 +3821,8 @@ function goToRef(go, from) {
   updateBackBtn();
 }
 document.addEventListener("click", (e) => {
-  const m = e.target.closest(".mention[data-go], .refchip[data-go]");
+  if (e.target.closest("button.x")) return;   // le ✕ d'une carte retire la référence, il n'ouvre rien
+  const m = e.target.closest(".mention[data-go], .refchip[data-go], .eltile2[data-go]");
   if (!m) return;
   e.preventDefault(); e.stopPropagation();
   goToRef(m.dataset.go, m);
@@ -3835,11 +3865,28 @@ function focusShotCard() {
 }
 
 /* à l'arrivée sur Références depuis un @ : ouvrir la fiche visée et la montrer */
+/* sous-menu de l'onglet Références : une seule famille affichée à la fois (ou tout) */
+function applyRefSec(clip) {
+  const box = document.getElementById("decors-tab");
+  if (!box) return;
+  const sec = prefs("refsec:" + clip.slug) || "all";
+  box.querySelectorAll("[data-sec]").forEach((n) => {
+    // « Tout » montre tout ; une famille montre sa section, plus le formulaire d'ajout pour les décors, objets, figurants
+    n.hidden = !(sec === "all" || n.dataset.sec === sec || (n.dataset.sec === "add" && sec !== "tenue"));
+  });
+  box.querySelectorAll("[data-refsec]").forEach((b) => b.classList.toggle("on", b.dataset.refsec === sec));
+  const nav = document.getElementById("refsec-nav"), bar = document.querySelector(".topbar");
+  // collé sous la barre du haut quand elle reste à l'écran (ordinateur) ; sur téléphone elle défile, le menu se colle en haut
+  if (nav && bar) nav.style.top = ["sticky", "fixed"].includes(getComputedStyle(bar).position) ? bar.offsetHeight + "px" : "0px";
+}
+
 function focusRefTarget(clip, d) {
   const slug = state.refTarget;
   if (!slug) return;
   state.refTarget = null;
   const el = (d.elements || []).find((e) => e.slug === slug);
+  prefs("refsec:" + clip.slug, el ? el.kind : "tenue");
+  applyRefSec(clip);
   let node = null;
   if (el) {
     node = document.getElementById(`el-${el.id}`);

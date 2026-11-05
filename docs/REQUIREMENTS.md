@@ -307,6 +307,16 @@ les consultent : `riot character show` et `riot rodage` les exposent par
 personnage.
 **Critère.** Test : un essai enregistré apparaît dans `riot rodage --character jj`.
 
+### R-E5 [P1] Supprimer une tenue
+**Énoncé.** Michael supprime une tenue depuis la page du personnage ou l'onglet
+Références, après confirmation. Elle sort des castings et des plans qui la
+portaient (changement journalisé). Le texte des plans n'est pas réécrit : la
+régie dit dans quels plans le @ reste écrit. Les photos et feuilles ne sont pas
+détruites, elles partent dans `looks/.supprimees/`.
+**Critère.** Test : supprimer `@jj-bureau` portée par un plan et castée → la
+tenue disparaît, le plan ne la porte plus (ligne dans `changes`), le casting
+n'a plus de look, le dossier est dans `.supprimees/`.
+
 ---
 
 ## F. Clarté : qui fait quoi, où en est-on
@@ -385,6 +395,7 @@ pour Michael.
 
 ## Changelog du document
 
+- 1.2 (05/11/2026) : R-E5, suppression d'une tenue, à la demande de Michael.
 - 1.1 (04/11/2026) : après audit du code et décisions de Michael pour le lot 1.
   R-A2 : raison mise à jour (l'import met déjà à jour par `id`), suppression
   logique `deleted_at`. R-A3 : règle script / description et marqueur

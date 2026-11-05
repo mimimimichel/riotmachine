@@ -235,7 +235,10 @@ def crew() -> dict[str, Any]:
         f = REPO_ROOT / ".claude" / "agents" / f"{a.get('fichier')}.md" if a.get("fichier") else None
         if f and f.is_file():
             head = f.read_text(encoding="utf-8").split("---")[1]
-            meta = yaml.safe_load(head) or {}
+            try:
+                meta = yaml.safe_load(head) or {}
+            except yaml.YAMLError:   # un en-tête mal formé ne doit pas casser la page Crew
+                meta = {}
         out.append({**a, "modele": meta.get("model", "celui de la session"), "outils": meta.get("tools", ""),
                     "consignes": f".claude/agents/{a['fichier']}.md" if a.get("fichier") else "CLAUDE.md"})
     lib = []
@@ -1200,6 +1203,14 @@ def edit_look(slug: str, look: str, body: LookEdit) -> dict[str, Any]:
     except production.ProductionError as exc:
         raise _error(exc)
     return {"ok": True, "key": key}
+
+
+@app.delete("/api/characters/{slug}/looks/{look}")
+def remove_look(slug: str, look: str) -> dict[str, Any]:
+    try:
+        return {"ok": True, **production.delete_look(_conn(), slug, look)}
+    except production.ProductionError as exc:
+        raise _error(exc)
 
 
 @app.post("/api/characters/{slug}/looks/{look}/sheet")

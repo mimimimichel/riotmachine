@@ -364,3 +364,36 @@ def test_r_b5_navigation_vers_reference(studio):
     js = (Path(production.__file__).parent / "regie" / "static" / "app.js").read_text()
     assert 'sub === "ref"' in js and "goToRef" in js and "backbtn" in js
     assert 'id="look-${esc(lk.slug)}"' in js and "focusRefTarget" in js
+
+
+def test_r_e5_supprimer_une_tenue(studio):
+    """R-E5 : une tenue supprimée sort des castings et des plans ; ses fichiers sont gardés à part."""
+    from fastapi.testclient import TestClient
+    from riotmachine import cli, production
+    from riotmachine.regie.app import app
+
+    assert cli.main(["init"]) == 0
+    conn = db.connect()
+    db.init_db(conn)
+    production.create_clip(conn, "Tenue", song=studio["song"], characters=["jj"])
+    if not conn.execute("SELECT 1 FROM looks WHERE character_slug='jj' AND slug='bureau'").fetchone():
+        production.create_look(conn, "jj", "bureau", "tailleur gris", clip_slug="tenue")
+    lk = db.row(conn.execute("SELECT * FROM looks WHERE character_slug='jj' AND slug='bureau'").fetchone())
+    conn.execute("UPDATE castings SET look_slug='bureau' WHERE clip_slug='tenue' AND character_slug='jj'")
+    production.import_shots(conn, "tenue", {"blocks": [{"name": "B", "shots": [
+        {"t_start": 0, "t_end": 4, "script": "@jj-bureau entre", "characters": ["jj"]}]}]}, by="michael")
+    sid = conn.execute("SELECT id FROM shots").fetchone()[0]
+    db.update(conn, "shots", sid, {"looks": json.dumps({"jj": "bureau"})}, by="michael")
+    old_dir = production.absp(lk["dir"])
+    assert old_dir.is_dir()
+
+    r = TestClient(app).delete("/api/characters/jj/looks/bureau")
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["worn"] == [1] and body["cited"] == [1]
+    assert conn.execute("SELECT count(*) FROM looks WHERE slug='bureau'").fetchone()[0] == 0
+    assert conn.execute("SELECT looks FROM shots WHERE id=?", (sid,)).fetchone()[0] is None
+    assert conn.execute("SELECT look_slug FROM castings WHERE clip_slug='tenue'").fetchone()[0] is None
+    assert any(h["field"] == "looks" and "supprimée" in (h["reason"] or "") for h in db.history(conn, "shots", sid))
+    assert not old_dir.exists() and (old_dir.parent / ".supprimees").is_dir()
+    assert TestClient(app).delete("/api/characters/jj/looks/bureau").status_code >= 400

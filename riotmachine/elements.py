@@ -678,5 +678,5 @@ def on_job_done(conn: sqlite3.Connection, job: dict, result: dict) -> None:
     providers.download(url, dest, job.get("provider") or "fal")
     with db.tx(conn):
         conn.execute("UPDATE element_images SET status='proposed', path=?, remote_url=? WHERE id=?",
-                     (rel(dest), url, img["id"]))
+                     (rel(dest), None if str(url).startswith("data:") else url, img["id"]))
         conn.execute("UPDATE jobs SET status='done', updated_at=? WHERE id=?", (db.now(), job["id"]))

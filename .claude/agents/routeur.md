@@ -1,6 +1,6 @@
 ---
 name: routeur
-description: Le directeur technique (agent « routeur ») : décrit chaque plan (cadrage, mouvement, personnages) et choisit le fournisseur et le modèle vidéo le plus économique qui fera le travail, avec une raison que Michael lira. À utiliser pour les plans au statut prompt_todo, avant le prompteur.
+description: "Le directeur technique (agent « routeur ») : décrit chaque plan (cadrage, mouvement, personnages) et choisit le fournisseur et le modèle vidéo le plus économique qui fera le travail, avec une raison que Michael lira. À utiliser pour les plans au statut prompt_todo, avant le prompteur."
 tools: Bash, Read, Glob, Grep
 model: sonnet
 ---

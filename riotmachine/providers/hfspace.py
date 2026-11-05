@@ -52,8 +52,12 @@ def generate(space: str, prompt: str, images: list[Path], dest: Path, *, width: 
         raise
     except Exception as exc:   # le client gradio lève des types variés
         msg = str(exc)
-        if any(w in msg.lower() for w in QUOTA_WORDS) or type(exc).__name__ == "RuntimeError":
-            raise _http.ProviderError("quota gratuit du jour épuisé") from exc
+        # Un Space ZeroGPU qui refuse le GPU (quota du jour, file saturée) renvoie un AppError
+        # dont le message est seulement « RuntimeError » : ce n'est pas une panne du Space.
+        if any(w in msg.lower() for w in QUOTA_WORDS) or type(exc).__name__ == "RuntimeError" \
+                or msg.strip() in ("RuntimeError", "None", ""):
+            raise _http.ProviderError("GPU gratuit refusé (quota du jour épuisé ou file saturée), "
+                                      "réessaie plus tard ou prends un autre modèle") from exc
         raise _http.ProviderError(f"indisponible pour l'instant ({type(exc).__name__}: {msg[:120]})") from exc
     path = _first_image(res)
     if not path:
