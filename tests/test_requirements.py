@@ -494,6 +494,8 @@ def test_r_f7_detail_du_plan_en_parcours(studio):
     assert "Lancer la vidéo draft" in js and "Valider le visuel HD" in js
     # à la revue de la vidéo, le prompt est en lecture seule (<pre>) : la validation ne le lit pas comme un champ
     assert 'vp.tagName === "TEXTAREA"' in js
+    # le retour au storyboardeur reste possible quand toutes les propositions sont écartées
+    assert "function askStoryboard" in js and js.count("askStoryboard(shot)") >= 2
 
 
 def test_r_b7_corriger_une_etape_validee(studio):

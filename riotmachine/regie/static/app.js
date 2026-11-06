@@ -1464,6 +1464,12 @@ function redoBox(shot, step) {
           <button class="btn ghost" data-openredo="${shot.id}:${step}">Annuler</button></div></div></div>`;
 }
 
+// R-F7 : le retour au storyboardeur reste possible à toute l'étape du visuel draft
+function askStoryboard(shot) {
+  return `<div class="row"><button class="btn ghost" data-openchange="${shot.id}">Demander une modif au storyboardeur</button></div>
+      ${feedbackBox(shot, "Ce qui ne va pas et ce que tu veux à la place (ex. : réveil sans texte, cadrage plus serré, lumière du matin)")}`;
+}
+
 function feedbackBox(shot, placeholder) {
   return `<div class="feedback stack" id="fb-${shot.id}" hidden>
       <textarea placeholder="${esc(placeholder)}"></textarea>
@@ -1663,10 +1669,19 @@ function imageWork(shot) {
         <div class="row" style="gap:6px"><button class="btn small ok" data-keepimg="${shot.id}:${a.id}">Garder celle-ci</button>
           <button class="btn small" data-discard="${a.id}">Écarter</button></div></figure>`).join("")}</div>
       ${st === "image_qc" && shot.actions?.skip ? `<div class="row"><button class="btn small ghost" data-skipstep="${shot.id}">${esc(shot.actions.skip)}</button></div>` : ""}
-      <div class="row"><button class="btn ghost" data-openchange="${shot.id}">Demander une modif au storyboardeur</button></div>
-      ${feedbackBox(shot, "Ce que tu veux à la place (ex. : réveil sans texte, on ajoute MERCREDI au montage)")}</div>`;
+      ${askStoryboard(shot)}</div>`;
   } else if (!shot.image_prompt || st === "image_todo") {
     h += `<div class="pcard next">${led("wait")}<b>3. Choisis ta proposition</b><span class="hint">Les propositions apparaîtront ici, chacune à garder ou écarter.</span></div>`;
+  }
+  // aucune proposition ne va, ou toutes sont écartées, ou l'essai a échoué : on peut toujours expliquer au storyboardeur
+  if (!live && st !== "image_gen") {
+    const gone = assetsOf(shot, ["image"]).filter((a) => ["rejected", "superseded"].includes(a.status) && a.path);
+    h += `<div class="pblock"><h4>${gone.length ? "Aucune ne va ? Explique-le au storyboardeur" : "Une idée pour ce visuel ? Dis-le au storyboardeur"}</h4>
+      ${gone.length ? `<details class="fold"><summary>Revoir les propositions écartées (${gone.length})</summary>
+        <div class="propgrid ${aspectClass(clip)}">${gone.slice(-8).map((a) => `<figure class="prop">
+          <img src="${media(a.path)}" alt="" data-zoom="${media(a.path)}"><figcaption>v${a.version}${a.model_key ? ` · ${esc(a.model_key)}` : ""}</figcaption></figure>`).join("")}</div></details>` : ""}
+      <p class="hint">Il réécrit le prompt d'après ta remarque, puis tu relances.</p>
+      ${askStoryboard(shot)}</div>`;
   }
   h += failBox(shot, "image");
   h += uploadFold(shot, "image", "ton visuel", "image/*");
