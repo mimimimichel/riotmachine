@@ -26,10 +26,14 @@
       <a href="#/fournisseurs" data-nav="fournisseurs">Fournisseurs</a>
     </nav>
     <div class="sysstat" id="sysstat"></div>
+    <button class="todobtn" id="todobtn" aria-label="À faire" aria-haspopup="true" aria-expanded="false" title="À faire">
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/><path d="M3.5 6l1.2 1.2L7 4.8M3.5 12l1.2 1.2L7 10.8M3.5 18l1.2 1.2L7 16.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+      <span class="todo-n" id="todo-n" hidden></span></button>
     <button class="fsbtn" id="fsbtn" title="Plein écran" aria-label="Plein écran">⛶</button>
   </header>
   <main id="view" tabindex="-1"><p class="loading">Chargement…</p></main>
   <aside id="drawer" class="drawer" hidden></aside>
+  <div id="todopop" class="todopop" role="dialog" aria-label="À faire" hidden></div>
   <div id="toast" role="status" aria-live="polite"></div>
   <script src="/static/app.js"></script>
   <script>

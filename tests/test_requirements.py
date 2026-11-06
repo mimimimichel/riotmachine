@@ -459,6 +459,16 @@ def test_r_f5_a_faire_suit_les_blocs(studio):
     assert "bloc 1" in labels[plan]
 
 
+def test_r_f6_a_faire_sur_toutes_les_pages():
+    """R-F6 : bouton « À faire » avec pastille dans la barre du haut, liste rouverte au retour."""
+    from riotmachine import production
+    static = Path(production.__file__).parent / "regie" / "static"
+    html = (static / "index.html").read_text()
+    js = (static / "app.js").read_text()
+    assert 'id="todobtn"' in html and 'id="todo-n"' in html and 'id="todopop"' in html
+    assert "function updateTodoBtn" in js and "state.todoPopReturn" in js and "afterRoute()" in js
+
+
 def test_r_b7_corriger_une_etape_validee(studio):
     """R-B7 : depuis la vidéo draft, Michael fait refaire le visuel ; le plan repart chez le storyboard."""
     from fastapi.testclient import TestClient

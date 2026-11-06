@@ -393,6 +393,17 @@ bloc 1 n'avait encore aucun visuel validé.
 **Critère.** Test : avec un plan du bloc 1 à valider et le bloc 2 à valider au
 découpage, la ligne du plan passe avant celle du découpage et porte « bloc 1 ».
 
+### R-F6 [P1] La liste « À faire » se retrouve sur toutes les pages
+**Énoncé.** Un bouton en haut à droite, présent sur toutes les pages, ouvre la
+liste « À faire » par-dessus la page. Il porte une pastille avec le nombre de
+choses à faire ; sans rien à faire, il est éteint et sans pastille. Une ligne
+touchée mène à l'endroit où agir (R-F4) ; l'action faite, la régie ramène à la
+page de départ et rouvre la liste, la ligne concernée mise en évidence.
+**Raison.** La liste n'était visible que sur l'accueil ; dans un clip, Michael
+ne savait plus ce qui l'attendait.
+**Critère.** Test : la page porte le bouton et sa pastille, et le script rouvre
+la liste au retour ; revue sur téléphone du parcours depuis un clip.
+
 ---
 
 ## G. Qualité logicielle et méthode
@@ -451,6 +462,7 @@ pour Michael.
 ## Changelog du document
 
 - 1.2 (05/11/2026) : R-E5, suppression d'une tenue, à la demande de Michael.
+- 1.7 (06/11/2026) : R-F6, bouton « À faire » sur toutes les pages, à la demande de Michael.
 - 1.6 (06/11/2026) : R-F5, la liste « À faire » suit l'ordre des blocs, à la demande de Michael.
 - 1.5 (06/11/2026) : R-B8, écarter une proposition, à la demande de Michael.
 - 1.4 (06/11/2026) : R-B7, corriger une étape déjà validée, à la demande de Michael.

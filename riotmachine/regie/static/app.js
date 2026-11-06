@@ -381,10 +381,11 @@ async function router() {
       state.shotId = sub === "p" && shot ? +shot : null;
       if (sub === "ref" && shot) state.refTarget = shot;
       if (sub === "avalider") state.focusBlock = true;
-      if (sameView) { renderDrawer(); if (state.refTarget && state.tab === "decors") loadDecors(state.clip); focusShotCard(); updateBackBtn(); return; }
+      if (sameView) { renderDrawer(); if (state.refTarget && state.tab === "decors") loadDecors(state.clip); focusShotCard(); updateBackBtn(); afterRoute(); return; }
       await showClip(arg, tab);
       focusShotCard();
       updateBackBtn();
+      afterRoute();
       return;
     }
     lastRoute = hash;
@@ -398,6 +399,7 @@ async function router() {
     else if (page === "crew") { setNav("crew"); await showCrew(arg); }
     else { setNav("studio"); await showStudio(); }
     updateBackBtn();
+    afterRoute();
   } catch (e) {
     $view.innerHTML = `<p class="empty">${esc(e.message)}</p>`;
   }
@@ -411,6 +413,7 @@ async function refreshSys() {
     const live = d.providers.filter((p) => p.usable);
     const navSpend = document.getElementById("nav-spend-n");
     if (navSpend) navSpend.textContent = d.spend && d.spend.pending ? ` ${d.spend.pending}` : "";
+    updateTodoBtn(d.todo || []);
     document.getElementById("sysstat").innerHTML = `
       <span title="Générations en cours chez les fournisseurs">${led(d.jobs_running ? "work" : "wait")}${d.jobs_running} génération${d.jobs_running > 1 ? "s" : ""}</span>
       <span title="Agents Claude au travail">${led(d.agents_running.length ? "work" : "wait")}<span class="long">Agents :</span> ${d.agents_running.length ? "au travail" : "en veille"}</span>
@@ -420,6 +423,66 @@ async function refreshSys() {
   } catch (e) { return null; }
 }
 setInterval(() => { if (!document.hidden) refreshSys(); }, 20000);
+
+/* R-F6 : la liste « À faire » se retrouve partout, par le bouton en haut à droite.
+   Pastille avec le nombre quand il reste quelque chose ; bouton éteint sinon. */
+const $todoBtn = document.getElementById("todobtn");
+const $todoPop = document.getElementById("todopop");
+
+function updateTodoBtn(todo) {
+  const n = todo.length;
+  const badge = document.getElementById("todo-n");
+  $todoBtn.classList.toggle("has", n > 0);
+  badge.hidden = !n;
+  badge.textContent = n > 9 ? "9+" : String(n);
+  $todoBtn.title = n ? `${n} chose${n > 1 ? "s" : ""} à faire` : "Rien à faire";
+  if (!$todoPop.hidden) renderTodoPop();
+}
+
+function renderTodoPop(focus) {
+  const todo = state.overview?.todo || [];
+  $todoPop.innerHTML = `<div class="todopop-head"><b>À faire</b><span class="spacer"></span>
+      <button class="iconbtn" data-closetodo aria-label="Fermer">✕</button></div>
+    ${todo.length ? `<ul>${todo.map((x) => `<li><a href="${x.href}" data-todopop="${esc(x.href)}">${led("review")}<span>${esc(x.label)}</span></a></li>`).join("")}</ul>`
+      : `<p class="hint todopop-empty">Rien à faire pour l'instant.</p>`}`;
+  if (focus) spotlight([...$todoPop.querySelectorAll("[data-todopop]")].find((a) => a.dataset.todopop === focus)?.closest("li"));
+}
+
+async function openTodoPop(focus) {
+  $todoPop.style.top = `${Math.max(8, Math.round($todoBtn.getBoundingClientRect().bottom + 8))}px`;
+  $todoPop.hidden = false;
+  $todoBtn.setAttribute("aria-expanded", "true");
+  renderTodoPop(focus);
+  await refreshSys();
+  renderTodoPop(focus);
+}
+
+function closeTodoPop() {
+  $todoPop.hidden = true;
+  $todoBtn.setAttribute("aria-expanded", "false");
+}
+
+$todoBtn.addEventListener("click", (e) => { e.stopPropagation(); if ($todoPop.hidden) openTodoPop(); else closeTodoPop(); });
+$todoPop.addEventListener("click", (e) => {
+  if (e.target.closest("[data-closetodo]")) { closeTodoPop(); return; }
+  const a = e.target.closest("[data-todopop]");
+  if (!a) return;
+  // même mécanique que la liste de l'accueil : on revient ici, liste rouverte, une fois l'action faite
+  state.back = { hash: location.hash || "#/", text: "← Retour à la liste À faire", todo: a.dataset.todopop, pop: true };
+  closeTodoPop();
+  if ((location.hash || "#/") === a.getAttribute("href")) { e.preventDefault(); router(); }
+});
+document.addEventListener("click", (e) => {
+  if (!$todoPop.hidden && !e.target.closest("#todopop, #todobtn")) closeTodoPop();
+});
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$todoPop.hidden) closeTodoPop(); });
+
+/* après chaque page : rouvrir la liste si l'on revient d'une action lancée depuis le bouton */
+function afterRoute() {
+  if (!state.todoPopReturn) return;
+  const href = state.todoPopReturn; state.todoPopReturn = null;
+  openTodoPop(href);
+}
 
 /* ---------- logique des plans ---------- */
 
@@ -587,7 +650,8 @@ function goBack() {
   state.back = b && b.prev ? b.prev : null;
   if (!b) return false;
   state.focusShot = b.shotId || null;
-  if (b.todo) state.todoReturn = b.todo;
+  if (b.todo && b.pop) state.todoPopReturn = b.todo;
+  else if (b.todo) state.todoReturn = b.todo;
   if ((location.hash || "#/") === b.hash) router(); else location.hash = b.hash;
   return true;
 }

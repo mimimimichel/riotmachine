@@ -5,6 +5,8 @@ Format : date, identifiant, ce qui change pour Michael.
 
 ## Lot 1 : Fondations
 
+- 2026-11-06 R-F6 : un bouton « À faire » en haut à droite de chaque page ouvre la liste par-dessus
+  la page, avec une pastille du nombre de choses à faire ; au retour d'une action, la liste se rouvre.
 - 2026-11-06 R-F5 : la liste « À faire » suit l'ordre des blocs. Tout ce qui reste sur un bloc
   passe avant la validation du découpage du bloc suivant ; chaque ligne nomme son bloc.
 - 2026-11-06 correctif régie : dans le détail d'un plan, la page derrière ne défile plus quand le
