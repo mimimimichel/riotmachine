@@ -5,6 +5,8 @@ Format : date, identifiant, ce qui change pour Michael.
 
 ## Lot 1 : Fondations
 
+- 2026-11-06 correctif régie : dans le détail d'un plan, la page derrière ne défile plus quand le
+  tiroir arrive en bas, et une marge en bas laisse la fin visible au-dessus du bouton « Retour ».
 - 2026-11-06 R-B8 : chaque proposition d'un plan s'écarte (bouton « Écarter » sous chaque
   visuel proposé, « Écarter cette version » sous la HD et les vidéos). Plus aucune
   proposition : le visuel repart chez le storyboard, les autres étapes chez l'orchestrateur.

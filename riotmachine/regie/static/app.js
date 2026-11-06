@@ -1122,6 +1122,7 @@ function shotHref(id) {
 function closeDrawerUi() {
   $drawer.hidden = true;
   $drawer.innerHTML = "";
+  document.documentElement.classList.remove("drawer-open");
   document.querySelector(".drawer-backdrop")?.remove();
 }
 
@@ -1243,6 +1244,7 @@ function renderDrawer() {
     document.body.appendChild(bd);
   }
   $drawer.hidden = false;
+  document.documentElement.classList.add("drawer-open");
   $drawer.innerHTML = `
     <div class="drawer-head">
       <button class="iconbtn" data-goshot="${prev ? prev.id : ""}" ${prev ? "" : "disabled"} aria-label="Plan précédent">‹</button>
