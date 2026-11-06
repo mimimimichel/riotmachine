@@ -404,6 +404,42 @@ ne savait plus ce qui l'attendait.
 **Critère.** Test : la page porte le bouton et sa pastille, et le script rouvre
 la liste au retour ; revue sur téléphone du parcours depuis un clip.
 
+### R-F7 [P0] Le détail d'un plan est un parcours guidé : Visuel, puis Vidéo
+**Énoncé.** Le détail d'un plan suit l'ordre du travail, comme un guide.
+- **La frise en tête.** Sous l'en-tête du plan, une frise fixe montre les étapes
+  en deux groupes : Visuel (draft, HD) puis Vidéo (draft, HD, lip-sync). Une
+  ligne « Maintenant : … » dit ce qui se passe et qui agit. Toucher une étape
+  ouvre sa section et y amène directement.
+- **Trois sections, dans l'ordre.** « Le plan » (texte, prompt détaillé,
+  références), « Visuel », « Vidéo ». La section de l'étape en cours est ouverte,
+  les autres sont repliées sur une ligne de résumé. L'historique est en bas.
+- **Dans une section, chaque étape est une carte.** Étape faite : une ligne
+  « ✓ » repliée, qui se rouvre. Étape en cours : ouverte, avec dans l'ordre ce
+  qu'il faut relire, le bouton qui lance, puis les résultats à garder ou refuser.
+  Étape à venir : une ligne grise qui dit ce qui s'y passera.
+- **Visuel.** On relit le prompt du visuel (modifiable), on choisit le modèle
+  dans un sélecteur replié, puis on lance. Les propositions s'affichent dessous,
+  chacune à garder ou écarter. Une fois le visuel draft gardé, vient le visuel HD :
+  Michael le valide toujours, au comparateur, quand le clip agrandit ses visuels.
+  Sans visuel HD sur le clip, l'étape le dit et le visuel draft sert d'image de
+  départ. Une fois les visuels validés, la section ne montre plus que l'image de
+  départ de la vidéo, avec « Corriger ce visuel ».
+- **Vidéo.** Chaque carte dit quelle vidéo elle produit (draft, HD, lip-sync).
+  Avant la vidéo draft : l'image de départ (avec un lien pour corriger le
+  visuel), le prompt vidéo, le modèle dans un sélecteur replié avec son coût,
+  puis le bouton « Lancer la vidéo draft · coût ». Les boutons nomment toujours
+  la vidéo concernée et la suite. Refuser une vidéo draft propose par défaut de
+  corriger le visuel de départ (R-B7) ; l'autre choix renvoie la vidéo elle-même
+  (mouvement, caméra, rendu) à l'orchestrateur.
+- Rien n'est retiré : chaque fonction du détail garde sa place dans une section.
+**Raison.** Tout s'affichait à la suite : le choix du modèle vidéo avant la
+frise, sans dire pour quelle vidéo ; le prompt du visuel caché ; l'étape HD
+disparue sans explication ; des boutons sans nom d'étape.
+**Critère.** Test : la HD contrôlée attend la validation de Michael ; le script
+porte la frise, les trois sections et le refus qui renvoie au visuel. Revue sur
+téléphone des plans à chaque étape (visuel à lancer, propositions, plan vidéo,
+vidéo draft à valider).
+
 ---
 
 ## G. Qualité logicielle et méthode
@@ -462,6 +498,7 @@ pour Michael.
 ## Changelog du document
 
 - 1.2 (05/11/2026) : R-E5, suppression d'une tenue, à la demande de Michael.
+- 1.8 (06/11/2026) : R-F7, détail d'un plan en parcours guidé (Visuel puis Vidéo), à la demande de Michael.
 - 1.7 (06/11/2026) : R-F6, bouton « À faire » sur toutes les pages, à la demande de Michael.
 - 1.6 (06/11/2026) : R-F5, la liste « À faire » suit l'ordre des blocs, à la demande de Michael.
 - 1.5 (06/11/2026) : R-B8, écarter une proposition, à la demande de Michael.

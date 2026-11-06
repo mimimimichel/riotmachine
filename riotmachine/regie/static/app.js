@@ -1198,7 +1198,7 @@ function renderDrawer() {
   document.querySelectorAll(`[data-openshot="${shot.id}"]`).forEach((n) => n.classList.add("sel"));
   if (!$drawer.hidden && $drawer.dataset.shot === String(shot.id) && $drawer.dataset.json === JSON.stringify(shot)) return;
   if (!$drawer.hidden && $drawer.dataset.shot === String(shot.id) && isBusy()) return;
-  if ($drawer.dataset.shot !== String(shot.id)) state.step = null;
+  if ($drawer.dataset.shot !== String(shot.id)) { state.step = null; state.sectionOpen = null; }
   const scroll = $drawer.querySelector(".drawer-body")?.scrollTop || 0;
   const sameShot = $drawer.dataset.shot === String(shot.id);
   $drawer.dataset.shot = shot.id;
@@ -1208,57 +1208,36 @@ function renderDrawer() {
   const prev = clip.shots[idx - 1]; const next = clip.shots[idx + 1];
   const nextReview = clip.shots.slice(idx + 1).concat(clip.shots.slice(0, idx)).find((s) => shotState(s) === "review");
   const steps = stepStates(shot);
-  const step = state.step || currentStep(shot);
   const st = shotState(shot);
   const tags = [shot.framing, shot.motion && `mouvement ${shot.motion}`, shot.camera,
     shot.singing ? "♪ chanté" : null, ...(shot.characters || [])].filter(Boolean);
 
-  const pipeline = steps.map((s) => `<button class="pstep ${s.state} ${s.key === step ? "on" : ""}" data-step="${s.key}" ${s.state === "off" ? "disabled" : ""}>
-      <span class="lbl">${esc(s.label)}</span><span class="st">${led(s.state === "off" ? "wait" : s.state)}${esc(s.text)}</span></button>`).join("");
 
-  const notes = [];
   // la note du scénariste, sans ses repères internes (« Plan N du dossier »)
   const clean = (shot.notes || "").split("|").map((x) => x.trim()).filter((x) => x && !/^Plan \d+ du dossier\.?$/i.test(x)).join(" ");
-  if (clean) notes.push(`<p class="note"><b>Note du scénariste :</b> ${esc(clean)}</p>`);
+  const scenNote = clean ? `<p class="note"><b>Note du scénariste :</b> ${esc(clean)}</p>` : "";
   const hist = shot.historique || [];
-  if (hist.length) {
-    const last = hist[0];
-    notes.push(`<p class="note ${last.author === "michael" ? "michael" : last.author === "controleur" ? "qc" : ""}">
-      <b>${esc(NOTE_AUTHOR[last.author] || last.author)} :</b> ${esc(last.text)}</p>`);
-    if (hist.length > 1) {
-      notes.push(`<details class="fold"><summary>Historique des remarques (${hist.length})</summary><div class="journal">${hist.map((n) =>
-        `<div><span class="t">${esc(n.created_at.replace("T", " ").slice(5, 16))}</span><span><b>${esc(NOTE_AUTHOR[n.author] || n.author)}</b> : ${esc(n.text)}</span></div>`).join("")}</div></details>`);
-    }
-  }
-  notes.push(changesFold(shot.changes));
+  const curNotes = [];   // affiché en tête de la carte de l'étape en cours
   const wait = waitingText(shot);
-  if (wait) notes.unshift(`<p class="note michael">${esc(wait)}</p>`);
+  if (wait && shot.waiting !== "spend") curNotes.push(`<p class="note michael">${esc(wait)}</p>`);
   if (shot.status === "change_requested") {
     const mine = hist.find((n) => n.author === "michael");
-    notes.unshift(`<div class="agentbar">${led("work")}<span>Ta demande est partie${mine ? ` : « ${esc(mine.text)} »` : ""}.
+    curNotes.push(`<div class="agentbar">${led("work")}<span>Ta demande est partie${mine ? ` : « ${esc(mine.text)} »` : ""}.
       L'orchestrateur la transmet au bon agent, qui réécrit le plan ou son prompt. Compte une à deux minutes.
-      Ensuite, le bouton pour lancer les nouvelles propositions apparaît ici. La page se met à jour seule.</span></div>`);
+      La suite apparaît ici, la page se met à jour seule.</span></div>`);
+  } else if (hist.length) {
+    const last = hist[0];
+    curNotes.push(`<p class="note ${last.author === "michael" ? "michael" : last.author === "controleur" ? "qc" : ""}">
+      <b>${esc(NOTE_AUTHOR[last.author] || last.author)} :</b> ${esc(last.text)}</p>`);
   }
-  const locked = !["image_todo", "image_gen", "image_qc", "image_review", "hd_todo", "hd_gen", "hd_qc", "hd_review",
-    "prompt_todo", "video_review", "change_requested", "failed"].includes(shot.status) && clip.stage === "production";
-  const settings = `<div class="shot-settings stack" style="gap:8px">
-      <label class="field"><span>Modèle vidéo</span>
-        ${locked ? `<b>${esc((shot.video_model || {}).label || "")}</b>` : modelSelect(clip, shot.model_key || "", `data-shotmodel="${shot.id}"`)}</label>
-      ${(() => {
-        const f = fitFor(clip, shot.model_key, shot.t_end - shot.t_start);
-        if (!f) return "";
-        return `<span class="fit ${f.level}">${esc(f.text)}</span>
-          ${!locked && f.suggest ? `<div class="row" style="gap:8px"><button class="btn small ghost" data-shotmodelpick="${shot.id}:${esc(f.suggest.key)}">Mieux adapté : ${esc(f.suggest.label)} · ≈ ${money(f.suggest.cost)} au lieu de ${money(f.suggest.from)}</button></div>` : ""}
-          ${f.level !== "ok" ? `<a class="hint" href="#/clip/${encodeURIComponent(clip.slug)}/decoupage" data-gocut="${shot.id}">Revoir la durée de ce plan dans le Découpage</a>` : ""}`;
-      })()}
-      ${shot.lipsync && !shot.lipsync.native ? `<label class="field"><span>Lip-sync</span>
-        <select data-shotlipsync="${shot.id}">
-          <option value="">Par défaut</option>
-          ${(clip.lipsync_models || []).map((m) => `<option value="${m.key}" ${shot.lipsync.chosen && m.key === shot.lipsync.key ? "selected" : ""} ${m.usable ? "" : "disabled"}>${esc(m.label)}${m.usable ? "" : " (non branché)"}</option>`).join("")}
-        </select></label>
-        ${shot.lipsync.usable ? "" : `<p class="hint" style="color:#ffb547">Aucun lip-sync branché pour l'instant : ce plan s'arrêtera à cette étape.</p>`}` : ""}
-      ${shot.lipsync && shot.lipsync.native ? `<p class="hint">Lip-sync fait par le modèle vidéo.</p>` : ""}
-    </div>`;
+  const histHtml = `<details class="fold"><summary>Historique du plan</summary><div class="stack" style="gap:10px">
+      ${hist.length ? `<h4>Remarques (${hist.length})</h4><div class="journal">${hist.map((n) =>
+        `<div><span class="t">${esc(n.created_at.replace("T", " ").slice(5, 16))}</span><span><b>${esc(NOTE_AUTHOR[n.author] || n.author)}</b> : ${esc(n.text)}</span></div>`).join("")}</div>` : ""}
+      ${(shot.reviews || []).length ? `<h4>Validations</h4><div class="journal">${shot.reviews.map((r) =>
+        `<div><span class="t">${esc(r.created_at.replace("T", " ").slice(5, 16))}</span><span>${esc(APPROVE_LABEL[r.gate]?.[1] || r.gate)} : ${r.decision === "approve" ? "validé" : "modif : " + esc(r.comment || "")}${r.handled_note ? ` <span class="dim">(${esc(r.handled_note)})</span>` : ""}</span></div>`).join("")}</div>` : ""}
+      ${changesFold(shot.changes)}
+      ${!hist.length && !(shot.reviews || []).length ? `<p class="hint">Rien pour l'instant.</p>` : ""}
+    </div></details>`;
   const detailBox = `<details class="fold" ${shot.detail ? "" : "open"}><summary>Prompt détaillé${shot.detail_edited ? " · écrit par toi" : ""}</summary><div class="stack" style="gap:6px">
       <textarea id="dt-${shot.id}" rows="4" data-mention placeholder="Le plan en détail : sujet, action, décor, lumière, cadrage. Tape @ pour citer un décor.">${esc(shot.detail || "")}</textarea>
       ${refsCheck(shot.description, shot.detail, shot.id, shot.refs_ok)}
@@ -1320,28 +1299,15 @@ function renderDrawer() {
       <button class="iconbtn" data-closedrawer aria-label="Fermer">✕</button>
     </div>
     <div class="drawer-body">
-      <div class="stack" style="gap:8px">
-        <div class="row">${pill(statusLabel(shot), st)}${ownerTag(shot)}
-          <span class="spacer"></span><button class="btn small ghost" data-playshot="${shot.id}">▶ Lire dans le morceau</button></div>
-        <p>${mentionHtml(shot.script ?? shot.description)}</p>
-        ${prodVersion(shot.description, shot.script ?? shot.description, shot.prod_outdated)}
-        <div class="row" style="gap:6px">${tags.map((t) => `<span class="tag">${esc(t)}</span>`).join("")}</div>
-      </div>
-      ${detailBox}
-      ${elBox}
-      ${settings}
-      <div class="pipeline">${pipeline}</div>
-      ${shot.actions && (shot.actions.run || shot.actions.skip) ? `<div class="row stepbar" style="gap:8px">
-          ${shot.actions.run && (shot.status === "image_todo" || shot.status === "failed" && shot.failed_step === "image") ? `<div class="stack" style="gap:6px;width:100%">${modelPicker(shotModelKey(shot), clip.image_models?.visuel)}
-            <div class="row" style="gap:8px"><button class="btn go" data-runstep="${shot.id}">${shot.status === "failed" ? "Relancer le visuel" : "Générer le visuel"}</button>${countPicker(shot)}</div></div>`
-            : shot.actions.run ? `<button class="btn go" data-runstep="${shot.id}">${esc(shot.actions.run)}${shot.status === "draft_todo" || shot.status === "final_todo" ? ` · ~${money((shot.estimate || {}).cost_total_usd || 0)}` : ""}</button>` : ""}
-          ${shot.actions.skip ? `<button class="btn ghost" data-skipstep="${shot.id}">${esc(shot.actions.skip)}</button>` : ""}
-        </div>` : ""}
-      ${notes.join("")}
-      ${renderStepPanel(shot, step)}
-
-      ${(shot.reviews || []).length ? `<details class="fold"><summary>Historique des validations</summary><div class="journal">${shot.reviews.map((r) =>
-        `<div><span class="t">${esc(r.created_at.replace("T", " ").slice(5, 16))}</span><span>${esc(APPROVE_LABEL[r.gate]?.[1] || r.gate)} : ${r.decision === "approve" ? "validé" : "modif : " + esc(r.comment || "")}${r.handled_note ? ` <span class="dim">(${esc(r.handled_note)})</span>` : ""}</span></div>`).join("")}</div></details>` : ""}
+      ${renderGuide(shot, steps)}
+      ${renderSections(shot, { curNotes: curNotes.join(""), planBody: `<div class="stack" style="gap:8px">
+          <div class="row"><span class="spacer"></span><button class="btn small ghost" data-playshot="${shot.id}">▶ Lire dans le morceau</button></div>
+          <p>${mentionHtml(shot.script ?? shot.description)}</p>
+          ${prodVersion(shot.description, shot.script ?? shot.description, shot.prod_outdated)}
+          <div class="row" style="gap:6px">${tags.map((t) => `<span class="tag">${esc(t)}</span>`).join("")}</div>
+          ${scenNote}
+        </div>${detailBox}${elBox}` })}
+      ${histHtml}
       <p class="hint mono">Dépensé sur ce plan : ${money(shot.cost_usd)}</p>
     </div>`;
   if (sameShot) $drawer.querySelector(".drawer-body").scrollTop = scroll;
@@ -1425,14 +1391,19 @@ function modelWhy(m) {
     ${m.vitesse ? ` Durée : ${esc(m.vitesse)}.` : ""} ${m.refs ? `Lit ${m.refs} image${m.refs > 1 ? "s" : ""} de référence.` : ""}`;
 }
 
+function modelSummary(m) {
+  return m ? `${esc(m.label)} · ${m.free ? "gratuit" : money(m.cost_usd) + " l'image"}` : "aucun modèle branché";
+}
+
+// replié sur le modèle choisi ; « Changer » déroule la liste. Un choix la replie (le tiroir se redessine).
 function modelPicker(key, opts) {
   if (!opts || !opts.models) return "";
   const cur = pickedModel(key, opts);
-  return `<div class="modelpick stack" style="gap:4px"><label class="field"><span>Modèle · ${esc(opts.label || "")}</span>
-      <select data-modelpick="${esc(key)}" aria-label="Modèle d'image">
+  return `<details class="mpick modelpick"><summary><span>Modèle${opts.label ? ` · ${esc(opts.label)}` : ""} : <b data-modelsum="${esc(key)}">${modelSummary(pickedModelInfo(key, opts))}</b></span><span class="chg">Changer</span></summary>
+    <div><select data-modelpick="${esc(key)}" aria-label="Modèle d'image">
       ${opts.models.map((m) => `<option value="${esc(m.id)}" ${m.id === cur ? "selected" : ""} ${m.usable ? "" : "disabled"}>${m.rank === 1 ? "★ " : ""}${esc(m.label)} · ${m.free ? "gratuit" : money(m.cost_usd) + " l'image"}${m.rank ? ` · conseillé n°${m.rank}` : " · pas conseillé ici"}${m.usable ? "" : " · pas branché"}</option>`).join("")}
-      </select></label>
-    <p class="hint" data-modelwhy="${esc(key)}">${modelWhy(pickedModelInfo(key, opts))}</p></div>`;
+      </select>
+    <p class="hint" data-modelwhy="${esc(key)}">${modelWhy(pickedModelInfo(key, opts))}</p></div></details>`;
 }
 
 document.addEventListener("change", (ev) => {
@@ -1445,6 +1416,9 @@ document.addEventListener("change", (ev) => {
   const opts = state.modelOpts?.[key];
   const why = document.querySelector(`[data-modelwhy="${CSS.escape(key)}"]`);
   if (why && opts) why.innerHTML = modelWhy(pickedModelInfo(key, opts));
+  const sum = document.querySelector(`[data-modelsum="${CSS.escape(key)}"]`);
+  if (sum && opts) sum.innerHTML = modelSummary(pickedModelInfo(key, opts));
+  const box = sel.closest("details.mpick"); if (box) box.open = false;
 });
 
 function rememberOpts(key, opts) { state.modelOpts = { ...(state.modelOpts || {}), [key]: opts }; return opts; }
@@ -1498,170 +1472,462 @@ function feedbackBox(shot, placeholder) {
     </div>`;
 }
 
-function renderStepPanel(shot, step) {
-  const clip = state.clip;
-  const gate = gateOf(shot);
-  const isGate = gate && GATE_STEP[gate] === step || (gate === "finals" && step === "lipsync");
-  if (step === "plan") return renderPlanVideo(shot, gate === "videoplan") + redoBox(shot, step);
-  const def = STEPS[STEP_INDEX[step]];
-  if (step === "hd" && gate === "hd") {
-    const work = bestAsset(shot, ["image"]);
-    const hd = bestAsset(shot, ["image_hd"]);
-    return `<div class="actionbox"><h3>Écart signalé sur la HD</h3>
-      <p class="hint">Le contrôleur a trouvé une différence entre le visuel draft que tu as validé et sa version HD.
-        Fais glisser le curseur pour comparer.</p>
-      ${work && hd ? compareWidget(media(work.path), media(hd.path), "Visuel draft validé", "Visuel HD") : ""}
-      <div class="row">
-        <button class="btn ok" data-approve="${shot.id}">Valider la HD</button>
-        <button class="btn" data-decision="${shot.id}:use_work_image">Partir du visuel draft</button>
-        <button class="btn ghost" data-openchange="${shot.id}">Demander une modif</button>
-      </div>
-      ${feedbackBox(shot, "Ce que la HD a perdu ou changé (boucles, regard, grain de peau…)")}
-    </div>`;
+/* ---------- R-F7 : le détail d'un plan, un parcours guidé ----------
+   En tête, la frise (Visuel : draft, HD ; Vidéo : draft, HD, lip-sync) et ce qui se passe maintenant.
+   Puis trois sections dans l'ordre du travail : Le plan, Visuel, Vidéo. Chaque étape est une carte :
+   faite (repliée, ✓), en cours (ouverte : relire, lancer, choisir), à venir (une ligne grise). */
+const SECTION_OF = { image: "visuel", hd: "visuel", plan: "video", draft: "video", final: "video", lipsync: "video" };
+const MODEL_OPEN = ["image_todo", "image_gen", "image_qc", "image_review", "hd_todo", "hd_gen", "hd_qc", "hd_review",
+  "prompt_todo", "video_review", "change_requested", "failed"];
+
+function hdOff(shot) { return !state.clip.visual_hd && !bestAsset(shot, ["image_hd"]); }
+function inProd(shot) { return !shot.id || shot.en_production; }
+
+// où en est une carte : faite, en cours, à venir. La carte « Vidéo draft » couvre aussi le plan vidéo.
+function cardState(shot, key) {
+  if (!inProd(shot)) return "next";
+  if (shot.status === "done") return "done";
+  const ci = STEP_INDEX[currentStep(shot)] ?? 0;
+  const keys = key === "draft" ? ["plan", "draft"] : [key];
+  const idx = keys.map((k) => STEP_INDEX[k]);
+  if (idx.includes(ci)) return "cur";
+  return Math.max(...idx) < ci ? "done" : "next";
+}
+
+function visualDone(shot) {
+  return inProd(shot) && (shot.status === "done" || (STEP_INDEX[currentStep(shot)] ?? 0) >= STEP_INDEX.plan);
+}
+
+// l'image de départ de la vidéo, comme le serveur la choisit : la HD retenue, sinon le visuel validé
+function startVisual(shot) {
+  const hd = assetsOf(shot, ["image_hd"]).filter((a) => ["validated", "ready"].includes(a.status)).slice(-1)[0];
+  return hd || assetsOf(shot, ["image"]).filter((a) => a.status === "validated").slice(-1)[0] || null;
+}
+
+// ce qui se passe maintenant, en une phrase, et qui agit
+function nowText(shot) {
+  const est = shot.estimate;
+  if (!inProd(shot)) return ["wait", statusLabel(shot)];
+  const t = {
+    image_todo: shot.waiting === "decors" || shot.waiting === "decors_scan" ? ["wait", waitingText(shot)]
+      : shot.image_prompt ? ["review", "À toi : relis le prompt du visuel et lance la génération."]
+      : ["work", "Le storyboardeur écrit le prompt du visuel."],
+    image_gen: ["work", "Les propositions du visuel draft sont en génération."],
+    image_qc: ["review", "Le contrôleur regarde les propositions. Tu peux déjà en garder une."],
+    image_review: ["review", "À toi : garde une proposition du visuel draft, ou relance."],
+    hd_todo: shot.waiting === "spend" ? ["review", `À toi : lance le visuel HD (~${money(shot.spend_usd || 0)}).`]
+      : ["work", "Le visuel HD part tout seul."],
+    hd_gen: ["work", "Le visuel HD est en cours d'agrandissement."],
+    hd_qc: ["work", "Le contrôleur compare le visuel HD au visuel draft."],
+    hd_review: ["review", "À toi : valide le visuel HD. La partie visuelle sera finie."],
+    prompt_todo: shot.actions?.run ? ["review", "À toi : le prompt et le modèle sont prêts, passe au lancement."]
+      : ["work", "Le routeur choisit le modèle, le prompteur écrit le prompt de la vidéo draft."],
+    video_review: ["review", `À toi : relis le prompt et le modèle, puis lance la vidéo draft${est ? ` (~${money(est.cost_draft_usd)})` : ""}.`],
+    draft_todo: ["work", "La vidéo draft part."],
+    draft_gen: ["work", "La vidéo draft est en génération."],
+    draft_qc: ["work", "Le contrôleur regarde la vidéo draft."],
+    draft_review: ["review", "À toi : valide ou refuse la vidéo draft."],
+    final_todo: shot.waiting === "spend" ? ["review", "À toi : lance la vidéo HD."] : ["work", "La vidéo HD part."],
+    final_gen: ["work", "La vidéo HD est en génération."],
+    lipsync_todo: ["work", "Le lip-sync part."],
+    lipsync_gen: ["work", "Le lip-sync est en génération."],
+    final_review: ["review", shot.singing ? "À toi : valide le final (vidéo HD et lip-sync)." : "À toi : valide la vidéo HD."],
+    done: ["done", "Plan terminé."],
+    change_requested: ["change", "Ta demande est partie : l'orchestrateur la transmet au bon agent."],
+    failed: ["failed", `Échec : ${(STEPS[STEP_INDEX[currentStep(shot)]] || {}).label || "étape"}. Voir la carte en rouge.`],
+  }[shot.status];
+  return t || ["wait", statusLabel(shot)];
+}
+
+function renderGuide(shot, steps) {
+  const by = Object.fromEntries(steps.map((s) => [s.key, s]));
+  const cur = currentStep(shot) === "plan" ? "draft" : currentStep(shot);
+  const draft = by.plan.state !== "done" && by.plan.state !== "wait" ? by.plan : by.draft.state === "wait" && by.plan.state === "done" ? by.draft : by.draft;
+  const hd = hdOff(shot) ? { state: "off", text: "désactivé" }
+    : by.hd.state === "done" && !bestAsset(shot, ["image_hd"]) ? { state: "off", text: "passé" } : by.hd;
+  const chip = (key, label, s) => `<button class="gchip ${s.state} ${inProd(shot) && cur === key ? "on" : ""}" data-gostep="${key}" title="${esc(s.text)}">
+      ${led(s.state === "off" ? "wait" : s.state)}<span>${label}</span></button>`;
+  const [cls, text] = nowText(shot);
+  return `<nav class="guide" aria-label="Étapes du plan">
+      <div class="ggroup"><span class="gname">Visuel</span>${chip("image", "Draft", by.image)}${chip("hd", "HD", hd)}</div>
+      <div class="ggroup"><span class="gname">Vidéo</span>${chip("draft", "Draft", draft)}${chip("final", "HD", by.final)}${shot.singing ? chip("lipsync", "Lip-sync", by.lipsync) : ""}</div>
+      <p class="gnow ${cls}" data-gostep="${cur}">${led(cls)}<span><span class="gtext">${esc(text)}</span>${shot.owner && shot.owner.who !== "michael" ? " " + ownerTag(shot) : ""}</span></p>
+    </nav>`;
+}
+
+function sectionOpen(shot, key) {
+  const o = state.sectionOpen || {};
+  if (key in o) return o[key];
+  if (key === "plan") return !inProd(shot);
+  return inProd(shot) && SECTION_OF[currentStep(shot)] === key;
+}
+
+function psection(shot, key, title, summary, body) {
+  return `<details class="psection" data-section="${key}" id="sec-${key}" ${sectionOpen(shot, key) ? "open" : ""}>
+      <summary><span class="sname">${title}</span><span class="ssum">${summary}</span></summary>
+      <div class="sbody">${body}</div></details>`;
+}
+
+function pcard(id, cs, title, sum, body, extra = "") {
+  if (cs === "done") return `<details class="pcard done" id="st-${id}"><summary>${led("done")}<b>${title}</b><span class="hint">${sum || "validé"}</span></summary>
+      <div class="pbody">${body}</div></details>`;
+  if (cs === "cur") return `<section class="pcard cur ${extra}" id="st-${id}"><h3>${title}</h3>${body}</section>`;
+  return `<div class="pcard next ${extra}" id="st-${id}">${led("wait")}<b>${title}</b><span class="hint">${sum}</span>${body || ""}</div>`;
+}
+
+function renderSections(shot, ctx) {
+  const nRefs = (shot.characters || []).length + (shot.elements || []).length;
+  return psection(shot, "plan", "Le plan", `<span class="hint">texte, prompt détaillé, références (${nRefs})</span>`, ctx.planBody)
+    + renderVisuel(shot, ctx) + renderVideo(shot, ctx);
+}
+
+function failBox(shot, step) {
+  if (shot.status !== "failed" || currentStep(shot) !== step) return "";
+  return `<div class="actionbox" style="border-color:#ff4d6688"><h3 style="color:var(--red)">Échec</h3>
+      ${step === "image" ? `<p class="hint">La remarque au-dessus dit ce qui a échoué. Change de modèle si besoin, puis relance.</p>`
+        : `<p class="hint">L'orchestrateur va tenter de relancer. Tu peux aussi le faire toi-même.</p>
+      <div class="row"><button class="btn" data-retry="${shot.id}">Relancer cette étape</button></div>`}</div>`;
+}
+
+function uploadFold(shot, kind, what, accept) {
+  return `<details class="fold"><summary>Déposer ${what}, fait ailleurs</summary><div class="stack" style="gap:6px">
+      <p class="hint">Il devient une proposition de cette étape, à valider comme les autres.</p>
+      ${dropZone(`shotup:${shot.id}:${kind}`, `Déposer ${what}`, accept === "image/*" ? "png, jpg ou webp" : "mp4, mov ou webm", accept, false)}</div></details>`;
+}
+
+/* ----- section Visuel ----- */
+function renderVisuel(shot, ctx) {
+  const here = SECTION_OF[currentStep(shot)] === "visuel" ? ctx.curNotes : "";
+  if (visualDone(shot)) {
+    const start = startVisual(shot);
+    const work = assetsOf(shot, ["image"]).filter((a) => a.status === "validated").slice(-1)[0];
+    const body = `${start ? `<div class="viewer"><img src="${media(start.path)}" data-zoom="${media(start.path)}" alt=""></div>
+        <p class="hint">Image de départ de la vidéo : ${start.kind === "image_hd" ? `visuel HD v${start.version}` : `visuel draft v${start.version}`}.</p>` : ""}
+      ${start && work && start.kind === "image_hd" ? `<details class="fold"><summary>Comparer avec le visuel draft</summary><div>${compareWidget(media(work.path), media(start.path), "Visuel draft", "Visuel HD")}</div></details>` : ""}
+      ${redoBox(shot, "image")}${hdOff(shot) ? "" : redoBox(shot, "hd")}`;
+    const sum = `${start ? `<img src="${media(start.path)}" alt="">` : ""}${led("done")}<span>validé</span>`;
+    return psection(shot, "visuel", "Visuel", sum, body);
   }
-  const v = viewerFor(shot, def.kinds, clip, {
-    image: shot.waiting === "spend" || (shot.status === "image_todo" && shot.image_prompt) ? "Le prompt est prêt : choisis le nombre de propositions et touche « Générer le visuel »."
-      : "Le storyboardeur écrit le prompt de ce visuel.",
-    hd: "La HD part dès que le visuel draft est validé.",
-    draft: "La vidéo draft part dès que le plan vidéo est validé.",
-    final: "La vidéo HD part dès que la vidéo draft est validée.",
-    lipsync: "Le lip-sync se fait après la vidéo HD.",
-  }[step]);
-  // propositions du visuel draft : toutes visibles côte à côte, Michael garde celle qu'il veut
-  const props = step === "image" && ["image_todo", "image_qc", "image_review"].includes(shot.status)
+  const cs = cardState(shot, "image");
+  const kept = assetsOf(shot, ["image"]).filter((a) => a.status === "validated").slice(-1)[0];
+  const image = pcard("image", cs, "Visuel draft",
+    cs === "done" ? (kept ? `v${kept.version} gardé` : "fait") : inProd(shot) ? "Le storyboardeur écrit le prompt, puis tu lances les propositions." : "Se prépare quand le bloc est validé au découpage.",
+    cs === "cur" ? here + imageWork(shot) : cs === "done" && kept ? `<div class="viewer"><img src="${media(kept.path)}" data-zoom="${media(kept.path)}" alt=""></div>${redoBox(shot, "image")}` : "",
+    shot.status === "failed" && cs === "cur" ? "failed" : "");
+  const [cls, text] = nowText(shot);
+  const sum = `${led(cls)}<span>${cs === "cur" ? (cls === "review" ? "à toi" : "en cours") : "visuel draft fait"}</span>`;
+  return psection(shot, "visuel", "Visuel", sum, image + hdCard(shot, here));
+}
+
+function imageWork(shot) {
+  const clip = state.clip;
+  const st = shot.status;
+  const failedHere = st === "failed" && shot.failed_step === "image";
+  const props = ["image_todo", "image_qc", "image_review"].includes(st)
     ? assetsOf(shot, ["image"]).filter((a) => ["ready", "rejected"].includes(a.status) && !byMichael(a)) : [];
-  const stale = props.length && ["image_todo", "change_requested"].includes(shot.status);
-  let html = props.length ? "" : v.html;
+  const stale = props.length && st === "image_todo";
+  const live = props.length && !stale;
+  const blocked = shot.waiting === "decors" || shot.waiting === "decors_scan";
+  const canLaunch = shot.image_prompt && !blocked && (["image_todo", "image_qc", "image_review"].includes(st) || failedHere);
+  let h = "";
+  // 1. relire le prompt (replié quand les propositions sont là : on choisit d'abord)
+  const prompt = shot.image_prompt
+    ? `<textarea rows="6" id="pr-${shot.id}-image">${esc(shot.image_prompt)}</textarea>
+       <div class="row" style="gap:8px"><button class="btn small" data-copyprompt="pr-${shot.id}-image">Copier</button>
+         <span class="hint">Tu peux le réécrire : il part tel quel au lancement, avec les références du plan (personnages, tenues, décors).</span></div>`
+    : `<div class="agentbar">${led("work")}<span>Le storyboardeur écrit le prompt de ce visuel. Il apparaîtra ici.</span></div>`;
+  h += live ? `<details class="fold"><summary>1. Prompt du visuel : relire, réécrire</summary><div class="stack" style="gap:6px">${prompt}</div></details>`
+    : `<div class="pblock"><h4>1. Relis le prompt du visuel</h4>${prompt}</div>`;
+  // 2. lancer
+  if (canLaunch) {
+    const n = propCount(shot); const m = shotModel(shot);
+    const cost = !m || m.free ? "gratuit" : `~${money(m.cost_usd * n)}`;
+    h += `<div class="pblock"><h4>2. ${live ? "Relance si aucune ne va" : "Lance la génération"}</h4>
+        ${modelPicker(shotModelKey(shot), clip.image_models?.visuel)}
+        <div class="row" style="gap:8px">${countPicker(shot)}</div>
+        <div class="row"><button class="btn ${live ? "" : "go"}" data-regenimage="${shot.id}">${live || failedHere ? "Relancer" : "Générer"} ${n} proposition${n > 1 ? "s" : ""} · ${cost}</button></div></div>`;
+  }
+  if (st === "image_gen") h += `<div class="pblock"><h4>2. Génération en cours</h4>${viewerFor(shot, ["image"], clip, "").html}</div>`;
+  // 3. choisir
   if (stale) {
-    html = `<div class="viewer"><div class="none">${shot.status === "change_requested" ? `${led("work")} Ta demande est en cours de traitement.`
-        : "Les nouvelles propositions apparaîtront ici."}</div></div>
-      <details class="fold"><summary>Propositions précédentes (${props.length}), avant ta dernière demande</summary>
+    h += `<details class="fold"><summary>Propositions précédentes (${props.length}), avant ta dernière demande</summary>
       <div class="propgrid ${aspectClass(clip)}">${props.map((a) => `<figure class="prop">
         <img src="${media(a.path)}" alt="" data-zoom="${media(a.path)}"><figcaption>v${a.version}</figcaption>
         <button class="btn small" data-keepimg="${shot.id}:${a.id}">Garder celle-ci quand même</button></figure>`).join("")}</div></details>`;
-  } else if (props.length) {
-    const qcRunning = shot.status === "image_qc";
-    html += `<div class="actionbox"><h3>Choisis ta proposition (${props.length})</h3>
-      <p class="hint">${qcRunning ? "Le contrôleur les regarde. Tu peux déjà garder celle qui te plaît."
-        : "L'avis du contrôleur est en haut du plan. C'est un conseil : tu gardes celle que tu veux."} Touche une image pour l'agrandir.</p>
+  } else if (live) {
+    h += `<div class="pblock"><h4>3. Choisis ta proposition (${props.length})</h4>
+      <p class="hint">${st === "image_qc" ? "Le contrôleur les regarde. Tu peux déjà garder celle qui te plaît." : "L'avis du contrôleur est au-dessus. C'est un conseil : tu gardes celle que tu veux."} Touche une image pour l'agrandir.</p>
       <div class="propgrid ${aspectClass(clip)}">${props.map((a) => `<figure class="prop">
         <img src="${media(a.path)}" alt="" data-zoom="${media(a.path)}">
         <figcaption>v${a.version}${a.status === "rejected" ? " · écartée par le contrôleur" : ""}${a.model_key ? ` · ${esc(a.model_key)}` : ""}</figcaption>
         <div class="row" style="gap:6px"><button class="btn small ok" data-keepimg="${shot.id}:${a.id}">Garder celle-ci</button>
           <button class="btn small" data-discard="${a.id}">Écarter</button></div></figure>`).join("")}</div>
-      <div class="row">
-        ${shot.image_prompt ? `${modelPicker(shotModelKey(shot), state.clip.image_models?.visuel)}<button class="btn" data-regenimage="${shot.id}">Relancer</button>${countPicker(shot)}` : ""}
-        <button class="btn ghost" data-openchange="${shot.id}">Demander une modif au storyboardeur</button>
-      </div>
+      ${st === "image_qc" && shot.actions?.skip ? `<div class="row"><button class="btn small ghost" data-skipstep="${shot.id}">${esc(shot.actions.skip)}</button></div>` : ""}
+      <div class="row"><button class="btn ghost" data-openchange="${shot.id}">Demander une modif au storyboardeur</button></div>
       ${feedbackBox(shot, "Ce que tu veux à la place (ex. : réveil sans texte, on ajoute MERCREDI au montage)")}</div>`;
+  } else if (!shot.image_prompt || st === "image_todo") {
+    h += `<div class="pcard next">${led("wait")}<b>3. Choisis ta proposition</b><span class="hint">Les propositions apparaîtront ici, chacune à garder ou écarter.</span></div>`;
   }
-  const own = { image: ["image", "ton visuel", "image/*"], hd: ["image_hd", "ton visuel HD", "image/*"],
-                draft: ["draft", "ta vidéo draft", "video/*"], final: ["final", "ta vidéo HD", "video/*"] }[step];
-  const prompt = step === "image" ? shot.image_prompt : (step === "draft" || step === "final") ? shot.video_prompt : null;
-  if (step === "image") html += `<details class="fold" ${shot.status === "image_review" ? "" : ""}><summary>Prompt du visuel : le voir, le copier, le réécrire</summary><div class="stack" style="gap:6px">
-      <textarea rows="6" id="pr-${shot.id}-image" placeholder="Le storyboardeur n'a pas encore écrit ce prompt.">${esc(shot.image_prompt || "")}</textarea>
-      <div class="row" style="gap:8px">
-        <button class="btn small" data-copyprompt="pr-${shot.id}-image">Copier</button>
-        <button class="btn small go" data-regenimage="${shot.id}">Enregistrer et régénérer</button>${countPicker(shot)}
-        <span class="hint">Les références du plan (personnages, tenues, décors) partent avec.</span></div></div></details>`;
-  else if (prompt) html += `<details class="fold"><summary>Prompt de cette étape</summary><div class="stack" style="gap:6px">
-      <pre class="text" id="pr-${shot.id}-${step}">${esc(prompt)}</pre>
-      <div class="row"><button class="btn small" data-copyprompt="pr-${shot.id}-${step}">Copier le prompt</button>
-        <span class="hint">Pour le réutiliser ailleurs (Grok, ChatGPT, Higgsfield…).</span></div></div></details>`;
-  if (own) html += `<details class="fold"><summary>Déposer ${own[1]}, fait ailleurs</summary><div class="stack" style="gap:6px">
-      <p class="hint">Il devient une proposition de cette étape, à valider comme les autres.</p>
-      ${dropZone(`shotup:${shot.id}:${own[0]}`, `Déposer ${own[1]}`, own[2] === "image/*" ? "png, jpg ou webp" : "mp4, mov ou webm", own[2], false)}</div></details>`;
-  if (isGate && !props.length) {
-    const label = step === "lipsync" || step === "final" ? APPROVE_LABEL.finals[0] : APPROVE_LABEL[gate][0];
-    const ph = {
-      images: "Ce qui ne va pas et ce que tu veux à la place (cadrage, pose, lumière, tenue, décor…)",
-      drafts: "Mouvement, rythme, caméra, rendu : ce que tu veux changer",
-      finals: "Ce qui ne va pas sur la vidéo HD ou le lip-sync",
-    }[gate];
-    html += `<div class="actionbox"><h3>À toi de valider</h3>
-      <div class="row">
-        <button class="btn ok" data-approve="${shot.id}">${esc(label)}</button>
-        <button class="btn ghost" data-openchange="${shot.id}">Demander une modif</button>
-      </div>
-      ${feedbackBox(shot, ph)}</div>`;
-  }
-  if (step === "hd" && shot.status !== "hd_review") {
-    const work = bestAsset(shot, ["image"]);
-    const hd = bestAsset(shot, ["image_hd"]);
-    if (work && hd) html += `<details class="fold"><summary>Comparer avec le visuel draft</summary><div>${compareWidget(media(work.path), media(hd.path), "Visuel draft", "Visuel HD")}</div></details>`;
-  }
-  html += redoBox(shot, step);
-  if (shot.status === "failed") {
-    html += `<div class="actionbox" style="border-color:#ff4d6688"><h3 style="color:var(--red)">Échec</h3>
-      ${shot.failed_step === "image" ? `<p class="hint">Le message en haut du plan dit ce qui a échoué. Choisis un autre modèle au-dessus et relance le visuel.</p>`
-        : `<p class="hint">L'orchestrateur va tenter de relancer. Tu peux aussi le faire toi-même.</p>
-      <div class="row"><button class="btn" data-retry="${shot.id}">Relancer l'étape</button></div>`}</div>`;
-  }
-  return html;
+  h += failBox(shot, "image");
+  h += uploadFold(shot, "image", "ton visuel", "image/*");
+  return h;
 }
 
-function renderPlanVideo(shot, isGate) {
-  const est = shot.estimate;
-  if (!shot.model_key && !shot.video_prompt) {
-    return `<div class="viewer"><div class="none">${shot.status === "prompt_todo" ? `${led("work")} Le routeur choisit le modèle, le prompteur écrit le prompt.` : "Le plan vidéo se prépare une fois le visuel HD prêt."}</div></div>`;
+function hdCard(shot, here) {
+  const clip = state.clip;
+  if (hdOff(shot)) {
+    const fal = (clip.providers || []).find((p) => p.key === "fal");
+    return pcard("hd", "next", "Visuel HD", `Désactivé pour ce clip : le visuel draft sert d'image de départ de la vidéo.
+      ${fal && !fal.usable ? "L'agrandisseur passe par fal, qui n'est pas branché." : "Il s'active dans l'onglet Dossier."}`, "", "off");
   }
-  const hd = bestAsset(shot, ["image_hd"]) || bestAsset(shot, ["image"]);
-  const costs = est ? `<div class="costline">
+  const cs = cardState(shot, "hd");
+  const work = bestAsset(shot, ["image"]);
+  const hd = bestAsset(shot, ["image_hd"]);
+  const cmp = work && hd ? compareWidget(media(work.path), media(hd.path), "Visuel draft", "Visuel HD") : "";
+  if (cs === "next") return pcard("hd", cs, "Visuel HD", "Une fois le visuel draft gardé, il est agrandi en HD sans être redessiné, puis tu le valides.");
+  if (cs === "done") return pcard("hd", cs, "Visuel HD", hd ? `v${hd.version} validé` : "passé", cmp + redoBox(shot, "hd"));
+  const st = shot.status;
+  let h = here;
+  if (st === "hd_todo") {
+    h += shot.waiting === "spend" && shot.actions?.run
+      ? `<p class="hint">L'agrandissement est payant : il attend ton accord.</p>
+         <div class="row"><button class="btn go" data-runstep="${shot.id}">Lancer le visuel HD · ~${money(shot.spend_usd || 0)}</button></div>`
+      : `<div class="agentbar">${led("work")}<span>Le visuel HD part tout seul.</span></div>`;
+  } else if (st === "hd_gen") {
+    h += `<div class="agentbar">${led("work")}<span>Agrandissement en cours.</span></div>${viewerFor(shot, ["image_hd"], clip, "").html}`;
+  } else if (st === "hd_qc") {
+    h += `<div class="agentbar">${led("work")}<span>Le contrôleur compare le visuel HD au visuel draft.</span></div>${cmp}`;
+  } else if (st === "hd_review") {
+    h += `<div class="pblock"><h4>Compare et valide</h4>
+        <p class="hint">Fais glisser le curseur : la HD doit garder le visage, le regard, la peau et les détails du visuel draft.</p>
+        ${cmp}
+        <div class="row">
+          <button class="btn ok" data-approve="${shot.id}">Valider le visuel HD</button>
+          <button class="btn" data-decision="${shot.id}:use_work_image">Garder le visuel draft</button>
+          <button class="btn ghost" data-openchange="${shot.id}">Demander une modif</button>
+        </div>
+        ${feedbackBox(shot, "Ce que la HD a perdu ou changé (boucles, regard, grain de peau…)")}</div>`;
+  }
+  if (shot.actions?.skip && ["hd_todo", "hd_gen", "hd_qc"].includes(st))
+    h += `<div class="row"><button class="btn small ghost" data-skipstep="${shot.id}">${esc(shot.actions.skip)}</button></div>`;
+  h += failBox(shot, "hd");
+  if (["hd_todo", "hd_review"].includes(st)) h += uploadFold(shot, "image_hd", "ton visuel HD", "image/*");
+  return pcard("hd", "cur", "Visuel HD", "", h, st === "failed" ? "failed" : "");
+}
+
+/* ----- section Vidéo ----- */
+function videoCostLine(shot) {
+  const est = shot.estimate;
+  if (!est) return "";
+  return `<div class="costline">
       <span>Vidéo draft <b>${money(est.cost_draft_usd)}</b></span>
-      <span>Vidéo HD <b>${est.final_mode === "keep" ? "incluse" : money(est.cost_final_usd)}</b></span>
+      <span>Vidéo HD <b>${est.final_mode === "keep" ? "incluse (même vidéo)" : money(est.cost_final_usd)}</b></span>
       ${shot.singing ? `<span>Lip-sync <b>${money(est.cost_lipsync_usd)}</b></span>` : ""}
-      <span>Total estimé <b>${money(est.cost_total_usd)}</b></span>
-      <span>Durée générée <b>${est.duration} s</b> pour un plan de ${est.shot_seconds} s</span></div>` : "";
-  const providers = state.clip.providers || [];
+      <span>Total <b>${money(est.cost_total_usd)}</b></span></div>`;
+}
+
+// le modèle vidéo : une ligne repliée (modèle, coût, durée générée), « Changer » déroule les choix
+function videoModelPicker(shot) {
+  const clip = state.clip;
+  const est = shot.estimate;
+  const opts = shot.model_options;
+  const key = shot.model_key || (shot.video_model || {}).key;
+  const cur = (opts || []).find((m) => m.key === key);
+  const label = est ? est.model_label : (shot.video_model || {}).label || "à choisir";
+  const secs = shot.t_end - shot.t_start;
+  const f = fitFor(clip, key, secs);
+  const open = MODEL_OPEN.includes(shot.status) || clip.stage !== "production";
+  const providers = clip.providers || [];
   const provLabel = (k) => (providers.find((p) => p.key === k) || { label: k }).label;
-  let modelHtml;
-  if (isGate && shot.model_options) {
-    const opts = shot.model_options.slice().sort((a, b) => (b.usable - a.usable) || (a.effective_usd - b.effective_usd) || (a.cost_total_usd - b.cost_total_usd));
+  const line = `Modèle : <b>${esc(label)}</b>${est ? ` · ${cur && cur.on_credits ? "crédits Google, valeur " : ""}~${money(est.cost_draft_usd)} · ${est.duration} s générées pour un plan de ${secs.toFixed(1).replace(".", ",")} s` : ""}`;
+  let choices = "";
+  if (open && shot.status === "video_review" && opts) {
+    const sorted = opts.slice().sort((a, b) => (b.usable - a.usable) || (a.effective_usd - b.effective_usd) || (a.cost_total_usd - b.cost_total_usd));
     const card = (m) => `<label class="model ${m.key === shot.model_key ? "on" : ""} ${m.usable ? "" : "off"}">
         <input type="radio" name="model-${shot.id}" value="${m.key}" ${m.key === shot.model_key ? "checked" : ""} ${m.usable ? "" : "disabled"} data-model="${shot.id}">
         <span><span class="nm">${esc(m.label)}</span> <span class="hint">· ${esc(provLabel(m.provider))}${m.usable ? "" : " (clé manquante)"}</span>
           ${m.to_test ? `<span class="pill work" style="margin-left:6px">à tester</span>` : ""}<br>
           <span class="uf">${esc(m.use_for)}</span></span>
         <span class="cost">${m.on_credits ? `<span style="color:var(--led)">crédits</span><small>valeur ~${money(m.cost_total_usd)}</small>` : `~${money(m.cost_total_usd)}`}<small>${m.duration} s générées</small></span></label>`;
-    const fit = opts.filter((m) => m.fits); const other = opts.filter((m) => !m.fits);
-    modelHtml = `<div class="models">${fit.map(card).join("")}</div>
-      ${other.length ? `<details class="fold"><summary>Autres modèles (moins adaptés à ce plan, ou format et durée non tenus) : ${other.length}</summary><div class="models">${other.map(card).join("")}</div></details>` : ""}
+    const fit = sorted.filter((m) => m.fits); const other = sorted.filter((m) => !m.fits);
+    choices = `<div class="models">${fit.map(card).join("")}</div>
+      ${other.length ? `<details class="fold"><summary>Autres modèles (moins adaptés à ce plan) : ${other.length}</summary><div class="models">${other.map(card).join("")}</div></details>` : ""}
       ${providers.filter((p) => !p.usable).length ? `<p class="hint">Sans clé pour l'instant : ${providers.filter((p) => !p.usable).map((p) => esc(p.label)).join(", ")}. Voir la page <a href="#/fournisseurs">Fournisseurs</a>.</p>` : ""}`;
-  } else {
-    modelHtml = est ? `<dl class="kv"><dt>Fournisseur</dt><dd>${esc(provLabel(est.provider))}</dd><dt>Modèle</dt><dd>${esc(est.model_label)}</dd></dl>` : "";
+  } else if (open) {
+    choices = `<label class="field"><span>Modèle vidéo prévu</span>${modelSelect(clip, shot.model_key || "", `data-shotmodel="${shot.id}"`)}</label>`;
   }
-  return `<div class="two-col">
-      <div>${hd ? `<div class="viewer"><img src="${media(hd.path)}" data-zoom="${media(hd.path)}" alt=""></div><p class="hint" style="margin-top:6px">Image de départ de la vidéo</p>` : ""}</div>
-      <div class="stack" style="gap:10px">
-        <h3>Choix du modèle</h3>
-        ${shot.route_reason ? `<p class="note">Raison du routeur : ${esc(shot.route_reason)}</p>` : ""}
-        ${isGate ? "" : modelHtml}
-      </div>
-    </div>
-    ${isGate ? modelHtml : ""}
-    ${costs}
-    <div class="stack" style="gap:6px">
-      <h3>Prompt vidéo</h3>
-      ${isGate ? `<textarea id="vp-${shot.id}" rows="6">${esc(shot.video_prompt || "")}</textarea>
-        <div class="row"><button class="btn small" data-saveprompt="${shot.id}">Enregistrer le prompt</button>
-        <button class="btn small" data-copyprompt="vp-${shot.id}">Copier</button>
-        <span class="hint">Le prompt est en anglais, c'est la langue des modèles.</span></div>`
-        : `<pre class="text" id="vp-${shot.id}">${esc(shot.video_prompt || "")}</pre>
-        <div class="row"><button class="btn small" data-copyprompt="vp-${shot.id}">Copier le prompt</button></div>`}
-      ${shot.negative_prompt ? `<p class="hint">À éviter : ${esc(shot.negative_prompt)}</p>` : ""}
-    </div>
-    ${isGate ? `<div class="actionbox"><h3>À toi de valider</h3>
-      <p class="hint">Rien n'est dépensé tant que tu n'as pas validé. Ensuite la vidéo draft part, puis la vidéo HD
-        ${shot.singing ? "et le lip-sync " : ""}après ta validation de la draft.</p>
-      <div class="row">
-        <button class="btn ok" data-approve="${shot.id}">Valider et lancer la vidéo${est ? ` · ~${money(est.cost_draft_usd)}` : ""}</button>
-        <button class="btn ghost" data-openchange="${shot.id}">Demander une modif</button>
-      </div>
-      ${feedbackBox(shot, "Mouvement, caméra, action, ou modèle à reconsidérer")}</div>` : ""}`;
+  const why = shot.route_reason ? `<p class="note">Raison du routeur : ${esc(shot.route_reason)}</p>` : "";
+  const warn = f && f.level !== "ok" ? `<span class="fit ${f.level}">${esc(f.text)}</span>
+      ${open && f.suggest ? `<div class="row" style="gap:8px"><button class="btn small ghost" data-shotmodelpick="${shot.id}:${esc(f.suggest.key)}">Mieux adapté : ${esc(f.suggest.label)} · ≈ ${money(f.suggest.cost)} au lieu de ${money(f.suggest.from)}</button></div>` : ""}
+      <a class="hint" href="#/clip/${encodeURIComponent(clip.slug)}/decoupage" data-gocut="${shot.id}">Revoir la durée de ce plan dans le Découpage</a>` : "";
+  const lip = shot.lipsync && !shot.lipsync.native && open ? `<label class="field"><span>Lip-sync</span>
+        <select data-shotlipsync="${shot.id}"><option value="">Par défaut</option>
+          ${(clip.lipsync_models || []).map((m) => `<option value="${m.key}" ${shot.lipsync.chosen && m.key === shot.lipsync.key ? "selected" : ""} ${m.usable ? "" : "disabled"}>${esc(m.label)}${m.usable ? "" : " (non branché)"}</option>`).join("")}
+        </select></label>${shot.lipsync.usable ? "" : `<p class="hint" style="color:#ffb547">Aucun lip-sync branché pour l'instant : ce plan s'arrêtera à cette étape.</p>`}`
+    : shot.lipsync && shot.lipsync.native ? `<p class="hint">Lip-sync fait par le modèle vidéo.</p>` : "";
+  if (!choices && !why) return `<p class="mline">${line}</p>${warn}${lip}`;
+  return `<details class="mpick"><summary><span>${line}</span><span class="chg">Changer</span></summary><div>${why}${choices}</div></details>${warn}${lip}`;
 }
 
+function videoPromptBlock(shot, editable, title) {
+  if (!shot.video_prompt) return "";
+  return `<div class="pblock"><h4>${title}</h4>
+      ${editable ? `<textarea id="vp-${shot.id}" rows="6">${esc(shot.video_prompt)}</textarea>
+        <div class="row"><button class="btn small" data-saveprompt="${shot.id}">Enregistrer le prompt</button>
+          <button class="btn small" data-copyprompt="vp-${shot.id}">Copier</button>
+          <span class="hint">En anglais, la langue des modèles.</span></div>`
+        : `<pre class="text" id="vp-${shot.id}">${esc(shot.video_prompt)}</pre>
+        <div class="row"><button class="btn small" data-copyprompt="vp-${shot.id}">Copier le prompt</button></div>`}
+      ${shot.negative_prompt ? `<p class="hint">À éviter : ${esc(shot.negative_prompt)}</p>` : ""}</div>`;
+}
+
+function startImageRow(shot) {
+  const start = startVisual(shot);
+  return `<div class="startimg">${start ? `<img src="${media(start.path)}" data-zoom="${media(start.path)}" alt="">` : `<div class="none">pas encore de visuel</div>`}
+      <div class="stack" style="gap:6px"><b>Image de départ</b>
+        <span class="hint">${start ? (start.kind === "image_hd" ? `Visuel HD v${start.version}` : `Visuel draft v${start.version}`) : "La vidéo partira du visuel validé."}</span>
+        ${start ? `<button class="btn small ghost" data-fixvisual="${shot.id}">Corriger ce visuel</button>` : ""}</div></div>`;
+}
+
+function refuseBox(shot) {
+  return `<div class="feedback stack" id="rf-${shot.id}" hidden>
+      <p class="hint">Qu'est-ce qui ne va pas ?</p>
+      <label class="rfopt"><input type="radio" name="rf-${shot.id}" value="visuel" checked>
+        <span><b>Le visuel de départ</b><br><span class="hint">Il manque quelque chose ou il est faux : le plan repart à la section Visuel, la vidéo se refait derrière.</span></span></label>
+      <label class="rfopt"><input type="radio" name="rf-${shot.id}" value="video">
+        <span><b>La vidéo elle-même</b><br><span class="hint">Mouvement, caméra, rendu, modèle : l'orchestrateur la renvoie au bon agent.</span></span></label>
+      <textarea placeholder="Ce qui ne va pas, et ce que tu veux à la place"></textarea>
+      <div class="row"><button class="btn go" data-sendrefuse="${shot.id}">Envoyer</button>
+        <button class="btn ghost" data-openrefuse="${shot.id}">Annuler</button></div></div>`;
+}
+
+function renderVideo(shot, ctx) {
+  const clip = state.clip;
+  const est = shot.estimate;
+  const here = SECTION_OF[currentStep(shot)] === "video" ? ctx.curNotes : "";
+  const st = shot.status;
+  // carte 1 : la vidéo draft (préparation du plan vidéo, puis la vidéo elle-même)
+  const dcs = cardState(shot, "draft");
+  let draft;
+  if (dcs === "next") {
+    draft = pcard("draft", "next", "Vidéo draft", "Après les visuels : tu relis le prompt vidéo et le modèle, puis tu lances la vidéo draft. Rien n'est dépensé avant.",
+      inProd(shot) && MODEL_OPEN.includes(st) ? videoModelPicker(shot) : "");
+  } else if (dcs === "done") {
+    const v = viewerFor(shot, ["draft"], clip, "Pas de vidéo draft.");
+    draft = pcard("draft", "done", "Vidéo draft", `${v.asset ? `v${v.asset.version} validée` : "validée"}${est ? ` · ${esc(est.model_label)}` : ""}`,
+      v.html + videoPromptBlock(shot, false, "Prompt de cette vidéo") + redoBox(shot, "plan"));
+  } else {
+    let h = here;
+    if (st === "prompt_todo" || st === "video_review" || (st === "change_requested" && currentStep(shot) === "plan") || (st === "failed" && currentStep(shot) === "plan")) {
+      h += startImageRow(shot);
+      if (!shot.video_prompt) h += `<div class="agentbar">${led("work")}<span>Le routeur choisit le modèle, le prompteur écrit le prompt de la vidéo draft. Compte quelques minutes.</span></div>`;
+      h += videoPromptBlock(shot, st === "video_review", "1. Relis le prompt de la vidéo draft");
+      h += `<div class="pblock"><h4>2. Vérifie le modèle et le coût</h4>${videoModelPicker(shot)}${videoCostLine(shot)}</div>`;
+      if (st === "video_review") {
+        h += `<div class="pblock"><h4>3. Lance la vidéo draft</h4>
+          <p class="hint">Rien n'est dépensé avant ce bouton.${est && est.final_mode === "keep" ? " Avec ce modèle, la vidéo HD est incluse : c'est la même vidéo." : " La vidéo HD partira après ta validation de la draft."}</p>
+          <div class="row"><button class="btn go" data-approve="${shot.id}">Lancer la vidéo draft${est ? ` · ~${money(est.cost_draft_usd)}` : ""}</button>
+            <button class="btn ghost" data-openchange="${shot.id}">Demander une modif au prompteur</button></div>
+          ${feedbackBox(shot, "Mouvement, caméra, action, ou modèle à reconsidérer")}</div>`;
+      } else if (shot.actions?.run) {
+        h += `<div class="row"><button class="btn go" data-runstep="${shot.id}">Passer au lancement de la vidéo draft</button></div>`;
+      }
+    } else if (["draft_todo", "draft_gen", "draft_qc"].includes(st)) {
+      h += `<div class="agentbar">${led("work")}<span>${st === "draft_qc" ? "Le contrôleur regarde la vidéo draft." : "La vidéo draft est en génération. Compte quelques minutes."}</span></div>
+        ${viewerFor(shot, ["draft"], clip, "").html}
+        ${st === "draft_qc" && shot.actions?.skip ? `<div class="row"><button class="btn small ghost" data-skipstep="${shot.id}">${esc(shot.actions.skip)}</button></div>` : ""}
+        ${videoPromptBlock(shot, false, "Prompt de cette vidéo")}`;
+    } else if (st === "draft_review" || st === "change_requested" || st === "failed") {
+      const v = viewerFor(shot, ["draft"], clip, st === "change_requested" ? "Ta demande est en cours de traitement." : "Pas de vidéo draft.");
+      h += `<div class="pblock"><h4>1. Regarde la vidéo draft</h4>${v.html}</div>`;
+      if (st === "draft_review") {
+        h += `<div class="pblock"><h4>2. Valide ou refuse</h4>
+          <p class="hint">${est && est.final_mode === "keep" ? "La vidéo HD est incluse : c'est cette même vidéo." : `Ensuite la vidéo HD part${est ? ` (~${money(est.cost_final_usd)})` : ""}${shot.singing ? ", puis le lip-sync" : ""}.`}</p>
+          <div class="row"><button class="btn ok" data-approve="${shot.id}">Valider la vidéo draft</button>
+            <button class="btn" data-openrefuse="${shot.id}">Refuser cette vidéo</button></div>
+          ${refuseBox(shot)}</div>`;
+      }
+      h += `<details class="fold"><summary>Prompt et modèle de cette vidéo</summary><div class="stack" style="gap:8px">
+          ${startImageRow(shot)}${videoPromptBlock(shot, false, "Prompt")}<p class="mline">Modèle : <b>${esc(est ? est.model_label : "")}</b></p></div></details>`;
+    }
+    h += failBox(shot, "draft") + failBox(shot, "plan");
+    if (["draft_review", "video_review"].includes(st)) h += uploadFold(shot, "draft", "ta vidéo draft", "video/*");
+    draft = pcard("draft", "cur", "Vidéo draft", "", h, st === "failed" ? "failed" : "");
+  }
+  // carte 2 : la vidéo HD
+  const fcs = cardState(shot, "final");
+  const keep = est && est.final_mode === "keep";
+  let final;
+  if (fcs === "next") {
+    final = pcard("final", "next", "Vidéo HD", keep ? "Incluse : avec ce modèle, la vidéo draft validée sert de vidéo HD, sans coût en plus."
+      : `Après ta validation de la draft : agrandissement en HD${est ? ` (~${money(est.cost_final_usd)})` : ""}.`);
+  } else if (fcs === "done") {
+    final = pcard("final", "done", "Vidéo HD", "prête", viewerFor(shot, ["final"], clip, "").html);
+  } else {
+    let h = shot.singing && currentStep(shot) === "lipsync" ? "" : here;
+    if (st === "final_todo") h += shot.waiting === "spend" && shot.actions?.run
+      ? `<div class="row"><button class="btn go" data-runstep="${shot.id}">Lancer la vidéo HD${est ? ` · ~${money(est.cost_final_usd)}` : ""}</button></div>`
+      : `<div class="agentbar">${led("work")}<span>La vidéo HD part toute seule.</span></div>`;
+    if (st === "final_gen") h += `<div class="agentbar">${led("work")}<span>La vidéo HD est en génération.</span></div>`;
+    h += viewerFor(shot, ["final"], clip, "La vidéo HD apparaîtra ici.").html;
+    if (st === "final_todo" && shot.actions?.skip) h += `<div class="row"><button class="btn small ghost" data-skipstep="${shot.id}">${esc(shot.actions.skip)}</button></div>`;
+    if (st === "final_review" && !shot.singing) h += finalApprove(shot);
+    h += failBox(shot, "final");
+    if (st === "final_review") h += uploadFold(shot, "final", "ta vidéo HD", "video/*");
+    final = pcard("final", "cur", "Vidéo HD", "", h, st === "failed" ? "failed" : "");
+  }
+  // carte 3 : le lip-sync des plans chantés
+  let lip = "";
+  if (shot.singing) {
+    const lcs = cardState(shot, "lipsync");
+    if (lcs === "next") lip = pcard("lipsync", "next", "Lip-sync", "Après la vidéo HD : la bouche est calée sur la voix.");
+    else if (lcs === "done") lip = pcard("lipsync", "done", "Lip-sync", "prêt", viewerFor(shot, ["lipsync"], clip, "").html);
+    else {
+      let h = here;
+      if (st === "lipsync_todo" || st === "lipsync_gen") h += `<div class="agentbar">${led("work")}<span>Le lip-sync est en cours.</span></div>`;
+      h += viewerFor(shot, ["lipsync"], clip, "Le lip-sync apparaîtra ici.").html;
+      if (st === "lipsync_todo" && shot.actions?.skip) h += `<div class="row"><button class="btn small ghost" data-skipstep="${shot.id}">${esc(shot.actions.skip)}</button></div>`;
+      if (st === "final_review") h += finalApprove(shot);
+      h += failBox(shot, "lipsync");
+      lip = pcard("lipsync", "cur", "Lip-sync", "", h, st === "failed" ? "failed" : "");
+    }
+  }
+  const vcs = [dcs, fcs].includes("cur") || (shot.singing && cardState(shot, "lipsync") === "cur") ? "cur" : shot.status === "done" ? "done" : "next";
+  const [cls] = nowText(shot);
+  const sum = vcs === "done" ? `${led("done")}<span>terminée</span>` : vcs === "cur" ? `${led(cls)}<span>${cls === "review" ? "à toi" : "en cours"}</span>` : `${led("wait")}<span>après les visuels</span>`;
+  return psection(shot, "video", "Vidéo", sum, draft + final + lip);
+}
+
+function finalApprove(shot) {
+  return `<div class="pblock"><h4>Valide le final</h4>
+      <div class="row"><button class="btn ok" data-approve="${shot.id}">${shot.singing ? "Valider le final (vidéo HD et lip-sync)" : "Valider la vidéo HD"}</button>
+        <button class="btn ghost" data-openchange="${shot.id}">Demander une modif</button></div>
+      ${feedbackBox(shot, "Ce qui ne va pas sur la vidéo HD ou le lip-sync")}</div>`;
+}
+
+/* R-F7 : toucher une étape de la frise ouvre sa section et y amène */
+function goStep(key, then) {
+  const k = key === "plan" ? "draft" : key;
+  state.sectionOpen = { ...(state.sectionOpen || {}), [SECTION_OF[k]]: true };
+  $drawer.dataset.json = ""; renderDrawer();
+  const card = document.getElementById("st-" + k) || document.getElementById("sec-" + SECTION_OF[k]);
+  if (!card) return;
+  if (card.tagName === "DETAILS") card.open = true;
+  setTimeout(() => {
+    card.scrollIntoView({ block: "start", behavior: "smooth" });
+    card.classList.remove("flash"); void card.offsetWidth; card.classList.add("flash");
+    if (then) setTimeout(then, 350);
+  }, 60);
+}
+
+// une section ouverte ou fermée à la main le reste tant qu'on est sur ce plan
+$drawer.addEventListener("click", (e) => {
+  const sm = e.target.closest && e.target.closest("details.psection > summary");
+  if (sm) state.sectionOpen = { ...(state.sectionOpen || {}), [sm.parentElement.dataset.section]: !sm.parentElement.open };
+});
+
 async function drawerClick(ev) {
-  const t = ev.target.closest("button, [data-zoom], input[data-model], [data-eladd], [data-charadd], [data-gocut]");
+  const t = ev.target.closest("button, [data-zoom], input[data-model], [data-eladd], [data-charadd], [data-gocut], [data-gostep]");
   if (ev.target.matches && ev.target.matches("select")) return;
   if (!t) return;
   const d = t.dataset;
@@ -1671,7 +1937,36 @@ async function drawerClick(ev) {
     if (d.zoom) return lightbox(d.zoom);
     if (d.closedrawer !== undefined) { closeShot(); return; }
     if (d.goshot) { location.hash = shotHref(d.goshot); return; }
-    if (d.step) { state.step = d.step; $drawer.dataset.json = ""; renderDrawer(); return; }
+    if (d.gostep) { goStep(d.gostep); return; }
+    if (d.fixvisual) {
+      // depuis la vidéo : rouvrir la section Visuel sur « Corriger ce visuel »
+      goStep("image", () => {
+        const box = document.getElementById(`rd-${d.fixvisual}-image`);
+        if (box) { box.hidden = false; box.querySelector("textarea").focus({ preventScroll: true }); spotlight(box.closest(".actionbox")); }
+      });
+      return;
+    }
+    if (d.openrefuse) {
+      const box = document.getElementById("rf-" + d.openrefuse);
+      box.hidden = !box.hidden; if (!box.hidden) box.querySelector("textarea").focus(); return;
+    }
+    if (d.sendrefuse) {
+      const sid = d.sendrefuse;
+      const box = document.getElementById("rf-" + sid);
+      const what = box.querySelector("input[type=radio]:checked").value;
+      const text = box.querySelector("textarea").value.trim();
+      if (!text) { toast("Explique ce qui ne va pas", "err"); return; }
+      t.disabled = true;
+      if (what === "visuel") {
+        await api(`/api/shots/${sid}/redo`, { json: { step: "image", comment: text } });
+        toast("Le visuel repart chez le storyboardeur avec ta remarque. La vidéo se refera derrière.");
+      } else {
+        await api(`/api/shots/${sid}/review`, { json: { decision: "change", comment: text } });
+        toast("Retour envoyé à l'orchestrateur");
+      }
+      state.step = null; state.sectionOpen = null;
+      return reload();
+    }
     if (d.pick) {
       const [key, id] = d.pick.split("|");
       state.picked[key] = +id; $drawer.dataset.json = ""; renderDrawer(); return;
@@ -1704,7 +1999,7 @@ async function drawerClick(ev) {
       toast({ image: "Le storyboardeur refait le visuel avec ta remarque. La suite se relancera derrière.",
         hd: "La HD se refait avec ta remarque. La suite se relancera derrière.",
         plan: "Le prompteur reprend le plan vidéo avec ta remarque." }[step]);
-      state.step = null;
+      state.step = null; state.sectionOpen = null;
       return reload();
     }
     if (d.model) {
@@ -1737,7 +2032,7 @@ async function drawerClick(ev) {
       t.disabled = true;
       await api(`/api/shots/${sid}/review`, { json: { decision: "approve", asset_id: aid } });
       toast(`Plan ${shot.num} : proposition gardée`);
-      state.step = null;
+      state.step = null; state.sectionOpen = null;
       return reload();
     }
     if (d.regenimage) {
@@ -1818,7 +2113,7 @@ async function drawerClick(ev) {
       t.disabled = true;
       await api(`/api/shots/${sid}/review`, { json: { decision: "approve", asset_id: assetId } });
       toast(`Plan ${shot.num} validé`);
-      state.step = null;
+      state.step = null; state.sectionOpen = null;
       const next = clip.shots.slice(clip.shots.indexOf(shot) + 1).find((s) => shotState(s) === "review" && s.id !== sid);
       await showClip(clip.slug, state.tab, false);
       if (next) location.hash = shotHref(next.id);

@@ -2633,15 +2633,14 @@ def qc_result(conn: sqlite3.Connection, shot_id: int, passed: bool, note: str = 
     if isinstance(retries_cfg, dict):
         retries_cfg = retries_cfg.get({"image": "images", "image_hd": "images_hd", "draft": "drafts"}[kind], 1)
     max_retries = int(retries_cfg)
-    pass_status = {"image": "image_review", "image_hd": "prompt_todo", "draft": "draft_review"}[kind]
+    # R-F7 : la HD contrôlée attend toujours Michael, qui clôt ainsi la partie visuelle du plan
+    pass_status = {"image": "image_review", "image_hd": "hd_review", "draft": "draft_review"}[kind]
     retry_status = {"image": "image_todo", "image_hd": "hd_todo", "draft": "draft_todo"}[kind]
     giveup_status = {"image": "image_review", "image_hd": "hd_review", "draft": "draft_review"}[kind]
     asset = db.latest_asset(conn, shot_id, kind)
     if passed:
         status = pass_status
         db.update(conn, "shots", shot_id, {"qc_retries": 0}, reason="contrôle terminé")
-        if kind == "image_hd" and asset:
-            conn.execute("UPDATE assets SET status='validated' WHERE id=?", (asset["id"],))
     elif kind == "image":
         # visuel draft : l'avis du contrôleur est un conseil. Les propositions restent visibles,
         # Michael garde celle qu'il veut ou relance (rien ne se relance sans son accord).

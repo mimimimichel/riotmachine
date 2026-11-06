@@ -163,6 +163,11 @@ def create(conn: sqlite3.Connection) -> str:
         if shot["status"] == "hd_qc":
             production.qc_result(conn, ids[12], False, "La HD a lissé les boucles : texture moins serrée que sur le visuel validé")
 
+    # R-F7 : Michael a validé les HD contrôlées (le plan 13 attend encore son arbitrage)
+    for sid in validated:
+        if sid != ids[12] and db.get_shot(conn, sid)["status"] == "hd_review":
+            production.review_shot(conn, sid, "approve")
+
     # Plans vidéo (routeur + prompteur) pour les plans dont la HD est prête
     for sid in validated:
         shot = db.get_shot(conn, sid)

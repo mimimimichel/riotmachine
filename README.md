@@ -48,7 +48,7 @@ En résumé :
 | 1. Concept | Toi | Régie → **Nouveau clip** : morceau, voix isolée, pitch, concept, dossier de réalisation (PDF, Word, texte, images), paroles, format, budget. |
 | 2. Découpage | Toi, puis le `script-doctor` | Onglet **Découpage** : tes blocs (intro, couplet, refrain…) et les plans de chaque bloc avec leurs timecodes. Ou bien le découpage est dans ton dossier. Onglet **Dossier** → « Envoyer au script doctor ». Il complète chaque plan (cadrage, mouvement, plan chanté), tu valides. |
 | 3. Visuel draft | `storyboard` puis `controleur` | Tu valides chaque visuel, ou tu écris ce qu'il faut changer. |
-| 4. Visuel HD | Automatique | L'image validée est agrandie sans être redessinée. Le `controleur` vérifie qu'elle est fidèle ; tu n'es sollicité qu'en cas d'écart (comparateur à curseur). |
+| 4. Visuel HD | Automatique | L'image validée est agrandie sans être redessinée. Le `controleur` vérifie qu'elle est fidèle, puis tu la valides au comparateur à curseur. |
 | 5. Plan vidéo | `routeur` puis `prompteur` | Tu vois le fournisseur, le modèle, sa raison, le coût estimé et le prompt. Tu peux changer de modèle ou retoucher le prompt. Rien n'est dépensé avant ta validation. |
 | 6. Vidéo draft | Automatique, puis `controleur` | Tu valides la vidéo draft. |
 | 7. Vidéo HD + lip-sync | Automatique | Agrandissement de la draft validée, puis lip-sync des plans chantés. Tu valides le final. |

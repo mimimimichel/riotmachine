@@ -44,7 +44,7 @@ Dernière mise à jour : 22 octobre 2026.
 1 Concept ─▶ 2 Découpage ─▶ 3 Visuel draft ─▶ 4 Visuel HD ─▶ 5 Plan vidéo ─▶ 6 Vidéo draft ─▶ 7 Vidéo HD + lip-sync ─▶ 8 Montage
    Michael     Michael          storyboard        auto            routeur          auto               auto                  auto
                script-doctor    controleur        controleur      prompteur        controleur
-   ─────────  [valide]          [valide]          [si écart]      [valide]         [valide]           [valide]
+   ─────────  [valide]          [valide]          [valide]        [valide]         [valide]           [valide]
 ```
 
 Après le découpage, chaque plan avance à son rythme, plan par plan. Un plan peut
@@ -101,8 +101,12 @@ asset est supprimé réellement.
   fidélité, retouche des visages coupée, 0,08 $ ; second essai avec SeedVR).
 - **controleur** compare la HD au visuel validé : visage, regard, peau, cheveux,
   tenue, décor doivent être identiques.
-- **Porte, seulement en cas d'écart** : Michael compare au curseur et choisit
-  « Valider la HD », « Partir du visuel draft » ou « Demander une modif ».
+- **Porte** (R-F7, depuis le 06/11/2026) : Michael valide toujours la HD, au
+  curseur, ce qui clôt la partie visuelle du plan. Il choisit « Valider le visuel
+  HD », « Garder le visuel draft » ou « Demander une modif ». La remarque du
+  contrôleur s'affiche au-dessus quand il a vu un écart.
+- Sans visuel HD sur le clip (réglage de l'onglet Dossier), l'étape est passée :
+  le visuel draft sert d'image de départ.
 
 ### Étape 5 : Plan vidéo
 
@@ -155,6 +159,11 @@ Le retour arrive déjà trié (route `storyboard`, `hd` ou `prompteur`), l'orche
 n'a rien à router. Ce qui avait été produit après (HD, vidéos) passe en `superseded`,
 la demande de dépense en attente est annulée, et la chaîne se rejoue avec les
 validations habituelles. La note commence par « Modif du visuel draft : ».
+
+Dans la régie, le détail d'un plan est un parcours guidé (R-F7) : la frise en tête
+(Visuel : draft, HD ; Vidéo : draft, HD, lip-sync) dit où en est le plan et qui agit,
+puis trois sections dans l'ordre, « Le plan », « Visuel » et « Vidéo ». Refuser une
+vidéo draft propose d'abord de corriger le visuel de départ (même mécanique que R-B7).
 
 Michael peut écarter une proposition (R-B8) : elle passe en `rejected` avec l'erreur
 « Écartée par Michael ». Plus aucune proposition de visuel : le plan repart en

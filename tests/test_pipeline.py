@@ -106,6 +106,10 @@ def test_full_clip(studio, tmp_path):
     assert run("qc", "fail", ids[1], "--note", "toujours lissées") == 0
     assert db.get_shot(conn, ids[1])["status"] == "hd_review"
     assert production.review_shot(conn, ids[1], "use_work_image") == "prompt_todo"
+    # R-F7 : une HD contrôlée attend la validation de Michael
+    assert db.get_shot(conn, ids[0])["status"] == "hd_review"
+    assert production.review_shot(conn, ids[0], "approve") == "prompt_todo"
+    assert production.review_shot(conn, ids[2], "approve") == "prompt_todo"
     assert production.keyframe_for_video(conn, ids[1])["kind"] == "image"
     assert production.keyframe_for_video(conn, ids[0])["kind"] == "image_hd"
 

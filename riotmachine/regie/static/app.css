@@ -891,3 +891,56 @@ details.sources-box > div { padding: 10px 0 0; }
 .todopop li + li { border-top: 1px solid var(--line); }
 .todopop-empty { padding: 8px 16px 4px; }
 @media (max-width: 700px) { .todopop { top: 52px; } }
+
+/* ---------- R-F7 : détail d'un plan en parcours guidé ---------- */
+.guide { position: sticky; top: -16px; z-index: 5; margin: -16px -18px 0; padding: 10px 16px 8px;
+  background: var(--bg-2); border-bottom: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 8px 14px; }
+.ggroup { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.gname { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-right: 2px; }
+.gchip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 11px; border-radius: 999px; border: 1px solid var(--line-2);
+  background: var(--panel); color: var(--muted); font-size: 13px; font-weight: 600; cursor: pointer; }
+.gchip.done { color: var(--led); }
+.gchip.review { color: var(--amber); border-color: #ffb54766; }
+.gchip.work { color: #c9a2ff; }
+.gchip.change { color: var(--magenta); }
+.gchip.failed { color: var(--red); border-color: #ff4d6688; }
+.gchip.off { opacity: .55; }
+.gchip.on { box-shadow: 0 0 0 2px var(--violet) inset; color: var(--text); background: var(--panel-2); }
+.gnow { width: 100%; margin: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: baseline; gap: 8px; font-size: 13.5px; cursor: pointer; }
+.gnow.review .gtext { color: var(--amber); font-weight: 600; }
+.gnow.failed .gtext { color: var(--red); font-weight: 600; }
+.psection { border: 1px solid var(--line-2); border-radius: 14px; background: var(--panel); scroll-margin-top: 110px; }
+.psection > summary { list-style: none; display: flex; align-items: center; gap: 10px; padding: 14px 16px; cursor: pointer; }
+.psection > summary::-webkit-details-marker { display: none; }
+.psection > summary::after { content: "▾"; margin-left: auto; color: var(--muted); transition: transform .15s; }
+.psection:not([open]) > summary::after { transform: rotate(-90deg); }
+.psection .sname { font-family: var(--display); font-size: 13px; letter-spacing: .08em; text-transform: uppercase; }
+.psection .ssum { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); min-width: 0; }
+.psection .ssum img { width: 48px; height: 30px; object-fit: cover; border-radius: 6px; }
+.psection .sbody { padding: 0 12px 14px; display: flex; flex-direction: column; gap: 12px; }
+.psection .sbody > * { flex-shrink: 0; }
+.pcard { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; scroll-margin-top: 110px; }
+.pcard.cur { border-color: var(--violet); background: var(--panel-2); display: flex; flex-direction: column; gap: 14px; }
+.pcard.cur > h3 { margin: 0; font-size: 16px; }
+.pcard.cur.failed { border-color: #ff4d6688; }
+.pcard.next { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; color: var(--muted); background: transparent; }
+.pcard.next > .hint { flex-basis: 100%; }
+.pcard.next > .mpick, .pcard.next > .mline { flex-basis: 100%; margin-top: 6px; }
+.pcard.next.off { opacity: .8; border-style: dashed; }
+.pcard.done > summary { list-style: none; display: flex; gap: 10px; align-items: center; cursor: pointer; }
+.pcard.done > summary::-webkit-details-marker { display: none; }
+.pcard.done .pbody { margin-top: 12px; display: flex; flex-direction: column; gap: 12px; }
+.pblock { display: flex; flex-direction: column; gap: 8px; }
+.pblock > h4 { margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.startimg { display: grid; grid-template-columns: 128px minmax(0, 1fr); gap: 12px; align-items: center; }
+.startimg img { width: 100%; border-radius: 8px; cursor: zoom-in; display: block; }
+.startimg .none { font-size: 12px; color: var(--muted); }
+.mpick { border: 1px solid var(--line-2); border-radius: 10px; background: var(--bg-2); }
+.mpick > summary { list-style: none; padding: 10px 12px; cursor: pointer; display: flex; gap: 8px; align-items: baseline; font-size: 14px; }
+.mpick > summary::-webkit-details-marker { display: none; }
+.mpick > summary .chg { margin-left: auto; flex-shrink: 0; color: var(--violet); font-weight: 600; font-size: 13px; }
+.mpick[open] > summary .chg { visibility: hidden; }
+.mpick > div { padding: 0 12px 12px; display: flex; flex-direction: column; gap: 8px; }
+.mline { margin: 0; font-size: 14px; }
+.rfopt { display: flex; gap: 10px; align-items: flex-start; padding: 10px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; }
+.rfopt input { margin-top: 4px; }

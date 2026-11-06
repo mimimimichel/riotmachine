@@ -54,7 +54,7 @@ datée à la section « Ce qu'on a appris » de `docs/PROCESS.md`.
 dossier du clip (morceau, voix, pitch, concept, dossier de réalisation, paroles) + découpage de Michael
   └─ script-doctor ─▶ blocs et plans complétés ─▶ [Michael valide le découpage]
        └─ storyboard ─▶ visuel draft ─▶ controleur ─▶ [Michael valide le visuel]
-            └─ automatique : visuel HD (agrandissement fidèle) ─▶ controleur (fidélité) ─▶ [Michael seulement en cas d'écart]
+            └─ automatique : visuel HD (agrandissement fidèle) ─▶ controleur (fidélité) ─▶ [Michael valide le visuel HD]
                  └─ routeur (fournisseur + modèle) ─▶ prompteur (prompt vidéo) ─▶ riot shot submit
                       └─ [Michael valide le plan vidéo : prompt, modèle, coût] ─ rien n'est dépensé avant
                            └─ automatique : vidéo draft ─▶ controleur ─▶ [Michael valide la vidéo draft]

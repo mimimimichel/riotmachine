@@ -469,6 +469,31 @@ def test_r_f6_a_faire_sur_toutes_les_pages():
     assert "function updateTodoBtn" in js and "state.todoPopReturn" in js and "afterRoute()" in js
 
 
+def test_r_f7_detail_du_plan_en_parcours(studio):
+    """R-F7 : la HD contrôlée attend Michael ; le détail suit Visuel puis Vidéo, guidé par la frise."""
+    from riotmachine import cli, production
+    assert cli.main(["init"]) == 0
+    conn = db.connect()
+    db.init_db(conn)
+    production.create_clip(conn, "Parcours", song=studio["song"], characters=["jj"])
+    production.import_shots(conn, "parcours", {"blocks": [{"name": "A", "shots": [
+        {"t_start": 0, "t_end": 4, "script": "un", "characters": ["jj"]}]}]}, by="michael")
+    sid = conn.execute("SELECT id FROM shots WHERE clip_slug='parcours'").fetchone()[0]
+    conn.execute("INSERT INTO assets (shot_id, kind, version, status, created_at) VALUES (?, 'image_hd', 1, 'ready', ?)",
+                 (sid, db.now()))
+    db.set_shot_status(conn, sid, "hd_qc")
+    conn.commit()
+    assert production.qc_result(conn, sid, True, "fidèle") == "hd_review"
+    assert production.review_shot(conn, sid, "approve") == "prompt_todo"
+
+    js = (Path(production.__file__).parent / "regie" / "static" / "app.js").read_text()
+    for name in ("function renderGuide", "function renderVisuel", "function renderVideo", "function goStep",
+                 "function videoModelPicker", "function refuseBox", 'data-fixvisual', 'data-sendrefuse'):
+        assert name in js, name
+    assert '"Le plan"' in js and '"Visuel"' in js and '"Vidéo"' in js
+    assert "Lancer la vidéo draft" in js and "Valider le visuel HD" in js
+
+
 def test_r_b7_corriger_une_etape_validee(studio):
     """R-B7 : depuis la vidéo draft, Michael fait refaire le visuel ; le plan repart chez le storyboard."""
     from fastapi.testclient import TestClient

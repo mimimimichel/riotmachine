@@ -5,6 +5,12 @@ Format : date, identifiant, ce qui change pour Michael.
 
 ## Lot 1 : Fondations
 
+- 2026-11-06 R-F7 : le détail d'un plan devient un parcours guidé. La frise en tête (Visuel :
+  draft, HD ; Vidéo : draft, HD, lip-sync) mène à chaque étape ; trois sections, Le plan, Visuel,
+  Vidéo ; chaque étape est une carte (faite, en cours, à venir). Le prompt du visuel se relit avant
+  le lancement ; les modèles se choisissent dans un sélecteur replié ; les boutons nomment la vidéo
+  concernée. Refuser une vidéo draft propose d'abord de corriger le visuel. Le visuel HD contrôlé
+  attend désormais toujours la validation de Michael.
 - 2026-11-06 R-F6 : un bouton « À faire » en haut à droite de chaque page ouvre la liste par-dessus
   la page, avec une pastille du nombre de choses à faire ; au retour d'une action, la liste se rouvre.
 - 2026-11-06 R-F5 : la liste « À faire » suit l'ordre des blocs. Tout ce qui reste sur un bloc
