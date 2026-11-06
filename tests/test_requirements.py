@@ -492,6 +492,8 @@ def test_r_f7_detail_du_plan_en_parcours(studio):
         assert name in js, name
     assert '"Le plan"' in js and '"Visuel"' in js and '"Vidéo"' in js
     assert "Lancer la vidéo draft" in js and "Valider le visuel HD" in js
+    # à la revue de la vidéo, le prompt est en lecture seule (<pre>) : la validation ne le lit pas comme un champ
+    assert 'vp.tagName === "TEXTAREA"' in js
 
 
 def test_r_b7_corriger_une_etape_validee(studio):

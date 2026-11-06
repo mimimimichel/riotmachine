@@ -5,6 +5,7 @@ Format : date, identifiant, ce qui change pour Michael.
 
 ## Lot 1 : Fondations
 
+- 2026-11-06 R-F7 (correctif) : « Valider la vidéo draft » plantait (« Cannot read properties of undefined (reading 'trim') ») car le prompt, affiché en lecture seule à cette étape, était lu comme un champ. La validation ne le lit plus que s'il est modifiable.
 - 2026-11-06 R-F7 : le détail d'un plan devient un parcours guidé. La frise en tête (Visuel :
   draft, HD ; Vidéo : draft, HD, lip-sync) mène à chaque étape ; trois sections, Le plan, Visuel,
   Vidéo ; chaque étape est une carte (faite, en cours, à venir). Le prompt du visuel se relit avant

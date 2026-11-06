@@ -2107,7 +2107,7 @@ async function drawerClick(ev) {
       const kinds = gate === "images" ? ["image"] : gate === "drafts" ? ["draft"] : null;
       const assetId = kinds ? state.picked[`${sid}:${kinds.join(",")}`] || null : null;
       const vp = document.getElementById("vp-" + sid);
-      if (vp && vp.value.trim() !== (shot.video_prompt || "").trim()) {
+      if (vp && vp.tagName === "TEXTAREA" && vp.value.trim() !== (shot.video_prompt || "").trim()) {
         await api(`/api/shots/${sid}/video-prompt`, { json: { text: vp.value } });
       }
       t.disabled = true;
