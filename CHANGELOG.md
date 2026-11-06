@@ -5,6 +5,8 @@ Format : date, identifiant, ce qui change pour Michael.
 
 ## Lot 1 : Fondations
 
+- 2026-11-06 R-F5 : la liste « À faire » suit l'ordre des blocs. Tout ce qui reste sur un bloc
+  passe avant la validation du découpage du bloc suivant ; chaque ligne nomme son bloc.
 - 2026-11-06 correctif régie : dans le détail d'un plan, la page derrière ne défile plus quand le
   tiroir arrive en bas, et une marge en bas laisse la fin visible au-dessus du bouton « Retour ».
 - 2026-11-06 R-B8 : chaque proposition d'un plan s'écarte (bouton « Écarter » sous chaque

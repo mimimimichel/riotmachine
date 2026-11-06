@@ -433,6 +433,32 @@ def test_r_f4_a_faire_mene_au_bon_endroit(studio):
     assert 'sub === "avalider"' in js and "focusToSort" in js and "showSpend(arg)" in js
 
 
+def test_r_f5_a_faire_suit_les_blocs(studio):
+    """R-F5 : on finit le bloc 1 avant de valider le découpage du bloc 2."""
+    from fastapi.testclient import TestClient
+    from riotmachine import cli, production
+    from riotmachine.regie.app import app
+
+    assert cli.main(["init"]) == 0
+    conn = db.connect()
+    db.init_db(conn)
+    production.create_clip(conn, "Ordre", song=studio["song"], characters=["jj"])
+    production.import_shots(conn, "ordre", {"blocks": [
+        {"name": "A", "shots": [{"t_start": 0, "t_end": 4, "script": "un", "characters": ["jj"]}]},
+        {"name": "B", "shots": [{"t_start": 4, "t_end": 8, "script": "deux", "characters": ["jj"]}]}]}, by="michael")
+    sid = conn.execute("SELECT id FROM shots WHERE clip_slug='ordre' AND num=1").fetchone()[0]
+    conn.execute("UPDATE blocks SET validated=1 WHERE clip_slug='ordre' AND num=1")
+    conn.execute("UPDATE shots SET status='image_review' WHERE id=?", (sid,))
+    conn.execute("UPDATE clips SET stage='decoupage_review' WHERE slug='ordre'")
+    conn.commit()
+    todo = TestClient(app).get("/api/overview").json()["todo"]
+    labels = [t["label"] for t in todo]
+    plan = next(i for i, l in enumerate(labels) if "plan 1, visuel" in l)
+    cut = next(i for i, l in enumerate(labels) if "bloc 2 à valider" in l)
+    assert plan < cut
+    assert "bloc 1" in labels[plan]
+
+
 def test_r_b7_corriger_une_etape_validee(studio):
     """R-B7 : depuis la vidéo draft, Michael fait refaire le visuel ; le plan repart chez le storyboard."""
     from fastapi.testclient import TestClient

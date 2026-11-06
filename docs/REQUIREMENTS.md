@@ -381,6 +381,18 @@ regarder ; après « Tout lancer » il restait sur la page Dépenses vide.
 `/personnages/<slug>/trier`, `/depenses/<groupe>`), un plan par ligne ;
 revue sur téléphone du parcours aller et retour.
 
+### R-F5 [P0] « À faire maintenant » suit l'ordre des blocs
+**Énoncé.** Dans un clip, on finit un bloc avant de lancer le suivant. La liste
+« À faire maintenant » range ses lignes par bloc : d'abord tout ce qui reste sur
+le bloc 1 (dépenses, références à trier, plans à valider), puis la validation du
+découpage du bloc 2, puis le bloc 2, et ainsi de suite. Chaque ligne nomme son
+bloc. Une référence compte pour le premier bloc qui s'en sert. Ce qui ne dépend
+d'aucun bloc (propositions du scénariste, images d'un personnage) passe à la fin.
+**Raison.** La validation du découpage du bloc 2 arrivait en tête alors que le
+bloc 1 n'avait encore aucun visuel validé.
+**Critère.** Test : avec un plan du bloc 1 à valider et le bloc 2 à valider au
+découpage, la ligne du plan passe avant celle du découpage et porte « bloc 1 ».
+
 ---
 
 ## G. Qualité logicielle et méthode
@@ -439,6 +451,7 @@ pour Michael.
 ## Changelog du document
 
 - 1.2 (05/11/2026) : R-E5, suppression d'une tenue, à la demande de Michael.
+- 1.6 (06/11/2026) : R-F5, la liste « À faire » suit l'ordre des blocs, à la demande de Michael.
 - 1.5 (06/11/2026) : R-B8, écarter une proposition, à la demande de Michael.
 - 1.4 (06/11/2026) : R-B7, corriger une étape déjà validée, à la demande de Michael.
 - 1.3 (06/11/2026) : R-F4, liens précis de la liste « À faire » et retour, à la demande de Michael.
