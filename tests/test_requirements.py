@@ -582,3 +582,12 @@ def test_r_f8_mention_sans_quitter_le_texte():
     assert 'class="refchip k-${e.kind}" data-go=' in js
     assert js.count("data-unref=") >= 1 and "function unmention" in js
     assert "data-refsdt=" in js
+
+
+def test_r_b8_ecarter_demande_pourquoi():
+    """R-B8 : « Écarter » demande ce qui ne va pas ; la raison part avec l'écart (note du plan)."""
+    from pathlib import Path
+    js = (Path(__file__).resolve().parents[1] / "riotmachine/regie/static/app.js").read_text()
+    assert "data-dodiscard" in js and "discardbox" in js
+    i = js.index("if (d.dodiscard)")
+    assert "{ json: { note } }" in js[i:i + 400]

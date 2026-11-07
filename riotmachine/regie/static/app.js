@@ -1993,9 +1993,22 @@ async function drawerClick(ev) {
     }
     if (d.cancelchange) { document.getElementById("fb-" + d.cancelchange).hidden = true; return; }
     if (d.discard) {
-      if (needsConfirm(t, "discard" + d.discard)) return;
+      // on demande pourquoi : la raison part au storyboardeur (ou à l'agent de l'étape) avec la relance
+      const id = d.discard;
+      let box = document.getElementById("dc-" + id);
+      if (box) { box.remove(); return; }
+      const host = t.closest("figure, .row") || t;
+      host.insertAdjacentHTML("afterend", `<div class="feedback stack discardbox" id="dc-${id}">
+          <textarea rows="3" placeholder="Ce qui ne va pas et ce que tu veux à la place (facultatif, mais l'agent s'en sert pour la relance)"></textarea>
+          <div class="row"><button class="btn small danger" data-dodiscard="${id}">Écarter</button>
+            <button class="btn small ghost" data-discard="${id}">Annuler</button></div></div>`);
+      document.querySelector(`#dc-${id} textarea`).focus();
+      return;
+    }
+    if (d.dodiscard) {
+      const note = (document.querySelector(`#dc-${d.dodiscard} textarea`)?.value || "").trim();
       t.disabled = true;
-      const r = await api(`/api/assets/${d.discard}/discard`, { json: { note: "" } });
+      const r = await api(`/api/assets/${d.dodiscard}/discard`, { json: { note } });
       toast(r.left ? `Écartée. Il reste ${r.left} proposition${r.left > 1 ? "s" : ""}.`
         : r.status === "image_todo" ? "Écartée. Plus aucune proposition : le storyboardeur en prépare d'autres."
         : r.status === "change_requested" ? "Écartée. Plus rien à valider ici : l'orchestrateur relance l'étape." : "Écartée.");
