@@ -5,6 +5,7 @@ Format : date, identifiant, ce qui change pour Michael.
 
 ## Lot 1 : Fondations
 
+- 2026-11-07 R-F7 (correctif) : la boîte « Échec » d'un visuel passe en tête de la carte et écrit la raison elle-même (avant : « la remarque au-dessus », loin au-dessus). Pour un quota gratuit épuisé, elle précise que tous les modèles du fournisseur sont touchés et nomme le modèle à prendre.
 - 2026-11-07 R-F8 (correctif) : la croix d'une référence enregistre tout de suite. Avant, rien n'était enregistré, l'alerte « @ introuvable » restait et la référence revenait au rechargement. Dans un bloc validé, elle passe par le prompt détaillé du plan.
 - 2026-11-07 R-B8 : « Écarter » une proposition (visuel, HD, vidéo) ouvre une case « ce qui ne va pas et ce que tu veux à la place ». La raison s'ajoute aux remarques du plan et, quand c'était la dernière proposition, part avec la relance chez l'agent de l'étape.
 - 2026-11-07 R-F8 : un @ affiché dans un texte n'est plus un lien (toucher le texte n'emmène plus ailleurs). Les puces de références sous le texte s'ouvrent au toucher et ont une croix qui retire le @ (le nom reste écrit). Dans le détail d'un plan, les puces suivent la frappe du prompt détaillé.

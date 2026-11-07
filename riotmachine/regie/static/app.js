@@ -1225,7 +1225,7 @@ function renderDrawer() {
     curNotes.push(`<div class="agentbar">${led("work")}<span>Ta demande est partie${mine ? ` : « ${esc(mine.text)} »` : ""}.
       L'orchestrateur la transmet au bon agent, qui réécrit le plan ou son prompt. Compte une à deux minutes.
       La suite apparaît ici, la page se met à jour seule.</span></div>`);
-  } else if (hist.length) {
+  } else if (hist.length && !(shot.status === "failed" && hist[0].author === "machine")) {
     const last = hist[0];
     curNotes.push(`<p class="note ${last.author === "michael" ? "michael" : last.author === "controleur" ? "qc" : ""}">
       <b>${esc(NOTE_AUTHOR[last.author] || last.author)} :</b> ${esc(last.text)}</p>`);
@@ -1587,10 +1587,24 @@ function renderSections(shot, ctx) {
     + renderVisuel(shot, ctx) + renderVideo(shot, ctx);
 }
 
+// quota du jour épuisé : les modèles du même fournisseur partagent ce quota, on conseille un autre fournisseur
+function quotaHint(shot, why) {
+  const models = state.clip.image_models?.visuel?.models || [];
+  const cur = models.find((m) => why && why.includes(m.label)) || shotModel(shot);
+  const alt = models
+    .filter((m) => m.usable && m.provider !== cur?.provider && m.rank).sort((a, b) => (a.free ? 0 : 1) - (b.free ? 0 : 1) || a.rank - b.rank)[0];
+  return `La limite gratuite du jour est atteinte${cur ? ` chez ${esc(cur.provider === "cloudflare" ? "Cloudflare" : cur.provider)}, pour tous ses modèles` : ""} ; elle revient demain.
+    ${alt ? `Pour avancer aujourd'hui, choisis <b>${esc(alt.label)}</b>${alt.free ? " (gratuit" + (alt.limites ? ", " + esc(alt.limites) : "") + ")" : ` (${money(alt.cost_usd)} l'image)`} à l'étape 2 juste en dessous, puis relance.` : "Aucun autre modèle n'est branché : attends demain."}`;
+}
+
 function failBox(shot, step) {
   if (shot.status !== "failed" || currentStep(shot) !== step) return "";
+  // la raison de l'échec est écrite dans la boîte même, en tête de la carte
+  const why = (shot.historique || []).find((n) => n.author === "machine");
+  const quota = why && /quota/i.test(why.text);
   return `<div class="actionbox" style="border-color:#ff4d6688"><h3 style="color:var(--red)">Échec</h3>
-      ${step === "image" ? `<p class="hint">La remarque au-dessus dit ce qui a échoué. Change de modèle si besoin, puis relance.</p>`
+      ${why ? `<p>${esc(why.text.replace(/^Visuel non fait\.\s*/, "").replace(/\s*Choisis un autre modèle et relance\.?/, ""))}</p>` : ""}
+      ${step === "image" ? `<p class="hint">${quota ? quotaHint(shot, why.text) : "Change de modèle à l'étape 2 juste en dessous si besoin, puis relance."}</p>`
         : `<p class="hint">L'orchestrateur va tenter de relancer. Tu peux aussi le faire toi-même.</p>
       <div class="row"><button class="btn" data-retry="${shot.id}">Relancer cette étape</button></div>`}</div>`;
 }
@@ -1683,7 +1697,7 @@ function imageWork(shot) {
       <p class="hint">Il réécrit le prompt d'après ta remarque, puis tu relances.</p>
       ${askStoryboard(shot)}</div>`;
   }
-  h += failBox(shot, "image");
+  h = failBox(shot, "image") + h;
   h += uploadFold(shot, "image", "ton visuel", "image/*");
   return h;
 }

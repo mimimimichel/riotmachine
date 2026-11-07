@@ -596,3 +596,13 @@ def test_r_b8_ecarter_demande_pourquoi():
     assert "data-dodiscard" in js and "discardbox" in js
     i = js.index("if (d.dodiscard)")
     assert "{ json: { note } }" in js[i:i + 400]
+
+
+def test_r_f7_echec_dit_pourquoi():
+    """R-F7 : la boîte « Échec » écrit la raison elle-même et, pour un quota épuisé, nomme un modèle d'un autre fournisseur."""
+    from pathlib import Path
+    js = (Path(__file__).resolve().parents[1] / "riotmachine/regie/static/app.js").read_text()
+    i = js.index("function failBox(")
+    assert "La remarque au-dessus" not in js
+    assert 'author === "machine"' in js[i:i + 600] and "function quotaHint" in js
+    assert 'h = failBox(shot, "image") + h;' in js
