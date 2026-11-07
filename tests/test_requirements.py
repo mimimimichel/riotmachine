@@ -570,3 +570,15 @@ def test_r_b8_ecarter_une_proposition(studio):
 
     js = (Path(production.__file__).parent / "regie" / "static" / "app.js").read_text()
     assert "data-discard" in js and "function byMichael" in js
+
+
+def test_r_f8_mention_sans_quitter_le_texte():
+    """R-F8 : un @ dans le texte n'ouvre rien ; la puce ouvre la référence, sa croix la retire."""
+    from pathlib import Path
+    js = (Path(__file__).resolve().parents[1] / "riotmachine/regie/static/app.js").read_text()
+    i = js.index("function mentionHtml(")
+    body = js[i:js.index("\n}", i)]
+    assert "data-go" not in body
+    assert 'class="refchip k-${e.kind}" data-go=' in js
+    assert js.count("data-unref=") >= 1 and "function unmention" in js
+    assert "data-refsdt=" in js

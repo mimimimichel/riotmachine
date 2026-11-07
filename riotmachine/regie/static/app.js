@@ -1240,7 +1240,7 @@ function renderDrawer() {
     </div></details>`;
   const detailBox = `<details class="fold" ${shot.detail ? "" : "open"}><summary>Prompt détaillé${shot.detail_edited ? " · écrit par toi" : ""}</summary><div class="stack" style="gap:6px">
       <textarea id="dt-${shot.id}" rows="4" data-mention placeholder="Le plan en détail : sujet, action, décor, lumière, cadrage. Tape @ pour citer un décor.">${esc(shot.detail || "")}</textarea>
-      ${refsCheck(shot.description, shot.detail, shot.id, shot.refs_ok)}
+      <div data-refsdt="${shot.id}">${refsCheck(shot.description, shot.detail, shot.id, shot.refs_ok)}</div>
       <div class="row"><button class="btn small" data-savedetail="${shot.id}">Enregistrer</button>
         <span class="hint">${(shot.assets || []).some((a) => a.kind === "image") ? "Le visuel déjà fait ne change pas tout seul : demande une modif pour le refaire." : "Le storyboard part de ce texte."}</span></div></div></details>`;
 
@@ -4278,16 +4278,17 @@ function refsCheck(desc, detail, shotId, refsOk) {
   }
   return `<div class="refscheck"><span class="hint">Références envoyées au modèle :</span>${slugs.map((sl) => {
     const e = idx[sl];
-    if (!e) return `<span class="refchip bad" title="Aucun personnage ni élément ne s'appelle @${esc(sl)} : renomme le @ ou crée l'élément">⚠ @${esc(sl)} introuvable</span>`;
+    const x = `<button class="x" data-unref="${esc(sl)}" title="Retirer cette référence du texte" aria-label="Retirer">✕</button>`;
+    if (!e) return `<span class="refchip bad" title="Aucun personnage ni élément ne s'appelle @${esc(sl)} : renomme le @ ou crée l'élément">⚠ @${esc(sl)} introuvable${x}</span>`;
     return `<span class="refchip k-${e.kind}" data-go="${e.kind}:${esc(sl)}" title="Ouvrir la référence">${e.thumb ? `<img src="${media(e.thumb)}" alt="">` : ""}<b>${esc(e.name)}</b>
-      <span class="${e.sent ? (e.sent === "brouillon" ? "warn" : "") : "bad"}">${e.sent ? SENT_LABEL[e.sent] : e.kind === "tenue" ? "pas de photo : la description seule" : "aucune image : la fiche seule"}</span></span>`;
+      <span class="${e.sent ? (e.sent === "brouillon" ? "warn" : "") : "bad"}">${e.sent ? SENT_LABEL[e.sent] : e.kind === "tenue" ? "pas de photo : la description seule" : "aucune image : la fiche seule"}</span>${x}</span>`;
   }).join("")}</div>`;
 }
 
 function mentionHtml(text) {
   const idx = Object.fromEntries(mentionables().map((e) => [e.slug, e]));
   return esc(text || "").replace(/@([a-z0-9][a-z0-9-]*[a-z0-9]|[a-z0-9])/g, (m, slug) =>
-    idx[slug] ? `<span class="mention k-${idx[slug].kind}" data-go="${idx[slug].kind}:${slug}" title="@${slug} · ouvrir la référence">${esc(idx[slug].name)}</span>` : m);
+    idx[slug] ? `<span class="mention k-${idx[slug].kind}" title="@${slug}">${esc(idx[slug].name)}</span>` : m);
 }
 
 /* R-B5 : d'un plan à sa référence, et retour. Un @ ou une puce de référence ouvre la page de la
@@ -4318,6 +4319,54 @@ document.addEventListener("click", (e) => {
   e.preventDefault(); e.stopPropagation();
   goToRef(m.dataset.go, m);
 }, true);
+
+/* la croix d'une puce retire le @ du texte (le nom reste écrit, sans lien) ; rien n'est enregistré avant « Enregistrer » */
+function unmention(text, slug, name) {
+  return (text || "").replace(new RegExp(`@${slug.replace(/[-]/g, "\\-")}(?![a-z0-9-])`, "g"), name);
+}
+document.addEventListener("click", (ev) => {
+  const b = ev.target.closest("button[data-unref]");
+  if (!b) return;
+  ev.preventDefault(); ev.stopPropagation();
+  const slug = b.dataset.unref;
+  const name = mentionables().find((e) => e.slug === slug)?.name || slug;
+  const dec = b.closest("[data-refs]");
+  if (dec && state.editor) {
+    const [bi, si] = dec.dataset.refs.split(":").map(Number);
+    const sh = state.editor[bi]?.shots[si];
+    if (!sh) return;
+    sh.description = unmention(sh.description, slug, name);
+    sh.detail = unmention(sh.detail, slug, name);
+    const card = document.getElementById(`dshot-${bi}:${si}`);
+    card?.querySelectorAll("textarea[data-sf]").forEach((ta) => {
+      const f = ta.dataset.sf.split(":")[2]; if (f === "description" || f === "detail") ta.value = sh[f] || "";
+    });
+    const de = card?.querySelector("[data-desc]"); if (de) de.innerHTML = mentionHtml(sh.description);
+    dec.innerHTML = refsCheck(sh.description, sh.detail, sh.id, sh.refs_ok);
+    markDirty();
+    toast(`${name} retiré des références : pense à enregistrer`);
+    return;
+  }
+  const dr = b.closest("[data-refsdt]");
+  if (dr) {
+    const sid = +dr.dataset.refsdt;
+    const shot = (state.clip?.shots || []).find((x) => x.id === sid);
+    const ta = document.getElementById("dt-" + sid);
+    if (!shot || !ta) return;
+    ta.value = unmention(ta.value, slug, name);
+    dr.innerHTML = refsCheck(shot.description, ta.value, sid, shot.refs_ok);
+    if (new RegExp(`@${slug}(?![a-z0-9-])`).test(shot.description || "")) toast(`${name} est aussi cité dans le texte du plan : retire-le au découpage`, "err");
+    else toast(`${name} retiré du prompt détaillé : pense à enregistrer`);
+  }
+}, true);
+document.addEventListener("input", (ev) => {
+  const ta = ev.target;
+  if (!ta.id || !ta.id.startsWith("dt-")) return;
+  const sid = +ta.id.slice(3);
+  const dr = document.querySelector(`[data-refsdt="${sid}"]`);
+  const shot = (state.clip?.shots || []).find((x) => x.id === sid);
+  if (dr && shot) dr.innerHTML = refsCheck(shot.description, ta.value, sid, shot.refs_ok);
+});
 
 function updateBackBtn() {
   let btn = document.getElementById("backbtn");

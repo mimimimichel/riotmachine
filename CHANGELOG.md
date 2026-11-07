@@ -5,6 +5,7 @@ Format : date, identifiant, ce qui change pour Michael.
 
 ## Lot 1 : Fondations
 
+- 2026-11-07 R-F8 : un @ affiché dans un texte n'est plus un lien (toucher le texte n'emmène plus ailleurs). Les puces de références sous le texte s'ouvrent au toucher et ont une croix qui retire le @ (le nom reste écrit). Dans le détail d'un plan, les puces suivent la frappe du prompt détaillé.
 - 2026-11-07 Découpage : un seul bouton par bloc, « Valider et lancer ce bloc », dans la tête du bloc (grisé avec le nombre de plans restant à valider). Le bouton du corps du bloc et l'encadré du bas, qui faisaient la même chose, sont retirés.
 - 2026-11-06 R-F7 (correctif) : « Demander une modif au storyboardeur » reste dans la section Visuel quand toutes les propositions sont écartées ou que l'essai a échoué, avec les propositions écartées à revoir dans un repli.
 - 2026-11-06 R-F7 (correctif) : « Valider la vidéo draft » plantait (« Cannot read properties of undefined (reading 'trim') ») car le prompt, affiché en lecture seule à cette étape, était lu comme un champ. La validation ne le lit plus que s'il est modifiable.

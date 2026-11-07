@@ -442,6 +442,18 @@ vidéo draft à valider).
 
 ---
 
+### R-F8 [P1] Un @ s'écrit sans quitter le texte ; la référence s'ouvre ou se retire depuis sa puce
+**Énoncé.** Dans un texte de plan (description, prompt détaillé), taper `@` ouvre
+la liste des références ; en choisir une l'insère sans quitter le texte. Un @
+affiché dans un texte n'est pas un lien : le toucher n'ouvre rien. Les
+références citées s'affichent en puces sous le texte, à jour pendant la frappe.
+Toucher une puce ouvre la référence (avec le retour au plan, R-B5) ; sa croix
+retire le @ du texte (le nom reste écrit, sans lien), à enregistrer.
+**Raison.** Michael écrit ; être emmené sur une autre page en touchant son texte
+le coupe dans son écriture (07/11/2026).
+**Critère.** Test : le @ rendu dans un texte n'a pas de `data-go`, chaque puce a
+une croix `data-unref`.
+
 ## G. Qualité logicielle et méthode
 
 ### R-G1 [P0] Le document fait foi
@@ -498,6 +510,7 @@ pour Michael.
 ## Changelog du document
 
 - 1.2 (05/11/2026) : R-E5, suppression d'une tenue, à la demande de Michael.
+- 1.9 (07/11/2026) : R-F8, un @ ne quitte pas le texte, la puce ouvre ou retire la référence.
 - 1.8 (06/11/2026) : R-F7, détail d'un plan en parcours guidé (Visuel puis Vidéo), à la demande de Michael.
 - 1.7 (06/11/2026) : R-F6, bouton « À faire » sur toutes les pages, à la demande de Michael.
 - 1.6 (06/11/2026) : R-F5, la liste « À faire » suit l'ordre des blocs, à la demande de Michael.

@@ -815,6 +815,8 @@ details.sources-box > div { padding: 10px 0 0; }
   background: var(--k-soft, #ffffff0a); border: 1px solid var(--k, var(--line-2)); }
 .refchip img { width: 30px; height: 22px; object-fit: cover; border-radius: 5px; }
 .refchip .warn { color: var(--amber); }
+.refchip .x { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 14px; min-width: 28px; min-height: 28px; margin: -4px -6px -4px 0; border-radius: 6px; }
+.refchip .x:hover { color: var(--red); background: #ff4d6622; }
 .refchip .bad, .refchip.bad { color: var(--red); }
 .refchip.bad { border-color: var(--red); background: #ff4d4d14; padding-left: 8px; }
 .dblock.locked { border-left-color: var(--led); opacity: .92; }
