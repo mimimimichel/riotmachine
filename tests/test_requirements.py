@@ -496,6 +496,8 @@ def test_r_f7_detail_du_plan_en_parcours(studio):
     assert 'vp.tagName === "TEXTAREA"' in js
     # le retour au storyboardeur reste possible quand toutes les propositions sont écartées
     assert "function askStoryboard" in js and js.count("askStoryboard(shot)") >= 2
+    # un seul bouton pour valider un bloc au découpage, dans sa tête
+    assert js.count("data-validateblock=") == 1 and "blockready" not in js
 
 
 def test_r_b7_corriger_une_etape_validee(studio):

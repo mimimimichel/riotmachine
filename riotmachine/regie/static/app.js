@@ -2209,7 +2209,7 @@ function renderDecoupageTab(clip) {
   if (clip.stage === "decoupage_review") {
     const nBlocks = state.editor.length, nLive = state.editor.filter((b) => b.validated).length;
     head = `<div class="actionbox" style="margin-bottom:16px"><h3>Découpage : valide bloc par bloc</h3>
-      <p class="hint">Ouvre un bloc, relis et valide chacun de ses plans (« Valider ce plan »), puis touche <b>« Lancer ce bloc »</b>.
+      <p class="hint">Ouvre un bloc, relis et valide chacun de ses plans (« Valider ce plan »), puis touche <b>« Valider et lancer ce bloc »</b>.
         Ses plans partent en production sans attendre les autres blocs. ${nLive ? `<b>${nLive} / ${nBlocks}</b> blocs déjà lancés.` : ""}</p>
       ${clip.script_notes ? `<details class="fold"><summary>Notes de relecture du scénariste</summary><div><pre class="text">${esc(clip.script_notes)}</pre></div></details>` : ""}
       <div class="row"><button class="btn ghost" data-cut="open">Demander des changements sur tout le découpage</button>
@@ -2319,13 +2319,12 @@ function renderDecoupageTab(clip) {
         ${b.validated ? `<a class="pill done golive" href="#/clip/${encodeURIComponent(clip.slug)}/plans" data-goblock="${b.id}" title="Ouvrir ce bloc dans l'onglet Plans">En production · voir les plans →</a>`
           : b.id && b.shots.length ? (() => { const left = b.shots.filter((x) => !x.cut_ok).length;
               return `<button class="btn small ${left ? "ghost" : "ok"} blockgo" data-validateblock="${b.id}" ${left ? "disabled" : ""}
-                title="${left ? "Valide d'abord chaque plan du bloc" : "Ses plans partent en production"}">${left ? `Lancer ce bloc · ${left} plan${left > 1 ? "s" : ""} à valider` : "Lancer ce bloc"}</button>`; })() : ""}
+                title="${left ? "Valide d'abord chaque plan du bloc" : "Ses plans partent en production"}">${left ? `Valider ce bloc · ${left} plan${left > 1 ? "s" : ""} à valider` : "Valider et lancer ce bloc"}</button>`; })() : ""}
       </div>
       <div class="dblock-body">
         ${b.validated ? `<p class="hint" style="margin:10px 0">Bloc validé : ses plans sont en production, suis-les dans l'onglet
             <a href="#/clip/${encodeURIComponent(clip.slug)}/plans">Plans</a>. Il ne se modifie plus ici.</p>`
-          : b.id ? `<div class="row" style="margin:10px 0;gap:8px"><button class="btn small ok" data-validateblock="${b.id}" ${b.shots.length && b.shots.every((x) => x.cut_ok) ? "" : "disabled"}>Valider ce bloc et lancer sa production</button>
-            <span class="hint">Possible quand tous ses plans sont validés. Les autres blocs n'attendent pas.</span></div>` : ""}
+          : ""}
         <details class="fold dblock-set"><summary>Nom, intention et lumière du bloc</summary><div class="stack" style="gap:8px">
           <label class="field"><span>Nom</span><input type="text" value="${esc(b.name)}" data-bf="${bi}:name" placeholder="Nom du bloc (couplet 1…)"></label>
           <label class="field"><span>Intention</span><textarea rows="2" data-bf="${bi}:intention" placeholder="Ce que raconte ce bloc">${esc(b.intention)}</textarea></label>
@@ -2368,17 +2367,10 @@ function refreshDecCounts(bi) {
   document.querySelectorAll(`#decblock-${bi} [data-validateblock]`).forEach((btn) => {
     btn.disabled = !all_ok;
     if (btn.classList.contains("blockgo")) {
-      btn.textContent = all_ok ? "Lancer ce bloc" : `Lancer ce bloc · ${left} plan${left > 1 ? "s" : ""} à valider`;
+      btn.textContent = all_ok ? "Valider et lancer ce bloc" : `Valider ce bloc · ${left} plan${left > 1 ? "s" : ""} à valider`;
       btn.classList.toggle("ok", all_ok); btn.classList.toggle("ghost", !all_ok);
     }
   });
-  const banner = document.getElementById(`blockready-${bi}`);
-  if (all_ok && !b.validated && !banner && b.id) {
-    document.querySelector(`#decblock-${bi} .dshots`)?.insertAdjacentHTML("afterend",
-      `<div class="actionbox" id="blockready-${bi}" style="margin-top:10px"><b>Tous les plans de « ${esc(b.name)} » sont validés.</b>
-        <div class="row" style="margin-top:6px"><button class="btn ok" data-validateblock="${b.id}">Valider ce bloc et lancer sa production</button>
-        <span class="hint">Ses plans partent en production ; les autres blocs n'attendent pas.</span></div></div>`);
-  } else if (!all_ok && banner) banner.remove();
   const all = state.editor.flatMap((x) => x.shots);
   const top = document.getElementById("dec-okcount");
   if (top) top.textContent = `${all.filter((x) => x.cut_ok).length} validés`;

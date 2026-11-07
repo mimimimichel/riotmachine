@@ -5,6 +5,7 @@ Format : date, identifiant, ce qui change pour Michael.
 
 ## Lot 1 : Fondations
 
+- 2026-11-07 Découpage : un seul bouton par bloc, « Valider et lancer ce bloc », dans la tête du bloc (grisé avec le nombre de plans restant à valider). Le bouton du corps du bloc et l'encadré du bas, qui faisaient la même chose, sont retirés.
 - 2026-11-06 R-F7 (correctif) : « Demander une modif au storyboardeur » reste dans la section Visuel quand toutes les propositions sont écartées ou que l'essai a échoué, avec les propositions écartées à revoir dans un repli.
 - 2026-11-06 R-F7 (correctif) : « Valider la vidéo draft » plantait (« Cannot read properties of undefined (reading 'trim') ») car le prompt, affiché en lecture seule à cette étape, était lu comme un champ. La validation ne le lit plus que s'il est modifiable.
 - 2026-11-06 R-F7 : le détail d'un plan devient un parcours guidé. La frise en tête (Visuel :
