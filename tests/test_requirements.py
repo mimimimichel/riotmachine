@@ -606,3 +606,35 @@ def test_r_f7_echec_dit_pourquoi():
     assert "La remarque au-dessus" not in js
     assert 'author === "machine"' in js[i:i + 600] and "function quotaHint" in js
     assert 'h = failBox(shot, "image") + h;' in js
+
+
+def test_r_f7_quota_epuise_et_changement_de_modele(studio, monkeypatch):
+    """Dépenses : un quota gratuit épuisé aujourd'hui est repéré, et une demande en attente passe sur un autre modèle gratuit."""
+    from datetime import datetime, timezone
+    from riotmachine import cli, production, routing
+    assert cli.main(["init"]) == 0
+    conn = db.connect()
+    db.init_db(conn)
+    production.create_clip(conn, "Quota", song=studio["song"], characters=["jj"])
+    production.import_shots(conn, "quota", {"blocks": [{"name": "A", "shots": [
+        {"t_start": 0, "t_end": 4, "script": "un", "characters": ["jj"]}]}]}, by="michael")
+    sid = conn.execute("SELECT id FROM shots WHERE clip_slug='quota'").fetchone()[0]
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    conn.execute("INSERT INTO assets (shot_id, kind, version, path, status, model_key, error, created_at) "
+                 "VALUES (?, 'image', 1, NULL, 'failed', 'cloudflare:klein-9b', 'FLUX.2 klein 9B (Cloudflare) : quota gratuit du jour épuisé', ?)",
+                 (sid, now))
+    conn.execute("INSERT INTO spend_requests (action, args, dedupe, label, clip_slug, shot_id, model_key, provider, est_usd, funding, status, created_at) "
+                 "VALUES ('image', ?, 'q', 'Plan 1 : visuel draft (FLUX.2 klein 9B (Cloudflare), gratuit)', 'quota', ?, "
+                 "'cloudflare:klein-9b', 'gratuit', 0, 'cash', 'pending', ?)",
+                 (json.dumps({"shot_id": sid, "count": 3, "model": "cloudflare:klein-9b"}), sid, now))
+    conn.commit()
+    assert "cloudflare" in production.quota_out(conn)
+    rid = conn.execute("SELECT id FROM spend_requests WHERE dedupe='q'").fetchone()[0]
+    assert production.spend_requests(conn)[0]["free"] is True
+    monkeypatch.setattr(routing, "provider_usable", lambda p: True)
+    production.change_spend_model(conn, rid, "huggingface:flux2-dev")
+    r = conn.execute("SELECT args, model_key, label FROM spend_requests WHERE id=?", (rid,)).fetchone()
+    assert json.loads(r[0])["model"] == "huggingface:flux2-dev" and r[1] == "huggingface:flux2-dev"
+    assert "Hugging Face" in r[2] and "Cloudflare" not in r[2]
+    with pytest.raises(production.ProductionError):
+        production.change_spend_model(conn, rid, "nano-banana-pro")

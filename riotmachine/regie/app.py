@@ -177,8 +177,23 @@ def spend_list() -> dict[str, Any]:
     from .. import credits
     conn = _conn()
     recent = conn.execute("SELECT * FROM spend_requests WHERE status!='pending' ORDER BY id DESC LIMIT 30").fetchall()
+    from .. import image_models
     return {"pending": production.spend_requests(conn, "pending"), "recent": [dict(r) for r in recent],
-            "credits": credits.status(conn), "summary": _spend_summary(conn)}
+            "credits": credits.status(conn), "summary": _spend_summary(conn),
+            "quota_out": production.quota_out(conn),
+            "free_models": [m for m in image_models.options("visuel")["models"] if m["free"] and m["usable"]]}
+
+
+class SpendModel(BaseModel):
+    model: str
+
+
+@app.post("/api/spend/{request_id}/model")
+def spend_model(request_id: int, body: SpendModel) -> dict[str, Any]:
+    try:
+        return production.change_spend_model(_conn(), request_id, body.model)
+    except (production.ProductionError, LookupError) as exc:
+        raise _error(exc)
 
 
 class SpendDecision(BaseModel):

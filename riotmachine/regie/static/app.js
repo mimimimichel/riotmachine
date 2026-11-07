@@ -3344,7 +3344,7 @@ function spendRows(list) {
   const total = list.reduce((a, r) => a + r.est_usd, 0);
   return `<div class="spendbox">
     <p><b>En attente de ton accord</b> : ${list.length} image${list.length > 1 ? "s" : ""}, environ ${money(total)}
-      (${list.every((r) => r.funding === "credits") ? "payé sur les crédits gratuits" : "payé en argent"}).</p>
+      (${list.every((r) => r.free || !r.est_usd) ? "gratuit" : list.every((r) => r.funding === "credits") ? "payé sur les crédits gratuits" : "payé en argent"}).</p>
     <ul class="hint">${list.slice(0, 8).map((r) => `<li>${esc(r.label)} · ${money(r.est_usd)}</li>`).join("")}${list.length > 8 ? `<li>…</li>` : ""}</ul>
     <div class="row"><button class="btn go" data-spenddo="approve" data-ids="${list.map((r) => r.id).join(",")}">Lancer · ${money(total)}</button>
       <button class="btn" data-spenddo="refuse" data-ids="${list.map((r) => r.id).join(",")}">Ne pas lancer</button></div></div>`;
@@ -3857,6 +3857,7 @@ router();
 
 /* ---------- dépenses à valider ---------- */
 const FUNDING_LABEL = { credits: "crédits gratuits", cash: "payé en argent" };
+const SPEND_SWITCHABLE = ["image", "element_image", "character_asset"];
 const ACTION_LABEL = { image: "Visuel draft", image_hd: "Visuel HD", canon_hd: "Canon HD", character_asset: "Pack de référence" };
 
 async function showSpend(focus) {
@@ -3868,21 +3869,34 @@ async function showSpend(focus) {
     (groups[g] = groups[g] || []).push(r);
   }
   const credits = Object.values(d.credits).map((c) => `${esc(c.label)} : ${money(c.remaining)} restants`).join(" · ");
-  const card = (r) => `
+  // quota du jour épuisé chez un fournisseur gratuit : le lancement échouerait, on propose un autre modèle gratuit
+  const out = d.quota_out || {};
+  const provOf = (k) => ((k || "").includes(":") ? k.split(":")[0] : null);
+  const PROV = { cloudflare: "Cloudflare", huggingface: "Hugging Face" };
+  const alts = (d.free_models || []).filter((m) => !out[m.provider]).sort((a, b) => (a.rank || 99) - (b.rank || 99));
+  const outBanner = Object.keys(out).length ? `<div class="actionbox" style="border-color:#ffb02e88"><b>Limite gratuite du jour atteinte : ${Object.keys(out).map((p) => esc(PROV[p] || p)).join(", ")}.</b>
+      <p class="hint">${out.cloudflare ? "Cloudflare : tous ses modèles sont touchés, la limite revient à 1 h du matin. " : ""}${out.huggingface ? "Hugging Face : GPU gratuit refusé (limite du jour ou file pleine), réessaie dans quelques heures. " : ""}
+        Une demande lancée sur un fournisseur épuisé échouerait : passe-la sur un autre modèle gratuit (bouton sur chaque ligne), ou attends.</p></div>` : "";
+  const card = (r) => {
+    const dead = out[provOf(r.model_key)] && SPEND_SWITCHABLE.includes(r.action);
+    return `
     <div class="spend-item">
-      <div class="row"><b>${esc(r.label)}</b><span class="spacer"></span><span class="spend-cost">${money(r.est_usd)}</span></div>
-      <p class="hint">${esc(ACTION_LABEL[r.action] || r.action)} · ${esc(r.model_label || "")} · ${esc(FUNDING_LABEL[r.funding] || r.funding)}</p>
+      <div class="row"><b>${esc(r.label)}</b><span class="spacer"></span><span class="spend-cost">${r.free ? "gratuit" : money(r.est_usd)}</span></div>
+      <p class="hint">${esc(ACTION_LABEL[r.action] || r.action)} · ${esc(r.model_label || "")} · ${r.free ? "gratuit" : esc(FUNDING_LABEL[r.funding] || r.funding)}</p>
+      ${dead ? `<p class="hint" style="color:var(--amber)">⚠ ${esc(r.model_label)} : limite du jour atteinte, ce lancement échouerait.</p>
+        <div class="row" style="gap:8px">${alts.length ? alts.slice(0, 2).map((m) => `<button class="btn small go" data-spendmodel="${r.id}:${esc(m.id)}" title="${esc(m.limites || "")}">Passer sur ${esc(m.label)}</button>`).join("")
+          : `<span class="hint">Aucun autre modèle gratuit disponible aujourd'hui.</span>`}</div>` : ""}
       ${r.detail ? `<details><summary class="hint">Ce qui sera demandé</summary><p class="mono spend-detail">${esc(r.detail)}</p></details>` : ""}
       <div class="row">
-        <button class="btn small go" data-spend="approve" data-ids="${r.id}">Lancer · ${money(r.est_usd)}</button>
+        <button class="btn small ${dead ? "ghost" : "go"}" data-spend="approve" data-ids="${r.id}">${dead ? "Lancer quand même" : `Lancer · ${r.free ? "gratuit" : money(r.est_usd)}`}</button>
         <button class="btn small" data-spend="refuse" data-ids="${r.id}">Ne pas lancer</button>
       </div>
-    </div>`;
+    </div>`; };
   const blocks = Object.entries(groups).map(([g, items]) => {
     const total = items.reduce((a, r) => a + r.est_usd, 0);
     return `<section class="panel stack" data-g="${esc(gkey(items[0]))}">
       <div class="row"><h2>${esc(g)}</h2><span class="spacer"></span>
-        ${items.length > 1 ? `<button class="btn go" data-spend="approve" data-ids="${items.map((r) => r.id).join(",")}">Tout lancer (${items.length}) · ${money(total)}</button>` : ""}</div>
+        ${items.length > 1 ? `<button class="btn go" data-spend="approve" data-ids="${items.map((r) => r.id).join(",")}">Tout lancer (${items.length}) · ${items.every((r) => r.free) ? "gratuit" : money(total)}</button>` : ""}</div>
       ${items.map(card).join("")}
     </section>`;
   }).join("");
@@ -3893,10 +3907,20 @@ async function showSpend(focus) {
       <p class="hint">Rien de payant ne part sans ton accord, même sur les crédits gratuits. Chaque ligne indique ce qui sera généré, avec quel modèle et pour combien.
         Les vidéos ont leur propre validation, dans le plan vidéo de chaque plan, coût compris.</p>
       ${credits ? `<p class="mono">${credits}</p>` : ""}
+      ${outBanner}
       ${blocks || `<p class="empty">Aucune dépense en attente.</p>`}
       ${recent ? `<section class="panel"><h2>Dernières décisions</h2><ul class="hint">${recent}</ul></section>` : ""}
     </div>`;
   if (focus) spotlight($view.querySelector(`[data-g="${CSS.escape(focus)}"]`));
+  $view.querySelectorAll("[data-spendmodel]").forEach((b) => b.addEventListener("click", async () => {
+    b.disabled = true;
+    const i = b.dataset.spendmodel.indexOf(":");
+    try {
+      await api(`/api/spend/${b.dataset.spendmodel.slice(0, i)}/model`, { json: { model: b.dataset.spendmodel.slice(i + 1) } });
+      toast("Modèle changé : tu peux lancer");
+      await showSpend(focus);
+    } catch (e) { toast(e.message, "err"); b.disabled = false; }
+  }));
   $view.querySelectorAll("[data-spend]").forEach((b) => b.addEventListener("click", async () => {
     b.disabled = true;
     try {

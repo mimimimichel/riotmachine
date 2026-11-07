@@ -5,6 +5,7 @@ Format : date, identifiant, ce qui change pour Michael.
 
 ## Lot 1 : Fondations
 
+- 2026-11-07 Dépenses : la page repère un fournisseur gratuit dont la limite du jour est atteinte (échec « quota » depuis minuit UTC sans réussite après, `production.quota_out`), l'annonce en tête et sur chaque ligne touchée (« Lancer quand même » à la place de « Lancer »), et propose de passer la demande sur un autre modèle gratuit (`POST /api/spend/<id>/model`, gratuit seulement). Une demande gratuite s'affiche « gratuit » et non plus « payé en argent », avec le nom du modèle au lieu de sa clé.
 - 2026-11-07 R-F7 (correctif) : la boîte « Échec » d'un visuel passe en tête de la carte et écrit la raison elle-même (avant : « la remarque au-dessus », loin au-dessus). Pour un quota gratuit épuisé, elle précise que tous les modèles du fournisseur sont touchés et nomme le modèle à prendre.
 - 2026-11-07 R-F8 (correctif) : la croix d'une référence enregistre tout de suite. Avant, rien n'était enregistré, l'alerte « @ introuvable » restait et la référence revenait au rechargement. Dans un bloc validé, elle passe par le prompt détaillé du plan.
 - 2026-11-07 R-B8 : « Écarter » une proposition (visuel, HD, vidéo) ouvre une case « ce qui ne va pas et ce que tu veux à la place ». La raison s'ajoute aux remarques du plan et, quand c'était la dernière proposition, part avec la relance chez l'agent de l'étape.

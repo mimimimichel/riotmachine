@@ -281,11 +281,64 @@ def spend_requests(conn: sqlite3.Connection, status: str = "pending") -> list[di
     for r in rows:
         d = dict(r)
         d["model_label"] = (routing.models_cfg()["models"].get(d["model_key"]) or {}).get("label", d["model_key"])
+        if ":" in (d["model_key"] or ""):
+            from . import image_models
+            try:
+                d["model_label"] = image_models.get(d["model_key"])["label"]
+            except image_models.ModelError:
+                pass
+        d["free"] = ":" in (d["model_key"] or "") or not d["est_usd"]
         if d["shot_id"]:
             sh = conn.execute("SELECT num FROM shots WHERE id=?", (d["shot_id"],)).fetchone()
             d["shot_num"] = sh["num"] if sh else None
         out.append(d)
     return out
+
+
+def quota_out(conn: sqlite3.Connection) -> dict[str, dict]:
+    """Fournisseurs gratuits dont le quota du jour est épuisé : un échec « quota » depuis minuit UTC
+    (heure de remise à zéro de Cloudflare), sans réussite du même fournisseur après."""
+    from datetime import datetime, timezone
+    day = datetime.now(timezone.utc).strftime("%Y-%m-%dT00:00:00Z")
+    out: dict[str, dict] = {}
+    for r in conn.execute("SELECT model_key, error, created_at FROM assets WHERE status='failed' AND error LIKE '%quota%' "
+                          "AND created_at>=? ORDER BY created_at", (day,)):
+        mk = r["model_key"] or ""
+        if ":" in mk:
+            out[mk.split(":")[0]] = {"since": r["created_at"], "error": r["error"]}
+    for prov, v in list(out.items()):
+        if conn.execute("SELECT 1 FROM assets WHERE model_key LIKE ? AND status!='failed' AND created_at>? LIMIT 1",
+                        (prov + ":%", v["since"])).fetchone():
+            del out[prov]
+    return out
+
+
+SPEND_MODEL_ARG = {"image": "model", "element_image": "model", "character_asset": "model_key"}
+
+
+def change_spend_model(conn: sqlite3.Connection, request_id: int, model_id: str) -> dict:
+    """Michael passe une dépense en attente sur un autre modèle gratuit (quota épuisé chez le premier)."""
+    from . import image_models
+    r = db.row(conn.execute("SELECT * FROM spend_requests WHERE id=? AND status='pending'", (request_id,)).fetchone())
+    if r is None:
+        raise ProductionError("Cette demande n'est plus en attente")
+    if r["action"] not in SPEND_MODEL_ARG:
+        raise ProductionError("Le modèle de cette demande ne se change pas ici")
+    try:
+        m = image_models.check(model_id)
+    except image_models.ModelError as exc:
+        raise ProductionError(str(exc)) from exc
+    if not m["free"]:
+        raise ProductionError("Ici, on ne passe que sur un modèle gratuit ; un modèle payant se choisit dans le plan")
+    args = json.loads(r["args"])
+    args[SPEND_MODEL_ARG[r["action"]]] = model_id
+    old = image_models.get(r["model_key"])["label"] if image_models.is_free(r["model_key"] or "") else (r["model_key"] or "")
+    label = r["label"].replace(old, m["label"]) if old and old in (r["label"] or "") else r["label"]
+    with db.tx(conn):
+        conn.execute("UPDATE spend_requests SET args=?, model_key=?, provider='gratuit', est_usd=0, label=? WHERE id=?",
+                     (json.dumps(args), model_id, label, request_id))
+        db.log_event(conn, r["clip_slug"], "depense", f"{label} : passé sur {m['label']}")
+    return {"ok": True, "label": label}
 
 
 def decide_spend(conn: sqlite3.Connection, ids: list[int], decision: str, note: str = "") -> int:
