@@ -582,6 +582,11 @@ def test_r_f8_mention_sans_quitter_le_texte():
     assert 'class="refchip k-${e.kind}" data-go=' in js
     assert js.count("data-unref=") >= 1 and "function unmention" in js
     assert "data-refsdt=" in js
+    # la croix enregistre tout de suite (bloc validé : par le prompt détaillé du plan), sans tenir compte de la casse
+    i = js.index("function unmention(")
+    assert '"gi"' in js[i:i + 300]
+    j = js.index('closest("button[data-unref]")')
+    assert "/detail`" in js[j:j + 3000] and "decoupage-edit" in js[j:j + 3000]
 
 
 def test_r_b8_ecarter_demande_pourquoi():

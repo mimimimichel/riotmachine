@@ -4335,9 +4335,9 @@ document.addEventListener("click", (e) => {
 
 /* la croix d'une puce retire le @ du texte (le nom reste écrit, sans lien) ; rien n'est enregistré avant « Enregistrer » */
 function unmention(text, slug, name) {
-  return (text || "").replace(new RegExp(`@${slug.replace(/[-]/g, "\\-")}(?![a-z0-9-])`, "g"), name);
+  return (text || "").replace(new RegExp(`@${slug.replace(/[-]/g, "\\-")}(?![a-z0-9-])`, "gi"), name);
 }
-document.addEventListener("click", (ev) => {
+document.addEventListener("click", async (ev) => {
   const b = ev.target.closest("button[data-unref]");
   if (!b) return;
   ev.preventDefault(); ev.stopPropagation();
@@ -4356,8 +4356,21 @@ document.addEventListener("click", (ev) => {
     });
     const de = card?.querySelector("[data-desc]"); if (de) de.innerHTML = mentionHtml(sh.description);
     dec.innerHTML = refsCheck(sh.description, sh.detail, sh.id, sh.refs_ok);
-    markDirty();
-    toast(`${name} retiré des références : pense à enregistrer`);
+    // enregistré tout de suite : la référence ne revient pas au rechargement, l'alerte du bloc se met à jour
+    const clip = state.clip;
+    try {
+      if (state.editor[bi].validated && sh.id) {
+        // bloc validé : le découpage ne le modifie plus, on enregistre le prompt détaillé du plan
+        await api(`/api/shots/${sh.id}/detail`, { json: { text: sh.detail || "" } });
+        if (new RegExp(`@${slug}(?![a-z0-9-])`, "i").test(sh.description || ""))
+          toast(`${name} est aussi dans le texte du plan, qui ne se modifie plus : demande une modif sur le plan`, "err");
+      } else {
+        await api(`/api/clips/${encodeURIComponent(clip.slug)}/decoupage-edit`, { json: { blocks: collectEditor() } });
+      }
+      state.editorDirty = false;
+      toast(`${name} retiré des références`);
+      return keepPlace(dec, () => showClip(clip.slug, "decoupage", false));
+    } catch (e) { markDirty(); toast(`${name} retiré, mais pas enregistré : ${e.message || e}`, "err"); }
     return;
   }
   const dr = b.closest("[data-refsdt]");
@@ -4368,8 +4381,13 @@ document.addEventListener("click", (ev) => {
     if (!shot || !ta) return;
     ta.value = unmention(ta.value, slug, name);
     dr.innerHTML = refsCheck(shot.description, ta.value, sid, shot.refs_ok);
-    if (new RegExp(`@${slug}(?![a-z0-9-])`).test(shot.description || "")) toast(`${name} est aussi cité dans le texte du plan : retire-le au découpage`, "err");
-    else toast(`${name} retiré du prompt détaillé : pense à enregistrer`);
+    try {
+      await api(`/api/shots/${sid}/detail`, { json: { text: ta.value } });
+      shot.detail = ta.value;
+      if (new RegExp(`@${slug}(?![a-z0-9-])`, "i").test(shot.description || "")) toast(`${name} est aussi cité dans le texte du plan : retire-le au découpage`, "err");
+      else toast(`${name} retiré du prompt détaillé`);
+      return showClip(state.clip.slug, state.tab, false);
+    } catch (e) { toast(`${name} retiré, mais pas enregistré : ${e.message || e}`, "err"); }
   }
 }, true);
 document.addEventListener("input", (ev) => {
