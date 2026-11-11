@@ -675,3 +675,11 @@ def test_r_e_objet_image_telle_quelle(studio):
     el = [x for x in elements.clip_elements(conn, "sac") if x["id"] == e["id"]][0]
     assert el["step"] == "done"
     assert any(i["role"] == "hd" and i["status"] == "kept" for i in el["images"])
+
+
+def test_r_b8_ecran_a_jour_apres_une_action():
+    """Après une action dans le détail d'un plan (écarter avec une raison), l'écran se redessine même si une case de texte était ouverte."""
+    from pathlib import Path
+    js = (Path(__file__).resolve().parents[1] / "riotmachine/regie/static/app.js").read_text()
+    assert "isBusy() && !state.forceDrawer" in js
+    assert js.count("state.forceDrawer = true; return showClip(clip.slug, state.tab, false);") >= 2

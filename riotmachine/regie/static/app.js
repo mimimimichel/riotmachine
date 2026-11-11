@@ -1197,7 +1197,9 @@ function renderDrawer() {
   if (!shot) { closeDrawerUi(); return; }
   document.querySelectorAll(`[data-openshot="${shot.id}"]`).forEach((n) => n.classList.add("sel"));
   if (!$drawer.hidden && $drawer.dataset.shot === String(shot.id) && $drawer.dataset.json === JSON.stringify(shot)) return;
-  if (!$drawer.hidden && $drawer.dataset.shot === String(shot.id) && isBusy()) return;
+  // une saisie en cours n'est pas effacée par le rafraîchissement automatique ; après une action de Michael, on redessine
+  if (!$drawer.hidden && $drawer.dataset.shot === String(shot.id) && isBusy() && !state.forceDrawer) return;
+  state.forceDrawer = false;
   if ($drawer.dataset.shot !== String(shot.id)) { state.step = null; state.sectionOpen = null; }
   const scroll = $drawer.querySelector(".drawer-body")?.scrollTop || 0;
   const sameShot = $drawer.dataset.shot === String(shot.id);
@@ -1323,7 +1325,7 @@ function renderDrawer() {
   $drawer.onclick = drawerClick;
   $drawer.onchange = async (ev) => {
     const t = ev.target;
-    const reload = () => showClip(clip.slug, state.tab, false);
+    const reload = () => { state.forceDrawer = true; return showClip(clip.slug, state.tab, false); };
     try {
       if (t.dataset.shotmodel) {
         if (!t.value) { toast("Choisis un modèle dans la liste", "err"); return; }
@@ -1961,7 +1963,7 @@ async function drawerClick(ev) {
   if (!t) return;
   const d = t.dataset;
   const clip = state.clip;
-  const reload = () => showClip(clip.slug, state.tab, false);
+  const reload = () => { state.forceDrawer = true; return showClip(clip.slug, state.tab, false); };
   try {
     if (d.zoom) return lightbox(d.zoom);
     if (d.closedrawer !== undefined) { closeShot(); return; }

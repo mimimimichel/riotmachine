@@ -5,6 +5,7 @@ Format : date, identifiant, ce qui change pour Michael.
 
 ## Lot 1 : Fondations
 
+- 2026-11-11 R-B8 (correctif) : après « Écarter » avec une raison, l'écran du plan ne se mettait pas à jour : la case de la raison restait ouverte et bloquait le rafraîchissement. Les boutons Valider et Refuser restaient affichés alors que l'écart était enregistré. Toute action lancée depuis le détail d'un plan redessine maintenant l'écran.
 - 2026-11-11 Références : « Utiliser telle quelle » sur une image déposée (inspiration ou brouillon) d'un décor, objet ou figurant. L'image sert directement de référence aux plans, sans brouillon ni image HD à générer. La fiche passe à « Prêt », avec sa vignette.
 - 2026-11-11 R-B5 : créer un objet, un décor, un figurant ou une tenue (onglet Références) mène directement à sa fiche, ouverte. Le bouton de retour ramène là où l'on était : au plan si on venait d'un plan, sinon au formulaire d'ajout.
 - 2026-11-11 R-F7 : lancer une vidéo draft se fait d'un seul bouton « Lancer la vidéo draft · ~coût ». Avant : « Passer au lancement », « Confirmer ? », puis « Lancer ». Le prompt se relit et se corrige dès que le plan vidéo est prêt. Les boutons qui portent leur coût (générer les propositions, lancer le visuel HD) ne demandent plus « Confirmer ? ».
