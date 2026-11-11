@@ -4025,7 +4025,7 @@ async function loadDecors(clip, keep = false) {
         </div>
         <div class="elstep ${inspi.length || (e.brief || "").trim() || drafts.length ? "ok" : ""}">
           <div class="elstep-h"><span class="num">1</span><b>Tes images et ton instruction</b>
-            <span class="hint">Des images trouvées ou faites ailleurs, et ce que tu veux. Elles servent à créer le brouillon.</span></div>
+            <span class="hint">Des images trouvées ou faites ailleurs, et ce que tu veux. Elles servent à créer le brouillon. Si une image est déjà la bonne, touche « Utiliser telle quelle » : elle sert directement de référence, sans brouillon ni HD.</span></div>
           ${inspi.length ? elGrid(inspi, "inspi") : ""}
           ${dropZone(`el:${e.id}:inspi`, inspi.length ? "Ajouter des images" : "Déposer des images", "png, jpg ou webp, 4 au plus", "image/*", true)}
           <label class="field"><span>Ton instruction</span>
@@ -4293,7 +4293,7 @@ async function loadDecors(clip, keep = false) {
       if (dd.elpick) {
         const [id, decision] = dd.elpick.split(":");
         await api(`/api/element-images/${id}`, { json: { decision } });
-        toast(decision === "keep" ? "Gardée comme référence" : "Retirée"); return reload();
+        toast(decision === "keep" ? "Gardée comme référence" : decision === "use" ? "Image gardée telle quelle : elle sert de référence aux plans" : "Retirée"); return reload();
       }
     } catch (err) { toast(err.message, "err"); reload(); }
   };
@@ -4319,6 +4319,7 @@ function elGrid(list, mode) {
         ${i.status === "failed" ? `<button class="btn small ghost" data-elpick="${i.id}:reject">Retirer</button>` : ""}
         ${mode === "choose" && i.status === "proposed" ? `<div class="row" style="gap:6px"><button class="btn small ok" data-elpick="${i.id}:keep">Garder</button>
           <button class="btn small" data-elpick="${i.id}:reject">Écarter</button></div>` : ""}
+        ${(i.role === "inspi" || (i.role === "draft" && mode !== "choose")) && i.path && i.status !== "generating" ? `<button class="btn small ok" data-elpick="${i.id}:use" title="L'image est déjà la bonne : elle sert de référence aux plans, sans brouillon ni HD à générer">Utiliser telle quelle</button>` : ""}
         ${mode !== "choose" ? `<button class="btn small ghost" data-elpick="${i.id}:reject">Retirer</button>` : ""}</div></div>`).join("")}</div>`;
 }
 

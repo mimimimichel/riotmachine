@@ -657,3 +657,21 @@ def test_r_b5_nouvel_objet_ouvre_sa_fiche():
     js = (Path(__file__).resolve().parents[1] / "riotmachine/regie/static/app.js").read_text()
     assert "function openNewRef(" in js
     assert js.count("openNewRef(clip,") >= 2
+
+
+def test_r_e_objet_image_telle_quelle(studio):
+    """Un objet dont l'image déposée est déjà la bonne la garde telle quelle comme référence (pas de HD à générer)."""
+    import subprocess
+    from riotmachine import cli, elements, production
+    assert cli.main(["init"]) == 0
+    conn = db.connect()
+    db.init_db(conn)
+    production.create_clip(conn, "Sac", song=studio["song"], characters=["jj"])
+    e = elements.create(conn, "sac", "objet", "Sac porte-documents", "")
+    img = studio["tmp"] / "sac.png"
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "color=c=brown:s=64x64", "-frames:v", "1", str(img)], check=True)
+    ins = elements.add_image(conn, e["id"], img, role="inspi")
+    elements.pick(conn, ins["id"], "use")
+    el = [x for x in elements.clip_elements(conn, "sac") if x["id"] == e["id"]][0]
+    assert el["step"] == "done"
+    assert any(i["role"] == "hd" and i["status"] == "kept" for i in el["images"])

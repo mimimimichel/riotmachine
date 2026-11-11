@@ -5,6 +5,7 @@ Format : date, identifiant, ce qui change pour Michael.
 
 ## Lot 1 : Fondations
 
+- 2026-11-11 Références : « Utiliser telle quelle » sur une image déposée (inspiration ou brouillon) d'un décor, objet ou figurant. L'image sert directement de référence aux plans, sans brouillon ni image HD à générer. La fiche passe à « Prêt », avec sa vignette.
 - 2026-11-11 R-B5 : créer un objet, un décor, un figurant ou une tenue (onglet Références) mène directement à sa fiche, ouverte. Le bouton de retour ramène là où l'on était : au plan si on venait d'un plan, sinon au formulaire d'ajout.
 - 2026-11-11 R-F7 : lancer une vidéo draft se fait d'un seul bouton « Lancer la vidéo draft · ~coût ». Avant : « Passer au lancement », « Confirmer ? », puis « Lancer ». Le prompt se relit et se corrige dès que le plan vidéo est prêt. Les boutons qui portent leur coût (générer les propositions, lancer le visuel HD) ne demandent plus « Confirmer ? ».
 - 2026-11-07 Dépenses : la page repère un fournisseur gratuit dont la limite du jour est atteinte (échec « quota » depuis minuit UTC sans réussite après, `production.quota_out`), l'annonce en tête et sur chaque ligne touchée (« Lancer quand même » à la place de « Lancer »), et propose de passer la demande sur un autre modèle gratuit (`POST /api/spend/<id>/model`, gratuit seulement). Une demande gratuite s'affiche « gratuit » et non plus « payé en argent », avec le nom du modèle au lieu de sa clé.

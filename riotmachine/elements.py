@@ -472,6 +472,12 @@ def pick(conn: sqlite3.Connection, image_id: int, decision: str) -> None:
             # un brouillon gardé devient l'image de départ : le décorateur écrit le prompt HD d'après lui
             cancel_pending(conn, img["element_id"], "remplacée : nouvelle image de départ")
             db.update(conn, "elements", img["element_id"], {"prompt_status": "requested"}, reason="nouvelle image de départ")
+    elif decision == "use":
+        # l'image déposée est déjà la bonne : elle sert telle quelle de référence, sans brouillon ni image HD générée
+        if img["role"] not in ("inspi", "draft") or not img["path"]:
+            raise ProductionError("Seule une image que tu as déposée ou un brouillon peut servir tel quel")
+        add_image(conn, img["element_id"], absp(img["path"]), state=img["state"], label="ton image, telle quelle", role="hd")
+        cancel_pending(conn, img["element_id"], "inutile : Michael utilise son image telle quelle")
     elif decision == "reject":
         p = absp(img["path"])
         if p and p.is_file():
