@@ -638,3 +638,14 @@ def test_r_f7_quota_epuise_et_changement_de_modele(studio, monkeypatch):
     assert "Hugging Face" in r[2] and "Cloudflare" not in r[2]
     with pytest.raises(production.ProductionError):
         production.change_spend_model(conn, rid, "nano-banana-pro")
+
+
+def test_r_f7_lancer_la_video_en_un_toucher():
+    """R-F7 : la vidéo draft se lance d'un seul bouton (coût écrit dessus), sans « Passer au lancement » ni « Confirmer ? »."""
+    from pathlib import Path
+    js = (Path(__file__).resolve().parents[1] / "riotmachine/regie/static/app.js").read_text()
+    assert "Passer au lancement de la vidéo draft" not in js
+    assert "data-launchdraft" in js
+    i = js.index("if (d.launchdraft)")
+    assert "/run`" in js[i:i + 900] and 'decision: "approve"' in js[i:i + 900]
+    assert 'needsConfirm(t, "regen"' not in js and 'needsConfirm(t, "run"' not in js

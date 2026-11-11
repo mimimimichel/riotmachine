@@ -1850,16 +1850,16 @@ function renderVideo(shot, ctx) {
     if (st === "prompt_todo" || st === "video_review" || (st === "change_requested" && currentStep(shot) === "plan") || (st === "failed" && currentStep(shot) === "plan")) {
       h += startImageRow(shot);
       if (!shot.video_prompt) h += `<div class="agentbar">${led("work")}<span>Le routeur choisit le modèle, le prompteur écrit le prompt de la vidéo draft. Compte quelques minutes.</span></div>`;
-      h += videoPromptBlock(shot, st === "video_review", "1. Relis le prompt de la vidéo draft");
+      // un seul bouton pour lancer : le plan vidéo prêt (prompt et modèle) se présente et se lance d'un geste, le coût est écrit dessus
+      const ready = st === "video_review" || (st === "prompt_todo" && shot.actions?.run);
+      h += videoPromptBlock(shot, ready, "1. Relis le prompt de la vidéo draft");
       h += `<div class="pblock"><h4>2. Vérifie le modèle et le coût</h4>${videoModelPicker(shot)}${videoCostLine(shot)}</div>`;
-      if (st === "video_review") {
+      if (ready) {
         h += `<div class="pblock"><h4>3. Lance la vidéo draft</h4>
           <p class="hint">Rien n'est dépensé avant ce bouton.${est && est.final_mode === "keep" ? " Avec ce modèle, la vidéo HD est incluse : c'est la même vidéo." : " La vidéo HD partira après ta validation de la draft."}</p>
-          <div class="row"><button class="btn go" data-approve="${shot.id}">Lancer la vidéo draft${est ? ` · ~${money(est.cost_draft_usd)}` : ""}</button>
+          <div class="row"><button class="btn go" data-launchdraft="${shot.id}">Lancer la vidéo draft${est ? ` · ~${money(est.cost_draft_usd)}` : ""}</button>
             <button class="btn ghost" data-openchange="${shot.id}">Demander une modif au prompteur</button></div>
           ${feedbackBox(shot, "Mouvement, caméra, action, ou modèle à reconsidérer")}</div>`;
-      } else if (shot.actions?.run) {
-        h += `<div class="row"><button class="btn go" data-runstep="${shot.id}">Passer au lancement de la vidéo draft</button></div>`;
       }
     } else if (["draft_todo", "draft_gen", "draft_qc"].includes(st)) {
       h += `<div class="agentbar">${led("work")}<span>${st === "draft_qc" ? "Le contrôleur regarde la vidéo draft." : "La vidéo draft est en génération. Compte quelques minutes."}</span></div>
@@ -2080,7 +2080,6 @@ async function drawerClick(ev) {
     if (d.regenimage) {
       const txt = document.getElementById(`pr-${d.regenimage}-image`).value;
       if (!txt.trim()) { toast("Écris d'abord le prompt", "err"); return; }
-      if (needsConfirm(t, "regen" + d.regenimage)) return;
       t.disabled = true;
       const gs = clip.shots.find((s) => s.id === +d.regenimage);
       const n = propCount(gs);
@@ -2089,7 +2088,6 @@ async function drawerClick(ev) {
       toast(`${n} nouvelle${n > 1 ? "s" : ""} proposition${n > 1 ? "s" : ""} en cours`); return reload();
     }
     if (d.runstep) {
-      if (needsConfirm(t, "run" + d.runstep)) return;
       t.disabled = true;
       const rs = clip.shots.find((s) => s.id === +d.runstep);
       const rm = rs ? pickedModel(shotModelKey(rs), clip.image_models?.visuel) : null;
@@ -2140,6 +2138,22 @@ async function drawerClick(ev) {
       const text = document.getElementById("vp-" + d.saveprompt).value;
       await api(`/api/shots/${d.saveprompt}/video-prompt`, { json: { text } });
       toast("Prompt enregistré");
+      return reload();
+    }
+    if (d.launchdraft) {
+      // présenter le plan vidéo s'il ne l'est pas encore, puis le valider : la vidéo draft part, en un seul toucher
+      const sid = +d.launchdraft;
+      const shot = clip.shots.find((s) => s.id === sid);
+      t.disabled = true;
+      try {
+        const vp = document.getElementById("vp-" + sid);
+        if (vp && vp.tagName === "TEXTAREA" && vp.value.trim() !== (shot.video_prompt || "").trim())
+          await api(`/api/shots/${sid}/video-prompt`, { json: { text: vp.value } });
+        if (shot.status === "prompt_todo") await api(`/api/shots/${sid}/run`, { method: "POST" });
+        await api(`/api/shots/${sid}/review`, { json: { decision: "approve" } });
+      } catch (e) { t.disabled = false; throw e; }
+      toast(`Plan ${shot.num} : la vidéo draft part`);
+      state.step = null; state.sectionOpen = null;
       return reload();
     }
     if (d.approve) {
