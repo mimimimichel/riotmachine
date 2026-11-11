@@ -4224,7 +4224,8 @@ async function loadDecors(clip, keep = false) {
         const e = await api(`/api/clips/${encodeURIComponent(clip.slug)}/elements`, { json: {
           kind: document.getElementById("el-kind").value, name, description: "" } });
         remember(e.id);
-        toast("Ajouté : dépose ton image de départ"); return reload();
+        toast("Ajouté : dépose ton image de départ");
+        return openNewRef(clip, e.slug);
       }
       if (dd.lookdel) {
         if (needsConfirm(t, "lookdel" + dd.lookdel)) return;
@@ -4243,7 +4244,8 @@ async function loadDecors(clip, keep = false) {
         if (!name) { toast("Donne un nom à la tenue", "err"); return; }
         const ch = document.getElementById("look-char").value;
         const r = await api(`/api/characters/${encodeURIComponent(ch)}/looks`, { json: { name, description: document.getElementById("look-new-desc").value, clip_slug: clip.slug } });
-        toast(`Tenue créée : cite-la avec @${ch}-${r.slug}`); return reload();
+        toast(`Tenue créée : cite-la avec @${ch}-${r.slug}`);
+        return openNewRef(clip, `${ch}-${r.slug}`);
       }
       if (dd.eldrafts) {
         const brief = box.querySelector(`[data-elbrief="${dd.eldrafts}"]`).value;
@@ -4505,6 +4507,15 @@ function applyRefSec(clip) {
   const nav = document.getElementById("refsec-nav"), bar = document.querySelector(".topbar");
   // collé sous la barre du haut quand elle reste à l'écran (ordinateur) ; sur téléphone elle défile, le menu se colle en haut
   if (nav && bar) nav.style.top = ["sticky", "fixed"].includes(getComputedStyle(bar).position) ? bar.offsetHeight + "px" : "0px";
+}
+
+/* après la création d'un objet ou d'une tenue : aller sur sa fiche ; le bouton retour ramène là où on était
+   (au plan si on venait d'un plan, sinon au formulaire d'ajout) */
+function openNewRef(clip, slug) {
+  if (!state.back) state.back = { hash: location.hash, text: "← Retour à l'ajout", tab: state.tab };
+  const target = `#/clip/${encodeURIComponent(clip.slug)}/decors/ref/${encodeURIComponent(slug)}`;
+  if (location.hash === target) { state.refTarget = slug; router(); } else location.hash = target;
+  updateBackBtn();
 }
 
 function focusRefTarget(clip, d) {

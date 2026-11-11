@@ -649,3 +649,11 @@ def test_r_f7_lancer_la_video_en_un_toucher():
     i = js.index("if (d.launchdraft)")
     assert "/run`" in js[i:i + 900] and 'decision: "approve"' in js[i:i + 900]
     assert 'needsConfirm(t, "regen"' not in js and 'needsConfirm(t, "run"' not in js
+
+
+def test_r_b5_nouvel_objet_ouvre_sa_fiche():
+    """R-B5 : créer un objet ou une tenue mène à sa fiche, avec le retour vers l'endroit d'où l'on venait."""
+    from pathlib import Path
+    js = (Path(__file__).resolve().parents[1] / "riotmachine/regie/static/app.js").read_text()
+    assert "function openNewRef(" in js
+    assert js.count("openNewRef(clip,") >= 2
