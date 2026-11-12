@@ -1,0 +1,544 @@
+{
+  "id": 8,
+  "clip_slug": "nobody-saw",
+  "num": 8,
+  "section": "Couplet 1 : le bureau",
+  "t_start": 30.1,
+  "t_end": 33.6,
+  "description": "Elle entre dans son bureau (son bureau individuel de directrice, pas l'open space) et s'installe à son bureau, en rythme, satisfaite.",
+  "framing": "MS",
+  "motion": "low",
+  "camera": "static, slight push-in",
+  "characters": [
+    "jj"
+  ],
+  "singing": 0,
+  "tier": null,
+  "model_key": null,
+  "seed": null,
+  "image_prompt": "Use the reference images for JJ's exact appearance (face, light brown skin, light green-grey-blue almond eyes, very dense long chestnut curls with golden and copper highlights, body proportions). Keep the identity identical. JJ, a 25-year-old mixed French-Caribbean woman, soft oval face, light brown skin with warm undertones, almond-shaped light eyes in an ambiguous green-grey-blue hue, very dense long hair of small tight curls, chestnut brown with golden and copper highlights, huge volume. First frame: JJ steps into her own private director's corner office and reaches her large polished mahogany desk, one hand on the back of her beige leather executive chair, about to sit, a leather tote in her other hand, a small contented smile. She wears her black tailored suit set (black single-breasted blazer cinched at the waist, matching black wide-leg trousers, small gold hoop earrings, black high-heeled leather pumps, not nude, not strappy, not loafers). On the desk: a screen, a keyboard, a white mug, a black desk phone. Floor-to-ceiling window behind showing bright daylight. No post-its, no open-space desks. Medium shot, eye level, 35mm, f/2.8, static camera. Broad daytime: no dusk, no purple or violet neon, no night skyline. Daylight from the large window mixed with cool ceiling light, natural contrast, cool grey-blue and white palette: a real consulting-firm office, not a stylized set. Light and contented. Photorealistic, natural healthy skin with a fine, even, matte finish, no visible pores, no blemishes, no shine, subtle natural asymmetry, polished like a professional music-video shoot, never plastic, subtle film grain, shot on ARRI Alexa.",
+  "video_prompt": null,
+  "negative_prompt": null,
+  "status": "failed",
+  "qc_retries": 0,
+  "notes": "Plan ajouté pour couvrir l'intro décalée. Paroles : Wednesday morning, out the door",
+  "updated_at": "2026-11-08T16:44:24Z",
+  "block_id": 2,
+  "route_reason": null,
+  "detail": "JJ in @jj-black-tailor  walks into her own director's office in @bureau-et-open-space, a private corner office separate from the open space, and reaches her large polished mahogany desk. On the beat she drops into her beige leather executive chair, sets her leather tote down beside the desk, taps the keyboard twice in rhythm and leans back with a satisfied little smile: everything is in order. Her screen and her white mug sit on the desk, next to the black desk phone. Medium shot, eye level, 35mm, static camera with a slight push-in. Daylight from the floor-to-ceiling window mixed with cool ceiling light, natural contrast, cool grey-blue and white palette: a real consulting-firm office, not a stylized set. Light and contented, in rhythm: she has no idea what is about to happen at home. No post-its, no open-space desks around her.",
+  "detail_edited": 1,
+  "failed_step": "image",
+  "lipsync_key": null,
+  "cut_ok": 1,
+  "looks": "{\"jj\": \"black-tailor\"}",
+  "refs_ok": 0,
+  "looks_manual": 0,
+  "deleted_at": null,
+  "script": "Elle entre dans son bureau (son bureau individuel de directrice, pas l'open space) et s'installe à son bureau, en rythme, satisfaite.",
+  "prod_outdated": 0,
+  "assets": [
+    {
+      "id": 89,
+      "shot_id": 8,
+      "kind": "image",
+      "version": 1,
+      "path": "clips/nobody-saw/storyboard/plan-008-v1.png",
+      "remote_url": null,
+      "prompt": "Use the reference images for JJ's exact appearance (face, light brown skin, light green-grey-blue almond eyes, very dense long chestnut curls with golden and copper highlights, body proportions). Keep the identity identical. JJ, a 25-year-old mixed French-Caribbean woman, soft oval face, light brown skin with warm undertones, almond-shaped light eyes in an ambiguous green-grey-blue hue, very dense long hair of small tight curls, chestnut brown with golden and copper highlights, huge volume. First frame: JJ steps into her own private director's corner office and reaches her large polished mahogany desk, one hand on the back of her beige leather executive chair, about to sit, a leather tote in her other hand, a small contented smile. She wears her black tailored suit set (black single-breasted blazer cinched at the waist, matching black wide-leg trousers, nude strappy heels, small gold hoop earrings). On the desk: a screen, a keyboard, a white mug, a black desk phone. Floor-to-ceiling window behind. No post-its, no open-space desks. Medium shot, eye level, 35mm, f/2.8, static camera. Daylight from the large window mixed with cool ceiling light, natural contrast, cool grey-blue and white palette: a real consulting-firm office, not a stylized set. Light and contented. Photorealistic, natural healthy skin with a fine, even, matte finish, no visible pores, no blemishes, no shine, subtle natural asymmetry, polished like a professional music-video shoot, never plastic, subtle film grain, shot on ARRI Alexa.\n\nOutfits (keep them exactly as in their reference photos):\n- Outfit of jj (black-tailor), identical in every shot where it appears: black tailored single-breasted blazer, slim fitted and sharply cinched at the waist, hip-length, notch lapels of medium width, deep plunging V neckline, single black button fastened at the natural waist, two horizontal flap pockets at the hips, vertical princess seams on the front, structured natural shoulders, long slim sleeves ending at the wrist, rounded front hem, worn with no top underneath; matching black high-waisted wide-leg trousers, straight fluid leg with sharp pressed center creases, floor-length hem almost covering the shoes; matte black wool crepe fabric, matching suit set; nude barely-there strappy high-heeled sandals with thin toe strap; small gold hoop earrings\n\nSetting, props and secondary characters (keep them exactly as in their reference images):\n- Décor « Bureau et open space » (@bureau-et-open-space) : Grand bureau de direction au dernier étage d'une tour, vu de l'intérieur au crépuscule. Une baie vitrée du sol au plafond, à montants fins gris, donne sur une métropole illuminée, un fleuve et des gratte-ciel sous un ciel dégradé bleu, orange et rose. Sur la gauche, une bibliothèque en bois sombre avec rétroéclairage violet, remplie de livres, d'une sculpture argentée et d'une boule de cristal. Un grand bureau en bois d'acajou verni, avec sous-main en cuir beige, un livre fermé et un téléphone fixe noir. Deux fauteuils de direction en cuir beige à roulettes, l'un derrière le bureau, l'autre devant. Plafond gris taupe avec bandeaux lumineux violet puis bleu et un néon blanc linéaire. Moquette gris foncé. À droite, un coin salon : table basse en marbre clair avec un livre, bouquet d'orchidées blanches, fauteuil brun à structure noire, canapé beige, lampe de table à abat-jour crème. Aucune personne.\n\nLighting and color grade shared by the whole sequence: Real-life consulting-firm office in daytime: soft daylight from large windows mixed with cool neutral LED ceiling panels, natural clean contrast, cool grey-blue and white palette, realistic and unglamorous, fine 35mm grain.\n\nPHOTO STYLE: Photorealistic, like a frame from a high-end music video shot on a cinema camera: real people, real places, real light, professional cinematography and art direction. Flattering and polished, never ugly: healthy even skin with a natural finish, no visible pores, no blemishes, no greasy shine, no exaggerated wrinkles or flaws; clean styling, neat hair, tidy sets. Controlled cinematic lighting with soft contrast, rich natural colours, subtle fine film grain. Not CGI, not a 3D render, not an illustration, no plastic or waxy skin, no heavy beauty filter.",
+      "model_key": "cloudflare:klein-9b",
+      "seed": null,
+      "params": {},
+      "cost_usd": 0.0,
+      "status": "superseded",
+      "error": "FLUX.2 klein 9B (Cloudflare) : quota gratuit du jour épuisé. Choisis un autre modèle et relance.",
+      "created_at": "2026-11-07T10:35:06Z",
+      "funding": "free",
+      "missing": true
+    },
+    {
+      "id": 90,
+      "shot_id": 8,
+      "kind": "image",
+      "version": 2,
+      "path": "clips/nobody-saw/storyboard/plan-008-v2.png",
+      "remote_url": null,
+      "prompt": "Use the reference images for JJ's exact appearance (face, light brown skin, light green-grey-blue almond eyes, very dense long chestnut curls with golden and copper highlights, body proportions). Keep the identity identical. JJ, a 25-year-old mixed French-Caribbean woman, soft oval face, light brown skin with warm undertones, almond-shaped light eyes in an ambiguous green-grey-blue hue, very dense long hair of small tight curls, chestnut brown with golden and copper highlights, huge volume. First frame: JJ steps into her own private director's corner office and reaches her large polished mahogany desk, one hand on the back of her beige leather executive chair, about to sit, a leather tote in her other hand, a small contented smile. She wears her black tailored suit set (black single-breasted blazer cinched at the waist, matching black wide-leg trousers, nude strappy heels, small gold hoop earrings). On the desk: a screen, a keyboard, a white mug, a black desk phone. Floor-to-ceiling window behind. No post-its, no open-space desks. Medium shot, eye level, 35mm, f/2.8, static camera. Daylight from the large window mixed with cool ceiling light, natural contrast, cool grey-blue and white palette: a real consulting-firm office, not a stylized set. Light and contented. Photorealistic, natural healthy skin with a fine, even, matte finish, no visible pores, no blemishes, no shine, subtle natural asymmetry, polished like a professional music-video shoot, never plastic, subtle film grain, shot on ARRI Alexa.\n\nOutfits (keep them exactly as in their reference photos):\n- Outfit of jj (black-tailor), identical in every shot where it appears: black tailored single-breasted blazer, slim fitted and sharply cinched at the waist, hip-length, notch lapels of medium width, deep plunging V neckline, single black button fastened at the natural waist, two horizontal flap pockets at the hips, vertical princess seams on the front, structured natural shoulders, long slim sleeves ending at the wrist, rounded front hem, worn with no top underneath; matching black high-waisted wide-leg trousers, straight fluid leg with sharp pressed center creases, floor-length hem almost covering the shoes; matte black wool crepe fabric, matching suit set; nude barely-there strappy high-heeled sandals with thin toe strap; small gold hoop earrings\n\nSetting, props and secondary characters (keep them exactly as in their reference images):\n- Décor « Bureau et open space » (@bureau-et-open-space) : Grand bureau de direction au dernier étage d'une tour, vu de l'intérieur au crépuscule. Une baie vitrée du sol au plafond, à montants fins gris, donne sur une métropole illuminée, un fleuve et des gratte-ciel sous un ciel dégradé bleu, orange et rose. Sur la gauche, une bibliothèque en bois sombre avec rétroéclairage violet, remplie de livres, d'une sculpture argentée et d'une boule de cristal. Un grand bureau en bois d'acajou verni, avec sous-main en cuir beige, un livre fermé et un téléphone fixe noir. Deux fauteuils de direction en cuir beige à roulettes, l'un derrière le bureau, l'autre devant. Plafond gris taupe avec bandeaux lumineux violet puis bleu et un néon blanc linéaire. Moquette gris foncé. À droite, un coin salon : table basse en marbre clair avec un livre, bouquet d'orchidées blanches, fauteuil brun à structure noire, canapé beige, lampe de table à abat-jour crème. Aucune personne.\n\nLighting and color grade shared by the whole sequence: Real-life consulting-firm office in daytime: soft daylight from large windows mixed with cool neutral LED ceiling panels, natural clean contrast, cool grey-blue and white palette, realistic and unglamorous, fine 35mm grain.\n\nPHOTO STYLE: Photorealistic, like a frame from a high-end music video shot on a cinema camera: real people, real places, real light, professional cinematography and art direction. Flattering and polished, never ugly: healthy even skin with a natural finish, no visible pores, no blemishes, no greasy shine, no exaggerated wrinkles or flaws; clean styling, neat hair, tidy sets. Controlled cinematic lighting with soft contrast, rich natural colours, subtle fine film grain. Not CGI, not a 3D render, not an illustration, no plastic or waxy skin, no heavy beauty filter.",
+      "model_key": "cloudflare:klein-9b",
+      "seed": null,
+      "params": {},
+      "cost_usd": 0.0,
+      "status": "superseded",
+      "error": "FLUX.2 klein 9B (Cloudflare) : quota gratuit du jour épuisé. Choisis un autre modèle et relance.",
+      "created_at": "2026-11-07T10:35:06Z",
+      "funding": "free",
+      "missing": true
+    },
+    {
+      "id": 91,
+      "shot_id": 8,
+      "kind": "image",
+      "version": 3,
+      "path": "clips/nobody-saw/storyboard/plan-008-v3.png",
+      "remote_url": null,
+      "prompt": "Use the reference images for JJ's exact appearance (face, light brown skin, light green-grey-blue almond eyes, very dense long chestnut curls with golden and copper highlights, body proportions). Keep the identity identical. JJ, a 25-year-old mixed French-Caribbean woman, soft oval face, light brown skin with warm undertones, almond-shaped light eyes in an ambiguous green-grey-blue hue, very dense long hair of small tight curls, chestnut brown with golden and copper highlights, huge volume. First frame: JJ steps into her own private director's corner office and reaches her large polished mahogany desk, one hand on the back of her beige leather executive chair, about to sit, a leather tote in her other hand, a small contented smile. She wears her black tailored suit set (black single-breasted blazer cinched at the waist, matching black wide-leg trousers, nude strappy heels, small gold hoop earrings). On the desk: a screen, a keyboard, a white mug, a black desk phone. Floor-to-ceiling window behind. No post-its, no open-space desks. Medium shot, eye level, 35mm, f/2.8, static camera. Daylight from the large window mixed with cool ceiling light, natural contrast, cool grey-blue and white palette: a real consulting-firm office, not a stylized set. Light and contented. Photorealistic, natural healthy skin with a fine, even, matte finish, no visible pores, no blemishes, no shine, subtle natural asymmetry, polished like a professional music-video shoot, never plastic, subtle film grain, shot on ARRI Alexa.\n\nOutfits (keep them exactly as in their reference photos):\n- Outfit of jj (black-tailor), identical in every shot where it appears: black tailored single-breasted blazer, slim fitted and sharply cinched at the waist, hip-length, notch lapels of medium width, deep plunging V neckline, single black button fastened at the natural waist, two horizontal flap pockets at the hips, vertical princess seams on the front, structured natural shoulders, long slim sleeves ending at the wrist, rounded front hem, worn with no top underneath; matching black high-waisted wide-leg trousers, straight fluid leg with sharp pressed center creases, floor-length hem almost covering the shoes; matte black wool crepe fabric, matching suit set; nude barely-there strappy high-heeled sandals with thin toe strap; small gold hoop earrings\n\nSetting, props and secondary characters (keep them exactly as in their reference images):\n- Décor « Bureau et open space » (@bureau-et-open-space) : Grand bureau de direction au dernier étage d'une tour, vu de l'intérieur au crépuscule. Une baie vitrée du sol au plafond, à montants fins gris, donne sur une métropole illuminée, un fleuve et des gratte-ciel sous un ciel dégradé bleu, orange et rose. Sur la gauche, une bibliothèque en bois sombre avec rétroéclairage violet, remplie de livres, d'une sculpture argentée et d'une boule de cristal. Un grand bureau en bois d'acajou verni, avec sous-main en cuir beige, un livre fermé et un téléphone fixe noir. Deux fauteuils de direction en cuir beige à roulettes, l'un derrière le bureau, l'autre devant. Plafond gris taupe avec bandeaux lumineux violet puis bleu et un néon blanc linéaire. Moquette gris foncé. À droite, un coin salon : table basse en marbre clair avec un livre, bouquet d'orchidées blanches, fauteuil brun à structure noire, canapé beige, lampe de table à abat-jour crème. Aucune personne.\n\nLighting and color grade shared by the whole sequence: Real-life consulting-firm office in daytime: soft daylight from large windows mixed with cool neutral LED ceiling panels, natural clean contrast, cool grey-blue and white palette, realistic and unglamorous, fine 35mm grain.\n\nPHOTO STYLE: Photorealistic, like a frame from a high-end music video shot on a cinema camera: real people, real places, real light, professional cinematography and art direction. Flattering and polished, never ugly: healthy even skin with a natural finish, no visible pores, no blemishes, no greasy shine, no exaggerated wrinkles or flaws; clean styling, neat hair, tidy sets. Controlled cinematic lighting with soft contrast, rich natural colours, subtle fine film grain. Not CGI, not a 3D render, not an illustration, no plastic or waxy skin, no heavy beauty filter.",
+      "model_key": "cloudflare:klein-9b",
+      "seed": null,
+      "params": {},
+      "cost_usd": 0.0,
+      "status": "superseded",
+      "error": "FLUX.2 klein 9B (Cloudflare) : quota gratuit du jour épuisé. Choisis un autre modèle et relance.",
+      "created_at": "2026-11-07T10:35:06Z",
+      "funding": "free",
+      "missing": true
+    },
+    {
+      "id": 127,
+      "shot_id": 8,
+      "kind": "image",
+      "version": 4,
+      "path": "clips/nobody-saw/storyboard/plan-008-v4.png",
+      "remote_url": null,
+      "prompt": "Use the reference images for JJ's exact appearance (face, light brown skin, light green-grey-blue almond eyes, very dense long chestnut curls with golden and copper highlights, body proportions). Keep the identity identical. JJ, a 25-year-old mixed French-Caribbean woman, soft oval face, light brown skin with warm undertones, almond-shaped light eyes in an ambiguous green-grey-blue hue, very dense long hair of small tight curls, chestnut brown with golden and copper highlights, huge volume. First frame: JJ steps into her own private director's corner office and reaches her large polished mahogany desk, one hand on the back of her beige leather executive chair, about to sit, a leather tote in her other hand, a small contented smile. She wears her black tailored suit set (black single-breasted blazer cinched at the waist, matching black wide-leg trousers, small gold hoop earrings, black high-heeled leather pumps, not nude, not strappy, not loafers). On the desk: a screen, a keyboard, a white mug, a black desk phone. Floor-to-ceiling window behind showing bright daylight. No post-its, no open-space desks. Medium shot, eye level, 35mm, f/2.8, static camera. Broad daytime: no dusk, no purple or violet neon, no night skyline. Daylight from the large window mixed with cool ceiling light, natural contrast, cool grey-blue and white palette: a real consulting-firm office, not a stylized set. Light and contented. Photorealistic, natural healthy skin with a fine, even, matte finish, no visible pores, no blemishes, no shine, subtle natural asymmetry, polished like a professional music-video shoot, never plastic, subtle film grain, shot on ARRI Alexa.\n\nOutfits (keep them exactly as in their reference photos):\n- Outfit of jj (black-tailor), identical in every shot where it appears: black tailored single-breasted blazer, slim fitted and sharply cinched at the waist, hip-length, notch lapels of medium width, deep plunging V neckline, single black button fastened at the natural waist, two horizontal flap pockets at the hips, vertical princess seams on the front, structured natural shoulders, long slim sleeves ending at the wrist, rounded front hem, worn with no top underneath; matching black high-waisted wide-leg trousers, straight fluid leg with sharp pressed center creases, floor-length hem almost covering the shoes; matte black wool crepe fabric, matching suit set; nude barely-there strappy high-heeled sandals with thin toe strap; small gold hoop earrings\n\nSetting, props and secondary characters (keep them exactly as in their reference images):\n- Décor « Bureau et open space » (@bureau-et-open-space) : Grand bureau de direction au dernier étage d'une tour, vu de l'intérieur au crépuscule. Une baie vitrée du sol au plafond, à montants fins gris, donne sur une métropole illuminée, un fleuve et des gratte-ciel sous un ciel dégradé bleu, orange et rose. Sur la gauche, une bibliothèque en bois sombre avec rétroéclairage violet, remplie de livres, d'une sculpture argentée et d'une boule de cristal. Un grand bureau en bois d'acajou verni, avec sous-main en cuir beige, un livre fermé et un téléphone fixe noir. Deux fauteuils de direction en cuir beige à roulettes, l'un derrière le bureau, l'autre devant. Plafond gris taupe avec bandeaux lumineux violet puis bleu et un néon blanc linéaire. Moquette gris foncé. À droite, un coin salon : table basse en marbre clair avec un livre, bouquet d'orchidées blanches, fauteuil brun à structure noire, canapé beige, lampe de table à abat-jour crème. Aucune personne.\n\nLighting and color grade shared by the whole sequence: Real-life consulting-firm office in daytime: soft daylight from large windows mixed with cool neutral LED ceiling panels, natural clean contrast, cool grey-blue and white palette, realistic and unglamorous, fine 35mm grain.\n\nPHOTO STYLE: Photorealistic, like a frame from a high-end music video shot on a cinema camera: real people, real places, real light, professional cinematography and art direction. Flattering and polished, never ugly: healthy even skin with a natural finish, no visible pores, no blemishes, no greasy shine, no exaggerated wrinkles or flaws; clean styling, neat hair, tidy sets. Controlled cinematic lighting with soft contrast, rich natural colours, subtle fine film grain. Not CGI, not a 3D render, not an illustration, no plastic or waxy skin, no heavy beauty filter.",
+      "model_key": "cloudflare:klein-9b",
+      "seed": null,
+      "params": {},
+      "cost_usd": 0.0,
+      "status": "superseded",
+      "error": "FLUX.2 klein 9B (Cloudflare) : quota gratuit du jour épuisé. Choisis un autre modèle et relance.",
+      "created_at": "2026-11-07T13:57:40Z",
+      "funding": "free",
+      "missing": true
+    },
+    {
+      "id": 128,
+      "shot_id": 8,
+      "kind": "image",
+      "version": 5,
+      "path": "clips/nobody-saw/storyboard/plan-008-v5.png",
+      "remote_url": null,
+      "prompt": "Use the reference images for JJ's exact appearance (face, light brown skin, light green-grey-blue almond eyes, very dense long chestnut curls with golden and copper highlights, body proportions). Keep the identity identical. JJ, a 25-year-old mixed French-Caribbean woman, soft oval face, light brown skin with warm undertones, almond-shaped light eyes in an ambiguous green-grey-blue hue, very dense long hair of small tight curls, chestnut brown with golden and copper highlights, huge volume. First frame: JJ steps into her own private director's corner office and reaches her large polished mahogany desk, one hand on the back of her beige leather executive chair, about to sit, a leather tote in her other hand, a small contented smile. She wears her black tailored suit set (black single-breasted blazer cinched at the waist, matching black wide-leg trousers, small gold hoop earrings, black high-heeled leather pumps, not nude, not strappy, not loafers). On the desk: a screen, a keyboard, a white mug, a black desk phone. Floor-to-ceiling window behind showing bright daylight. No post-its, no open-space desks. Medium shot, eye level, 35mm, f/2.8, static camera. Broad daytime: no dusk, no purple or violet neon, no night skyline. Daylight from the large window mixed with cool ceiling light, natural contrast, cool grey-blue and white palette: a real consulting-firm office, not a stylized set. Light and contented. Photorealistic, natural healthy skin with a fine, even, matte finish, no visible pores, no blemishes, no shine, subtle natural asymmetry, polished like a professional music-video shoot, never plastic, subtle film grain, shot on ARRI Alexa.\n\nOutfits (keep them exactly as in their reference photos):\n- Outfit of jj (black-tailor), identical in every shot where it appears: black tailored single-breasted blazer, slim fitted and sharply cinched at the waist, hip-length, notch lapels of medium width, deep plunging V neckline, single black button fastened at the natural waist, two horizontal flap pockets at the hips, vertical princess seams on the front, structured natural shoulders, long slim sleeves ending at the wrist, rounded front hem, worn with no top underneath; matching black high-waisted wide-leg trousers, straight fluid leg with sharp pressed center creases, floor-length hem almost covering the shoes; matte black wool crepe fabric, matching suit set; nude barely-there strappy high-heeled sandals with thin toe strap; small gold hoop earrings\n\nSetting, props and secondary characters (keep them exactly as in their reference images):\n- Décor « Bureau et open space » (@bureau-et-open-space) : Grand bureau de direction au dernier étage d'une tour, vu de l'intérieur au crépuscule. Une baie vitrée du sol au plafond, à montants fins gris, donne sur une métropole illuminée, un fleuve et des gratte-ciel sous un ciel dégradé bleu, orange et rose. Sur la gauche, une bibliothèque en bois sombre avec rétroéclairage violet, remplie de livres, d'une sculpture argentée et d'une boule de cristal. Un grand bureau en bois d'acajou verni, avec sous-main en cuir beige, un livre fermé et un téléphone fixe noir. Deux fauteuils de direction en cuir beige à roulettes, l'un derrière le bureau, l'autre devant. Plafond gris taupe avec bandeaux lumineux violet puis bleu et un néon blanc linéaire. Moquette gris foncé. À droite, un coin salon : table basse en marbre clair avec un livre, bouquet d'orchidées blanches, fauteuil brun à structure noire, canapé beige, lampe de table à abat-jour crème. Aucune personne.\n\nLighting and color grade shared by the whole sequence: Real-life consulting-firm office in daytime: soft daylight from large windows mixed with cool neutral LED ceiling panels, natural clean contrast, cool grey-blue and white palette, realistic and unglamorous, fine 35mm grain.\n\nPHOTO STYLE: Photorealistic, like a frame from a high-end music video shot on a cinema camera: real people, real places, real light, professional cinematography and art direction. Flattering and polished, never ugly: healthy even skin with a natural finish, no visible pores, no blemishes, no greasy shine, no exaggerated wrinkles or flaws; clean styling, neat hair, tidy sets. Controlled cinematic lighting with soft contrast, rich natural colours, subtle fine film grain. Not CGI, not a 3D render, not an illustration, no plastic or waxy skin, no heavy beauty filter.",
+      "model_key": "cloudflare:klein-9b",
+      "seed": null,
+      "params": {},
+      "cost_usd": 0.0,
+      "status": "superseded",
+      "error": "FLUX.2 klein 9B (Cloudflare) : quota gratuit du jour épuisé. Choisis un autre modèle et relance.",
+      "created_at": "2026-11-07T13:57:40Z",
+      "funding": "free",
+      "missing": true
+    },
+    {
+      "id": 129,
+      "shot_id": 8,
+      "kind": "image",
+      "version": 6,
+      "path": "clips/nobody-saw/storyboard/plan-008-v6.png",
+      "remote_url": null,
+      "prompt": "Use the reference images for JJ's exact appearance (face, light brown skin, light green-grey-blue almond eyes, very dense long chestnut curls with golden and copper highlights, body proportions). Keep the identity identical. JJ, a 25-year-old mixed French-Caribbean woman, soft oval face, light brown skin with warm undertones, almond-shaped light eyes in an ambiguous green-grey-blue hue, very dense long hair of small tight curls, chestnut brown with golden and copper highlights, huge volume. First frame: JJ steps into her own private director's corner office and reaches her large polished mahogany desk, one hand on the back of her beige leather executive chair, about to sit, a leather tote in her other hand, a small contented smile. She wears her black tailored suit set (black single-breasted blazer cinched at the waist, matching black wide-leg trousers, small gold hoop earrings, black high-heeled leather pumps, not nude, not strappy, not loafers). On the desk: a screen, a keyboard, a white mug, a black desk phone. Floor-to-ceiling window behind showing bright daylight. No post-its, no open-space desks. Medium shot, eye level, 35mm, f/2.8, static camera. Broad daytime: no dusk, no purple or violet neon, no night skyline. Daylight from the large window mixed with cool ceiling light, natural contrast, cool grey-blue and white palette: a real consulting-firm office, not a stylized set. Light and contented. Photorealistic, natural healthy skin with a fine, even, matte finish, no visible pores, no blemishes, no shine, subtle natural asymmetry, polished like a professional music-video shoot, never plastic, subtle film grain, shot on ARRI Alexa.\n\nOutfits (keep them exactly as in their reference photos):\n- Outfit of jj (black-tailor), identical in every shot where it appears: black tailored single-breasted blazer, slim fitted and sharply cinched at the waist, hip-length, notch lapels of medium width, deep plunging V neckline, single black button fastened at the natural waist, two horizontal flap pockets at the hips, vertical princess seams on the front, structured natural shoulders, long slim sleeves ending at the wrist, rounded front hem, worn with no top underneath; matching black high-waisted wide-leg trousers, straight fluid leg with sharp pressed center creases, floor-length hem almost covering the shoes; matte black wool crepe fabric, matching suit set; nude barely-there strappy high-heeled sandals with thin toe strap; small gold hoop earrings\n\nSetting, props and secondary characters (keep them exactly as in their reference images):\n- Décor « Bureau et open space » (@bureau-et-open-space) : Grand bureau de direction au dernier étage d'une tour, vu de l'intérieur au crépuscule. Une baie vitrée du sol au plafond, à montants fins gris, donne sur une métropole illuminée, un fleuve et des gratte-ciel sous un ciel dégradé bleu, orange et rose. Sur la gauche, une bibliothèque en bois sombre avec rétroéclairage violet, remplie de livres, d'une sculpture argentée et d'une boule de cristal. Un grand bureau en bois d'acajou verni, avec sous-main en cuir beige, un livre fermé et un téléphone fixe noir. Deux fauteuils de direction en cuir beige à roulettes, l'un derrière le bureau, l'autre devant. Plafond gris taupe avec bandeaux lumineux violet puis bleu et un néon blanc linéaire. Moquette gris foncé. À droite, un coin salon : table basse en marbre clair avec un livre, bouquet d'orchidées blanches, fauteuil brun à structure noire, canapé beige, lampe de table à abat-jour crème. Aucune personne.\n\nLighting and color grade shared by the whole sequence: Real-life consulting-firm office in daytime: soft daylight from large windows mixed with cool neutral LED ceiling panels, natural clean contrast, cool grey-blue and white palette, realistic and unglamorous, fine 35mm grain.\n\nPHOTO STYLE: Photorealistic, like a frame from a high-end music video shot on a cinema camera: real people, real places, real light, professional cinematography and art direction. Flattering and polished, never ugly: healthy even skin with a natural finish, no visible pores, no blemishes, no greasy shine, no exaggerated wrinkles or flaws; clean styling, neat hair, tidy sets. Controlled cinematic lighting with soft contrast, rich natural colours, subtle fine film grain. Not CGI, not a 3D render, not an illustration, no plastic or waxy skin, no heavy beauty filter.",
+      "model_key": "cloudflare:klein-9b",
+      "seed": null,
+      "params": {},
+      "cost_usd": 0.0,
+      "status": "superseded",
+      "error": "FLUX.2 klein 9B (Cloudflare) : quota gratuit du jour épuisé. Choisis un autre modèle et relance.",
+      "created_at": "2026-11-07T13:57:40Z",
+      "funding": "free",
+      "missing": true
+    },
+    {
+      "id": 152,
+      "shot_id": 8,
+      "kind": "image",
+      "version": 7,
+      "path": "clips/nobody-saw/storyboard/plan-008-v7.png",
+      "remote_url": null,
+      "prompt": "Use the reference images for JJ's exact appearance (face, light brown skin, light green-grey-blue almond eyes, very dense long chestnut curls with golden and copper highlights, body proportions). Keep the identity identical. JJ, a 25-year-old mixed French-Caribbean woman, soft oval face, light brown skin with warm undertones, almond-shaped light eyes in an ambiguous green-grey-blue hue, very dense long hair of small tight curls, chestnut brown with golden and copper highlights, huge volume. First frame: JJ steps into her own private director's corner office and reaches her large polished mahogany desk, one hand on the back of her beige leather executive chair, about to sit, a leather tote in her other hand, a small contented smile. She wears her black tailored suit set (black single-breasted blazer cinched at the waist, matching black wide-leg trousers, small gold hoop earrings, black high-heeled leather pumps, not nude, not strappy, not loafers). On the desk: a screen, a keyboard, a white mug, a black desk phone. Floor-to-ceiling window behind showing bright daylight. No post-its, no open-space desks. Medium shot, eye level, 35mm, f/2.8, static camera. Broad daytime: no dusk, no purple or violet neon, no night skyline. Daylight from the large window mixed with cool ceiling light, natural contrast, cool grey-blue and white palette: a real consulting-firm office, not a stylized set. Light and contented. Photorealistic, natural healthy skin with a fine, even, matte finish, no visible pores, no blemishes, no shine, subtle natural asymmetry, polished like a professional music-video shoot, never plastic, subtle film grain, shot on ARRI Alexa.\n\nOutfits (keep them exactly as in their reference photos):\n- Outfit of jj (black-tailor), identical in every shot where it appears: black tailored single-breasted blazer, slim fitted and sharply cinched at the waist, hip-length, notch lapels of medium width, deep plunging V neckline, single black button fastened at the natural waist, two horizontal flap pockets at the hips, vertical princess seams on the front, structured natural shoulders, long slim sleeves ending at the wrist, rounded front hem, worn with no top underneath; matching black high-waisted wide-leg trousers, straight fluid leg with sharp pressed center creases, floor-length hem almost covering the shoes; matte black wool crepe fabric, matching suit set; nude barely-there strappy high-heeled sandals with thin toe strap; small gold hoop earrings\n\nSetting, props and secondary characters (keep them exactly as in their reference images):\n- Décor « Bureau et open space » (@bureau-et-open-space) : Grand bureau de direction au dernier étage d'une tour, vu de l'intérieur au crépuscule. Une baie vitrée du sol au plafond, à montants fins gris, donne sur une métropole illuminée, un fleuve et des gratte-ciel sous un ciel dégradé bleu, orange et rose. Sur la gauche, une bibliothèque en bois sombre avec rétroéclairage violet, remplie de livres, d'une sculpture argentée et d'une boule de cristal. Un grand bureau en bois d'acajou verni, avec sous-main en cuir beige, un livre fermé et un téléphone fixe noir. Deux fauteuils de direction en cuir beige à roulettes, l'un derrière le bureau, l'autre devant. Plafond gris taupe avec bandeaux lumineux violet puis bleu et un néon blanc linéaire. Moquette gris foncé. À droite, un coin salon : table basse en marbre clair avec un livre, bouquet d'orchidées blanches, fauteuil brun à structure noire, canapé beige, lampe de table à abat-jour crème. Aucune personne.\n\nLighting and color grade shared by the whole sequence: Real-life consulting-firm office in daytime: soft daylight from large windows mixed with cool neutral LED ceiling panels, natural clean contrast, cool grey-blue and white palette, realistic and unglamorous, fine 35mm grain.\n\nPHOTO STYLE: Photorealistic, like a frame from a high-end music video shot on a cinema camera: real people, real places, real light, professional cinematography and art direction. Flattering and polished, never ugly: healthy even skin with a natural finish, no visible pores, no blemishes, no greasy shine, no exaggerated wrinkles or flaws; clean styling, neat hair, tidy sets. Controlled cinematic lighting with soft contrast, rich natural colours, subtle fine film grain. Not CGI, not a 3D render, not an illustration, no plastic or waxy skin, no heavy beauty filter.",
+      "model_key": "cloudflare:klein-9b",
+      "seed": null,
+      "params": {},
+      "cost_usd": 0.0,
+      "status": "superseded",
+      "error": "FLUX.2 klein 9B (Cloudflare) : quota gratuit du jour épuisé. Choisis un autre modèle et relance.",
+      "created_at": "2026-11-08T16:40:36Z",
+      "funding": "free",
+      "missing": true
+    },
+    {
+      "id": 159,
+      "shot_id": 8,
+      "kind": "image",
+      "version": 8,
+      "path": "clips/nobody-saw/storyboard/plan-008-v8.png",
+      "remote_url": null,
+      "prompt": "Use the reference images for JJ's exact appearance (face, light brown skin, light green-grey-blue almond eyes, very dense long chestnut curls with golden and copper highlights, body proportions). Keep the identity identical. JJ, a 25-year-old mixed French-Caribbean woman, soft oval face, light brown skin with warm undertones, almond-shaped light eyes in an ambiguous green-grey-blue hue, very dense long hair of small tight curls, chestnut brown with golden and copper highlights, huge volume. First frame: JJ steps into her own private director's corner office and reaches her large polished mahogany desk, one hand on the back of her beige leather executive chair, about to sit, a leather tote in her other hand, a small contented smile. She wears her black tailored suit set (black single-breasted blazer cinched at the waist, matching black wide-leg trousers, small gold hoop earrings, black high-heeled leather pumps, not nude, not strappy, not loafers). On the desk: a screen, a keyboard, a white mug, a black desk phone. Floor-to-ceiling window behind showing bright daylight. No post-its, no open-space desks. Medium shot, eye level, 35mm, f/2.8, static camera. Broad daytime: no dusk, no purple or violet neon, no night skyline. Daylight from the large window mixed with cool ceiling light, natural contrast, cool grey-blue and white palette: a real consulting-firm office, not a stylized set. Light and contented. Photorealistic, natural healthy skin with a fine, even, matte finish, no visible pores, no blemishes, no shine, subtle natural asymmetry, polished like a professional music-video shoot, never plastic, subtle film grain, shot on ARRI Alexa.\n\nOutfits (keep them exactly as in their reference photos):\n- Outfit of jj (black-tailor), identical in every shot where it appears: black tailored single-breasted blazer, slim fitted and sharply cinched at the waist, hip-length, notch lapels of medium width, deep plunging V neckline, single black button fastened at the natural waist, two horizontal flap pockets at the hips, vertical princess seams on the front, structured natural shoulders, long slim sleeves ending at the wrist, rounded front hem, worn with no top underneath; matching black high-waisted wide-leg trousers, straight fluid leg with sharp pressed center creases, floor-length hem almost covering the shoes; matte black wool crepe fabric, matching suit set; nude barely-there strappy high-heeled sandals with thin toe strap; small gold hoop earrings\n\nSetting, props and secondary characters (keep them exactly as in their reference images):\n- Décor « Bureau et open space » (@bureau-et-open-space) : Grand bureau de direction au dernier étage d'une tour, vu de l'intérieur au crépuscule. Une baie vitrée du sol au plafond, à montants fins gris, donne sur une métropole illuminée, un fleuve et des gratte-ciel sous un ciel dégradé bleu, orange et rose. Sur la gauche, une bibliothèque en bois sombre avec rétroéclairage violet, remplie de livres, d'une sculpture argentée et d'une boule de cristal. Un grand bureau en bois d'acajou verni, avec sous-main en cuir beige, un livre fermé et un téléphone fixe noir. Deux fauteuils de direction en cuir beige à roulettes, l'un derrière le bureau, l'autre devant. Plafond gris taupe avec bandeaux lumineux violet puis bleu et un néon blanc linéaire. Moquette gris foncé. À droite, un coin salon : table basse en marbre clair avec un livre, bouquet d'orchidées blanches, fauteuil brun à structure noire, canapé beige, lampe de table à abat-jour crème. Aucune personne.\n\nLighting and color grade shared by the whole sequence: Real-life consulting-firm office in daytime: soft daylight from large windows mixed with cool neutral LED ceiling panels, natural clean contrast, cool grey-blue and white palette, realistic and unglamorous, fine 35mm grain.\n\nPHOTO STYLE: Photorealistic, like a frame from a high-end music video shot on a cinema camera: real people, real places, real light, professional cinematography and art direction. Flattering and polished, never ugly: healthy even skin with a natural finish, no visible pores, no blemishes, no greasy shine, no exaggerated wrinkles or flaws; clean styling, neat hair, tidy sets. Controlled cinematic lighting with soft contrast, rich natural colours, subtle fine film grain. Not CGI, not a 3D render, not an illustration, no plastic or waxy skin, no heavy beauty filter.",
+      "model_key": "huggingface:flux2-dev",
+      "seed": null,
+      "params": {},
+      "cost_usd": 0.0,
+      "status": "failed",
+      "error": "FLUX.2 dev (Hugging Face) : GPU gratuit refusé (quota du jour épuisé ou file saturée), réessaie plus tard ou prends un autre modèle. Choisis un autre modèle et relance.",
+      "created_at": "2026-11-08T16:44:14Z",
+      "funding": "free",
+      "missing": true
+    }
+  ],
+  "reviews": [
+    {
+      "id": 6,
+      "clip_slug": "nobody-saw",
+      "shot_id": 8,
+      "asset_id": null,
+      "gate": "decoupage",
+      "decision": "change",
+      "comment": "verifie le nom des decors, elle s'installe dans un bureau à son bureau",
+      "route": "script",
+      "handled": 1,
+      "handled_note": "Compris : au plan 8 elle s'installe dans son bureau individuel de directrice, à son bureau, pas dans l'open space. Plan 8 : description et prompt corrigés d'après l'image du décor (acajou, fauteuil cuir beige, téléphone, baie vitrée). Plans 17, 30, 40, 46 placés dans son bureau individuel. Post-its retirés des plans 8, 40, 46. Pour le décorateur : bureau-et-open-space montre un bureau individuel (à renommer), plateau-de-danse montre un open space et pas une scène, il manque un décor open space pour les plans 6 et 7. Plans 32 et 35 (collègues autour d'elle) laissés tels quels, question dans notes.md.",
+      "created_at": "2026-10-31T18:22:35Z"
+    }
+  ],
+  "cost_usd": 0,
+  "historique": [
+    {
+      "author": "machine",
+      "text": "Visuel non fait. FLUX.2 dev (Hugging Face) : GPU gratuit refusé (quota du jour épuisé ou file saturée), réessaie plus tard ou prends un autre modèle. Choisis un autre modèle et relance.",
+      "created_at": "2026-11-08T16:44:24Z"
+    },
+    {
+      "author": "machine",
+      "text": "Visuel non fait. FLUX.2 klein 9B (Cloudflare) : quota gratuit du jour épuisé. Choisis un autre modèle et relance.",
+      "created_at": "2026-11-08T16:40:36Z"
+    },
+    {
+      "author": "machine",
+      "text": "Visuel non fait. FLUX.2 klein 9B (Cloudflare) : quota gratuit du jour épuisé. Choisis un autre modèle et relance.",
+      "created_at": "2026-11-07T13:57:43Z"
+    },
+    {
+      "author": "machine",
+      "text": "Visuel non fait. FLUX.2 klein 9B (Cloudflare) : quota gratuit du jour épuisé. Choisis un autre modèle et relance.",
+      "created_at": "2026-11-07T10:35:07Z"
+    },
+    {
+      "author": "michael",
+      "text": "verifie le nom des decors, elle s'installe dans un bureau à son bureau",
+      "created_at": "2026-10-31T18:22:35Z"
+    }
+  ],
+  "changes": [
+    {
+      "id": 421,
+      "table_name": "shots",
+      "row_id": "8",
+      "field": "status",
+      "old": "image_gen",
+      "new": "failed",
+      "author": "worker",
+      "reason": "aucune proposition de visuel n'a abouti",
+      "created_at": "2026-11-08T16:44:24Z"
+    },
+    {
+      "id": 420,
+      "table_name": "shots",
+      "row_id": "8",
+      "field": "status",
+      "old": "image_todo",
+      "new": "image_gen",
+      "author": "michael",
+      "reason": null,
+      "created_at": "2026-11-08T16:44:14Z"
+    },
+    {
+      "id": 419,
+      "table_name": "shots",
+      "row_id": "8",
+      "field": "status",
+      "old": "failed",
+      "new": "image_todo",
+      "author": "michael",
+      "reason": null,
+      "created_at": "2026-11-08T16:44:14Z"
+    },
+    {
+      "id": 397,
+      "table_name": "shots",
+      "row_id": "8",
+      "field": "failed_step",
+      "old": null,
+      "new": "image",
+      "author": "worker",
+      "reason": "aucune proposition de visuel n'a abouti",
+      "created_at": "2026-11-08T16:40:36Z"
+    },
+    {
+      "id": 396,
+      "table_name": "shots",
+      "row_id": "8",
+      "field": "status",
+      "old": "image_gen",
+      "new": "failed",
+      "author": "worker",
+      "reason": "aucune proposition de visuel n'a abouti",
+      "created_at": "2026-11-08T16:40:36Z"
+    },
+    {
+      "id": 395,
+      "table_name": "shots",
+      "row_id": "8",
+      "field": "status",
+      "old": "image_todo",
+      "new": "image_gen",
+      "author": "michael",
+      "reason": null,
+      "created_at": "2026-11-08T16:40:36Z"
+    },
+    {
+      "id": 352,
+      "table_name": "shots",
+      "row_id": "8",
+      "field": "status",
+      "old": "failed",
+      "new": "image_todo",
+      "author": "agent:orchestrateur",
+      "reason": null,
+      "created_at": "2026-11-07T15:01:38Z"
+    },
+    {
+      "id": 351,
+      "table_name": "shots",
+      "row_id": "8",
+      "field": "failed_step",
+      "old": "image",
+      "new": null,
+      "author": "agent:orchestrateur",
+      "reason": "relance après échec",
+      "created_at": "2026-11-07T15:01:38Z"
+    },
+    {
+      "id": 314,
+      "table_name": "shots",
+      "row_id": "8",
+      "field": "failed_step",
+      "old": null,
+      "new": "image",
+      "author": "worker",
+      "reason": "aucune proposition de visuel n'a abouti",
+      "created_at": "2026-11-07T13:57:43Z"
+    },
+    {
+      "id": 313,
+      "table_name": "shots",
+      "row_id": "8",
+      "field": "status",
+      "old": "image_gen",
+      "new": "failed",
+      "author": "worker",
+      "reason": "aucune proposition de visuel n'a abouti",
+      "created_at": "2026-11-07T13:57:43Z"
+    },
+    {
+      "id": 304,
+      "table_name": "shots",
+      "row_id": "8",
+      "field": "status",
+      "old": "image_todo",
+      "new": "image_gen",
+      "author": "worker",
+      "reason": null,
+      "created_at": "2026-11-07T13:57:40Z"
+    },
+    {
+      "id": 277,
+      "table_name": "shots",
+      "row_id": "8",
+      "field": "image_prompt",
+      "old": "Use the reference images for JJ's exact appearance (face, light brown skin, light green-grey-blue almond eyes, very dense long chestnut curls with golden and copper highlights, body proportions). Keep the identity identical. JJ, a 25-year-old mixed French-Caribbean woman, soft oval face, light brown skin with warm undertones, almond-shaped light eyes in an ambiguous green-grey-blue hue, very dense long hair of small tight curls, chestnut brown with golden and copper highlights, huge volume. First frame: JJ steps into her own private director's corner office and reaches her large polished mahogany desk, one hand on the back of her beige leather executive chair, about to sit, a leather tote in her other hand, a small contented smile. She wears her black tailored suit set (black single-breasted blazer cinched at the waist, matching black wide-leg trousers, nude strappy heels, small gold hoop earrings). On the desk: a screen, a keyboard, a white mug, a black desk phone. Floor-to-ceiling window behind. No post-its, no open-space desks. Medium shot, eye level, 35mm, f/2.8, static camera. Daylight from the large window mixed with cool ceiling light, natural contrast, cool grey-blue and white palette: a real consulting-firm office, not a stylized set. Light and contented. Photorealistic, natural healthy skin with a fine, even, matte finish, no visible pores, no blemishes, no shine, subtle natural asymmetry, polished like a professional music-video shoot, never plastic, subtle film grain, shot on ARRI Alexa.",
+      "new": "Use the reference images for JJ's exact appearance (face, light brown skin, light green-grey-blue almond eyes, very dense long chestnut curls with golden and copper highlights, body proportions). Keep the identity identical. JJ, a 25-year-old mixed French-Caribbean woman, soft oval face, light brown skin with warm undertones, almond-shaped light eyes in an ambiguous green-grey-blue hue, very dense long hair of small tight curls, chestnut brown with golden and copper highlights, huge volume. First frame: JJ steps into her own private director's corner office and reaches her large polished mahogany desk, one hand on the back of her beige leather executive chair, about to sit, a leather tote in her other hand, a small contented smile. She wears her black tailored suit set (black single-breasted blazer cinched at the waist, matching black wide-leg trousers, small gold hoop earrings, black high-heeled leather pumps, not nude, not strappy, not loafers). On the desk: a screen, a keyboard, a white mug, a black desk phone. Floor-to-ceiling window behind showing bright daylight. No post-its, no open-space desks. Medium shot, eye level, 35mm, f/2.8, static camera. Broad daytime: no dusk, no purple or violet neon, no night skyline. Daylight from the large window mixed with cool ceiling light, natural contrast, cool grey-blue and white palette: a real consulting-firm office, not a stylized set. Light and contented. Photorealistic, natural healthy skin with a fine, even, matte finish, no visible pores, no blemishes, no shine, subtle natural asymmetry, polished like a professional music-video shoot, never plastic, subtle film grain, shot on ARRI Alexa.",
+      "author": "agent:orchestrateur",
+      "reason": null,
+      "created_at": "2026-11-07T13:36:09Z"
+    },
+    {
+      "id": 272,
+      "table_name": "shots",
+      "row_id": "8",
+      "field": "status",
+      "old": "failed",
+      "new": "image_todo",
+      "author": "agent:orchestrateur",
+      "reason": null,
+      "created_at": "2026-11-07T13:35:16Z"
+    },
+    {
+      "id": 271,
+      "table_name": "shots",
+      "row_id": "8",
+      "field": "failed_step",
+      "old": "image",
+      "new": null,
+      "author": "agent:orchestrateur",
+      "reason": "relance après échec",
+      "created_at": "2026-11-07T13:35:16Z"
+    },
+    {
+      "id": 224,
+      "table_name": "shots",
+      "row_id": "8",
+      "field": "failed_step",
+      "old": null,
+      "new": "image",
+      "author": "worker",
+      "reason": "aucune proposition de visuel n'a abouti",
+      "created_at": "2026-11-07T10:35:07Z"
+    },
+    {
+      "id": 223,
+      "table_name": "shots",
+      "row_id": "8",
+      "field": "status",
+      "old": "image_gen",
+      "new": "failed",
+      "author": "worker",
+      "reason": "aucune proposition de visuel n'a abouti",
+      "created_at": "2026-11-07T10:35:07Z"
+    },
+    {
+      "id": 219,
+      "table_name": "shots",
+      "row_id": "8",
+      "field": "status",
+      "old": "image_todo",
+      "new": "image_gen",
+      "author": "worker",
+      "reason": null,
+      "created_at": "2026-11-07T10:35:06Z"
+    },
+    {
+      "id": 216,
+      "table_name": "shots",
+      "row_id": "8",
+      "field": "image_prompt",
+      "old": null,
+      "new": "Use the reference images for JJ's exact appearance (face, light brown skin, light green-grey-blue almond eyes, very dense long chestnut curls with golden and copper highlights, body proportions). Keep the identity identical. JJ, a 25-year-old mixed French-Caribbean woman, soft oval face, light brown skin with warm undertones, almond-shaped light eyes in an ambiguous green-grey-blue hue, very dense long hair of small tight curls, chestnut brown with golden and copper highlights, huge volume. First frame: JJ steps into her own private director's corner office and reaches her large polished mahogany desk, one hand on the back of her beige leather executive chair, about to sit, a leather tote in her other hand, a small contented smile. She wears her black tailored suit set (black single-breasted blazer cinched at the waist, matching black wide-leg trousers, nude strappy heels, small gold hoop earrings). On the desk: a screen, a keyboard, a white mug, a black desk phone. Floor-to-ceiling window behind. No post-its, no open-space desks. Medium shot, eye level, 35mm, f/2.8, static camera. Daylight from the large window mixed with cool ceiling light, natural contrast, cool grey-blue and white palette: a real consulting-firm office, not a stylized set. Light and contented. Photorealistic, natural healthy skin with a fine, even, matte finish, no visible pores, no blemishes, no shine, subtle natural asymmetry, polished like a professional music-video shoot, never plastic, subtle film grain, shot on ARRI Alexa.",
+      "author": "agent:orchestrateur",
+      "reason": null,
+      "created_at": "2026-11-07T10:31:03Z"
+    },
+    {
+      "id": 201,
+      "table_name": "shots",
+      "row_id": "8",
+      "field": "cut_ok",
+      "old": "0",
+      "new": "1",
+      "author": "michael",
+      "reason": "plan validé dans le découpage",
+      "created_at": "2026-11-07T10:12:08Z"
+    },
+    {
+      "id": 200,
+      "table_name": "shots",
+      "row_id": "8",
+      "field": "looks",
+      "old": null,
+      "new": "{\"jj\": \"black-tailor\"}",
+      "author": "michael",
+      "reason": "tenue du plan",
+      "created_at": "2026-11-07T10:12:06Z"
+    },
+    {
+      "id": 199,
+      "table_name": "shots",
+      "row_id": "8",
+      "field": "detail_edited",
+      "old": "0",
+      "new": "1",
+      "author": "michael",
+      "reason": "découpage enregistré",
+      "created_at": "2026-11-07T10:12:06Z"
+    },
+    {
+      "id": 198,
+      "table_name": "shots",
+      "row_id": "8",
+      "field": "detail",
+      "old": "JJ in @jj-bureau walks into her own director's office in @bureau-et-open-space, a private corner office separate from the open space, and reaches her large polished mahogany desk. On the beat she drops into her beige leather executive chair, sets her leather tote down beside the desk, taps the keyboard twice in rhythm and leans back with a satisfied little smile: everything is in order. Her screen and her white mug sit on the desk, next to the black desk phone. Medium shot, eye level, 35mm, static camera with a slight push-in. Daylight from the floor-to-ceiling window mixed with cool ceiling light, natural contrast, cool grey-blue and white palette: a real consulting-firm office, not a stylized set. Light and contented, in rhythm: she has no idea what is about to happen at home. No post-its, no open-space desks around her.",
+      "new": "JJ in @jj-black-tailor  walks into her own director's office in @bureau-et-open-space, a private corner office separate from the open space, and reaches her large polished mahogany desk. On the beat she drops into her beige leather executive chair, sets her leather tote down beside the desk, taps the keyboard twice in rhythm and leans back with a satisfied little smile: everything is in order. Her screen and her white mug sit on the desk, next to the black desk phone. Medium shot, eye level, 35mm, static camera with a slight push-in. Daylight from the floor-to-ceiling window mixed with cool ceiling light, natural contrast, cool grey-blue and white palette: a real consulting-firm office, not a stylized set. Light and contented, in rhythm: she has no idea what is about to happen at home. No post-its, no open-space desks around her.",
+      "author": "michael",
+      "reason": "découpage enregistré",
+      "created_at": "2026-11-07T10:12:06Z"
+    },
+    {
+      "id": 64,
+      "table_name": "shots",
+      "row_id": "8",
+      "field": "looks",
+      "old": "{\"jj\": \"bureau\"}",
+      "new": null,
+      "author": "michael",
+      "reason": "tenue @jj-bureau supprimée",
+      "created_at": "2026-11-05T23:38:16Z"
+    }
+  ],
+  "elements": [
+    {
+      "kind": "decor",
+      "slug": "bureau-et-open-space",
+      "name": "Bureau et open space",
+      "state": null,
+      "description": "Grand bureau de direction au dernier étage d'une tour, vu de l'intérieur au crépuscule. Une baie vitrée du sol au plafond, à montants fins gris, donne sur une métropole illuminée, un fleuve et des gratte-ciel sous un ciel dégradé bleu, orange et rose. Sur la gauche, une bibliothèque en bois sombre avec rétroéclairage violet, remplie de livres, d'une sculpture argentée et d'une boule de cristal. Un grand bureau en bois d'acajou verni, avec sous-main en cuir beige, un livre fermé et un téléphone fixe noir. Deux fauteuils de direction en cuir beige à roulettes, l'un derrière le bureau, l'autre devant. Plafond gris taupe avec bandeaux lumineux violet puis bleu et un néon blanc linéaire. Moquette gris foncé. À droite, un coin salon : table basse en marbre clair avec un livre, bouquet d'orchidées blanches, fauteuil brun à structure noire, canapé beige, lampe de table à abat-jour crème. Aucune personne.",
+      "refs": [
+        "clips/nobody-saw/decors/bureau-et-open-space/depart/nobody-office.png"
+      ]
+    }
+  ],
+  "video_model": {
+    "key": "veo-31-fast-vertex",
+    "label": "Veo 3.1 Fast",
+    "chosen": false,
+    "by_michael": false
+  },
+  "fit": {
+    "level": "ok",
+    "generated": 4,
+    "waste": 0.5,
+    "text": "Veo 3.1 Fast génère 4 s pour ce plan."
+  },
+  "video_cost": 0.4,
+  "waiting": null,
+  "owner": {
+    "who": "agent:orchestrateur",
+    "name": "l'orchestrateur",
+    "why": "",
+    "label": "En attente de : l'orchestrateur"
+  },
+  "actions": {
+    "run": "Relancer le visuel",
+    "skip": null
+  },
+  "image_launch": {
+    "counts": {
+      "gratuit": 3,
+      "payant": 1
+    },
+    "max": 4,
+    "task": "visuel"
+  },
+  "casting": [
+    {
+      "character": "jj",
+      "version": 1,
+      "look": "black-tailor",
+      "tenue": "black tailored single-breasted blazer, slim fitted and sharply cinched at the waist, hip-length, notch lapels of medium width, deep plunging V neckline, single black button fastened at the natural waist, two horizontal flap pockets at the hips, vertical princess seams on the front, structured natural shoulders, long slim sleeves ending at the wrist, rounded front hem, worn with no top underneath; matching black high-waisted wide-leg trousers, straight fluid leg with sharp pressed center creases, floor-length hem almost covering the shoes; matte black wool crepe fabric, matching suit set; nude barely-there strappy high-heeled sandals with thin toe strap; small gold hoop earrings",
+      "refs": [
+        "characters/jj/v1/canon.jpg",
+        "characters/jj/looks/black-tailor/11008-2.png",
+        "characters/jj/v1/turnaround/turnaround-4-vues.jpg"
+      ],
+      "adn": "# JJ — ADN v1\n\n## Identité (texte d'origine, à injecter dans les prompts)\n\nJJ, a 25-year-old mixed French-Caribbean woman, soft oval face with gentle contours, slightly defined cheekbones, rounded cheeks, delicate narrow chin, light brown skin with warm undertones, thin softly arched eyebrows, almond-shaped light eyes in an ambiguous green-grey-blue hue, medium-sized nose with a straight bridge and rounded tip, thinner upper lip and fuller lower lip with a subtle cupid's bow, very dense long hair made of small tight well-defined curls, chestnut brown with abundant golden, blonde and copper highlights, huge volume framing her face, a few curls falling over her forehead and along her cheeks\n\n## Silhouette\n\nVoir silhouette.md.\n\n## Points non tranchés (v1)\n\nLes deux images de référence ne décrivent pas tout à fait la même personne :\n\n- **Taches de rousseur** : présentes sur `canon.jpg`, absentes du turnaround et du texte.\n- **Reflets des cheveux** : cuivrés sur `canon.jpg`, nettement plus blonds sur le turnaround.\n- **Forme du visage** : un peu plus ronde sur le turnaround.\n- **Yeux** : très clairs, presque bleu-gris, sur `canon.jpg`.\n\nTant que ces points ne sont pas tranchés, la canon fait foi : en cas de doute,\nles agents suivent `canon.jpg`. À régler dans la v2 (voir `../brief-v2.md`).\n",
+      "resume_visuel": ""
+    }
+  ],
+  "aspect_ratio": "16:9",
+  "direction_artistique": "Ambiance « vraie vie » d'une jeune cadre.\nJJ est directrice dans un cabinet de conseil : au travail, elle a le look d'une jeune cadre de cabinet de conseil. Pas de Doc Martens, pas de look rock."
+}

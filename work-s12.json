@@ -1,0 +1,343 @@
+{
+  "id": 12,
+  "clip_slug": "nobody-saw",
+  "num": 12,
+  "section": "Couplet 1 : les voleurs arrivent",
+  "t_start": 43.1,
+  "t_end": 44.4,
+  "description": "Le chien aboie derrière la vitre, stressé, mefiant.",
+  "framing": "CU",
+  "motion": "medium",
+  "camera": "handheld, slight shake",
+  "characters": [
+    "alister"
+  ],
+  "singing": 0,
+  "tier": null,
+  "model_key": null,
+  "seed": null,
+  "image_prompt": "Use the reference images for Alister's exact appearance (head, coat, eyes, ears, body proportions). Keep the identity identical. Alister, a one-year-old male Eurasier (about 34 kg), large and harmonious, photorealistic. Exceptionally thick, fluffy double coat with natural volume, light golden-beige on back and flanks, pale cream muzzle, a much lighter ivory-cream mane (ruff) around neck and chest. Broad Eurasier head, full fluffy cheeks, dark brown almond-shaped eyes, black nose, medium triangular ears always erect. Long, very bushy golden-cream tail carried high and curled over the back. Real canine anatomy. First frame: Alister stands just behind a glass pane of the stone house, mid-bark, lips lifted in a growl, mouth open, ears pushed slightly back, tense and wary, eyes fixed on something outside the frame, weight shifted forward ready to bounce with the next bark; faint breath fog on the glass. Seen from outside through the glass, with faint reflections of the sunny courtyard (use the reference image for the garden and house). The room behind him is darker. Close-up, 50mm, f/2.8, handheld feel, framed slightly loose to leave room for the shake. Bright clear sunlight outside, crisp defined shadows, high contrast, natural colours, fine 35mm grain. The thieves stay out of frame. No tear, no cartoon effect. Photorealistic, polished like a professional music-video shoot, never plastic, subtle film grain, shot on ARRI Alexa.",
+  "video_prompt": null,
+  "negative_prompt": null,
+  "status": "failed",
+  "qc_retries": 0,
+  "notes": "Plan 11 du dossier.",
+  "updated_at": "2026-11-08T16:42:15Z",
+  "block_id": 3,
+  "route_reason": null,
+  "detail": "@alister growl and barks behind a glass pane of the house in @jardin-de-jj, ears back, jaws snapping, breath fogging the pane, bouncing with each bark. Seen from outside through the glass, with faint reflections of the sunny courtyard. Close-up, 50mm, handheld with a slight shake that matches his panic. Bright sunlight outside, the room behind him darker. Heroic and useless: he is the only one raising the alarm, and nobody hears him. The thieves stay out of frame. No tear, no cartoon effect.",
+  "detail_edited": 1,
+  "failed_step": "image",
+  "lipsync_key": null,
+  "cut_ok": 1,
+  "looks": null,
+  "refs_ok": 0,
+  "looks_manual": 0,
+  "deleted_at": null,
+  "script": "Le chien aboie derrière la vitre, stressé, mefiant.",
+  "prod_outdated": 0,
+  "assets": [
+    {
+      "id": 109,
+      "shot_id": 12,
+      "kind": "image",
+      "version": 1,
+      "path": "clips/nobody-saw/storyboard/plan-012-v1.png",
+      "remote_url": null,
+      "prompt": "Use the reference images for Alister's exact appearance (head, coat, eyes, ears, body proportions). Keep the identity identical. Alister, a one-year-old male Eurasier (about 34 kg), large and harmonious, photorealistic. Exceptionally thick, fluffy double coat with natural volume, light golden-beige on back and flanks, pale cream muzzle, a much lighter ivory-cream mane (ruff) around neck and chest. Broad Eurasier head, full fluffy cheeks, dark brown almond-shaped eyes, black nose, medium triangular ears always erect. Long, very bushy golden-cream tail carried high and curled over the back. Real canine anatomy. First frame: Alister stands just behind a glass pane of the stone house, mid-bark, lips lifted in a growl, mouth open, ears pushed slightly back, tense and wary, eyes fixed on something outside the frame, weight shifted forward ready to bounce with the next bark; faint breath fog on the glass. Seen from outside through the glass, with faint reflections of the sunny courtyard (use the reference image for the garden and house). The room behind him is darker. Close-up, 50mm, f/2.8, handheld feel, framed slightly loose to leave room for the shake. Bright clear sunlight outside, crisp defined shadows, high contrast, natural colours, fine 35mm grain. The thieves stay out of frame. No tear, no cartoon effect. Photorealistic, polished like a professional music-video shoot, never plastic, subtle film grain, shot on ARRI Alexa.\n\nSetting, props and secondary characters (keep them exactly as in their reference images):\n- Décor « Jardin de JJ » (@jardin-de-jj) : Cour rustique devant une maison ancienne en pierre calcaire beige crème, vue en plein air par une lumière dorée basse d'automne, ciel bleu pâle, ombres longues et franches. La façade en pierre de taille est couverte de vigne vierge aux feuilles jaunes et de jasmin à petites fleurs blanches. Porte d'entrée à deux vantaux vitrés peinte en bleu-gris, sous un auvent en métal noir et verre avec une lanterne noire suspendue. Fenêtres à petits carreaux avec volets pleins bleu-gris. Trois marches en pierre claire mènent à la porte, encadrée de deux grands pots en pierre patinée portant chacun un buis taillé en boule. Deux hauts cyprès sombres se dressent de part et d'autre de la façade. Massifs de lavande et d'arbustes gris-vert devant la maison. Le sol est un large gravier clair beige rosé, parsemé de feuilles mortes, qui forme une allée courbe vers la gauche. À gauche, un mur de clôture en enduit beige, une haie dense vert foncé et un arbre au feuillage d'automne orange et jaune au premier plan. Aucune personne, aucun véhicule.\n\nLighting and color grade shared by the whole sequence: Bright clear daytime sunlight, crisp defined shadows, clean sky, high contrast, natural colours, fine 35mm grain.\n\nPHOTO STYLE: Photorealistic, like a frame from a high-end music video shot on a cinema camera: real people, real places, real light, professional cinematography and art direction. Flattering and polished, never ugly: healthy even skin with a natural finish, no visible pores, no blemishes, no greasy shine, no exaggerated wrinkles or flaws; clean styling, neat hair, tidy sets. Controlled cinematic lighting with soft contrast, rich natural colours, subtle fine film grain. Not CGI, not a 3D render, not an illustration, no plastic or waxy skin, no heavy beauty filter.",
+      "model_key": "cloudflare:klein-9b",
+      "seed": null,
+      "params": {},
+      "cost_usd": 0.0,
+      "status": "superseded",
+      "error": "FLUX.2 klein 9B (Cloudflare) : quota gratuit du jour épuisé. Choisis un autre modèle et relance.",
+      "created_at": "2026-11-07T13:57:40Z",
+      "funding": "free",
+      "missing": true
+    },
+    {
+      "id": 110,
+      "shot_id": 12,
+      "kind": "image",
+      "version": 2,
+      "path": "clips/nobody-saw/storyboard/plan-012-v2.png",
+      "remote_url": null,
+      "prompt": "Use the reference images for Alister's exact appearance (head, coat, eyes, ears, body proportions). Keep the identity identical. Alister, a one-year-old male Eurasier (about 34 kg), large and harmonious, photorealistic. Exceptionally thick, fluffy double coat with natural volume, light golden-beige on back and flanks, pale cream muzzle, a much lighter ivory-cream mane (ruff) around neck and chest. Broad Eurasier head, full fluffy cheeks, dark brown almond-shaped eyes, black nose, medium triangular ears always erect. Long, very bushy golden-cream tail carried high and curled over the back. Real canine anatomy. First frame: Alister stands just behind a glass pane of the stone house, mid-bark, lips lifted in a growl, mouth open, ears pushed slightly back, tense and wary, eyes fixed on something outside the frame, weight shifted forward ready to bounce with the next bark; faint breath fog on the glass. Seen from outside through the glass, with faint reflections of the sunny courtyard (use the reference image for the garden and house). The room behind him is darker. Close-up, 50mm, f/2.8, handheld feel, framed slightly loose to leave room for the shake. Bright clear sunlight outside, crisp defined shadows, high contrast, natural colours, fine 35mm grain. The thieves stay out of frame. No tear, no cartoon effect. Photorealistic, polished like a professional music-video shoot, never plastic, subtle film grain, shot on ARRI Alexa.\n\nSetting, props and secondary characters (keep them exactly as in their reference images):\n- Décor « Jardin de JJ » (@jardin-de-jj) : Cour rustique devant une maison ancienne en pierre calcaire beige crème, vue en plein air par une lumière dorée basse d'automne, ciel bleu pâle, ombres longues et franches. La façade en pierre de taille est couverte de vigne vierge aux feuilles jaunes et de jasmin à petites fleurs blanches. Porte d'entrée à deux vantaux vitrés peinte en bleu-gris, sous un auvent en métal noir et verre avec une lanterne noire suspendue. Fenêtres à petits carreaux avec volets pleins bleu-gris. Trois marches en pierre claire mènent à la porte, encadrée de deux grands pots en pierre patinée portant chacun un buis taillé en boule. Deux hauts cyprès sombres se dressent de part et d'autre de la façade. Massifs de lavande et d'arbustes gris-vert devant la maison. Le sol est un large gravier clair beige rosé, parsemé de feuilles mortes, qui forme une allée courbe vers la gauche. À gauche, un mur de clôture en enduit beige, une haie dense vert foncé et un arbre au feuillage d'automne orange et jaune au premier plan. Aucune personne, aucun véhicule.\n\nLighting and color grade shared by the whole sequence: Bright clear daytime sunlight, crisp defined shadows, clean sky, high contrast, natural colours, fine 35mm grain.\n\nPHOTO STYLE: Photorealistic, like a frame from a high-end music video shot on a cinema camera: real people, real places, real light, professional cinematography and art direction. Flattering and polished, never ugly: healthy even skin with a natural finish, no visible pores, no blemishes, no greasy shine, no exaggerated wrinkles or flaws; clean styling, neat hair, tidy sets. Controlled cinematic lighting with soft contrast, rich natural colours, subtle fine film grain. Not CGI, not a 3D render, not an illustration, no plastic or waxy skin, no heavy beauty filter.",
+      "model_key": "cloudflare:klein-9b",
+      "seed": null,
+      "params": {},
+      "cost_usd": 0.0,
+      "status": "superseded",
+      "error": "FLUX.2 klein 9B (Cloudflare) : quota gratuit du jour épuisé. Choisis un autre modèle et relance.",
+      "created_at": "2026-11-07T13:57:40Z",
+      "funding": "free",
+      "missing": true
+    },
+    {
+      "id": 111,
+      "shot_id": 12,
+      "kind": "image",
+      "version": 3,
+      "path": "clips/nobody-saw/storyboard/plan-012-v3.png",
+      "remote_url": null,
+      "prompt": "Use the reference images for Alister's exact appearance (head, coat, eyes, ears, body proportions). Keep the identity identical. Alister, a one-year-old male Eurasier (about 34 kg), large and harmonious, photorealistic. Exceptionally thick, fluffy double coat with natural volume, light golden-beige on back and flanks, pale cream muzzle, a much lighter ivory-cream mane (ruff) around neck and chest. Broad Eurasier head, full fluffy cheeks, dark brown almond-shaped eyes, black nose, medium triangular ears always erect. Long, very bushy golden-cream tail carried high and curled over the back. Real canine anatomy. First frame: Alister stands just behind a glass pane of the stone house, mid-bark, lips lifted in a growl, mouth open, ears pushed slightly back, tense and wary, eyes fixed on something outside the frame, weight shifted forward ready to bounce with the next bark; faint breath fog on the glass. Seen from outside through the glass, with faint reflections of the sunny courtyard (use the reference image for the garden and house). The room behind him is darker. Close-up, 50mm, f/2.8, handheld feel, framed slightly loose to leave room for the shake. Bright clear sunlight outside, crisp defined shadows, high contrast, natural colours, fine 35mm grain. The thieves stay out of frame. No tear, no cartoon effect. Photorealistic, polished like a professional music-video shoot, never plastic, subtle film grain, shot on ARRI Alexa.\n\nSetting, props and secondary characters (keep them exactly as in their reference images):\n- Décor « Jardin de JJ » (@jardin-de-jj) : Cour rustique devant une maison ancienne en pierre calcaire beige crème, vue en plein air par une lumière dorée basse d'automne, ciel bleu pâle, ombres longues et franches. La façade en pierre de taille est couverte de vigne vierge aux feuilles jaunes et de jasmin à petites fleurs blanches. Porte d'entrée à deux vantaux vitrés peinte en bleu-gris, sous un auvent en métal noir et verre avec une lanterne noire suspendue. Fenêtres à petits carreaux avec volets pleins bleu-gris. Trois marches en pierre claire mènent à la porte, encadrée de deux grands pots en pierre patinée portant chacun un buis taillé en boule. Deux hauts cyprès sombres se dressent de part et d'autre de la façade. Massifs de lavande et d'arbustes gris-vert devant la maison. Le sol est un large gravier clair beige rosé, parsemé de feuilles mortes, qui forme une allée courbe vers la gauche. À gauche, un mur de clôture en enduit beige, une haie dense vert foncé et un arbre au feuillage d'automne orange et jaune au premier plan. Aucune personne, aucun véhicule.\n\nLighting and color grade shared by the whole sequence: Bright clear daytime sunlight, crisp defined shadows, clean sky, high contrast, natural colours, fine 35mm grain.\n\nPHOTO STYLE: Photorealistic, like a frame from a high-end music video shot on a cinema camera: real people, real places, real light, professional cinematography and art direction. Flattering and polished, never ugly: healthy even skin with a natural finish, no visible pores, no blemishes, no greasy shine, no exaggerated wrinkles or flaws; clean styling, neat hair, tidy sets. Controlled cinematic lighting with soft contrast, rich natural colours, subtle fine film grain. Not CGI, not a 3D render, not an illustration, no plastic or waxy skin, no heavy beauty filter.",
+      "model_key": "cloudflare:klein-9b",
+      "seed": null,
+      "params": {},
+      "cost_usd": 0.0,
+      "status": "superseded",
+      "error": "FLUX.2 klein 9B (Cloudflare) : quota gratuit du jour épuisé. Choisis un autre modèle et relance.",
+      "created_at": "2026-11-07T13:57:40Z",
+      "funding": "free",
+      "missing": true
+    },
+    {
+      "id": 156,
+      "shot_id": 12,
+      "kind": "image",
+      "version": 4,
+      "path": "clips/nobody-saw/storyboard/plan-012-v4.png",
+      "remote_url": null,
+      "prompt": "Use the reference images for Alister's exact appearance (head, coat, eyes, ears, body proportions). Keep the identity identical. Alister, a one-year-old male Eurasier (about 34 kg), large and harmonious, photorealistic. Exceptionally thick, fluffy double coat with natural volume, light golden-beige on back and flanks, pale cream muzzle, a much lighter ivory-cream mane (ruff) around neck and chest. Broad Eurasier head, full fluffy cheeks, dark brown almond-shaped eyes, black nose, medium triangular ears always erect. Long, very bushy golden-cream tail carried high and curled over the back. Real canine anatomy. First frame: Alister stands just behind a glass pane of the stone house, mid-bark, lips lifted in a growl, mouth open, ears pushed slightly back, tense and wary, eyes fixed on something outside the frame, weight shifted forward ready to bounce with the next bark; faint breath fog on the glass. Seen from outside through the glass, with faint reflections of the sunny courtyard (use the reference image for the garden and house). The room behind him is darker. Close-up, 50mm, f/2.8, handheld feel, framed slightly loose to leave room for the shake. Bright clear sunlight outside, crisp defined shadows, high contrast, natural colours, fine 35mm grain. The thieves stay out of frame. No tear, no cartoon effect. Photorealistic, polished like a professional music-video shoot, never plastic, subtle film grain, shot on ARRI Alexa.\n\nSetting, props and secondary characters (keep them exactly as in their reference images):\n- Décor « Jardin de JJ » (@jardin-de-jj) : Cour rustique devant une maison ancienne en pierre calcaire beige crème, vue en plein air par une lumière dorée basse d'automne, ciel bleu pâle, ombres longues et franches. La façade en pierre de taille est couverte de vigne vierge aux feuilles jaunes et de jasmin à petites fleurs blanches. Porte d'entrée à deux vantaux vitrés peinte en bleu-gris, sous un auvent en métal noir et verre avec une lanterne noire suspendue. Fenêtres à petits carreaux avec volets pleins bleu-gris. Trois marches en pierre claire mènent à la porte, encadrée de deux grands pots en pierre patinée portant chacun un buis taillé en boule. Deux hauts cyprès sombres se dressent de part et d'autre de la façade. Massifs de lavande et d'arbustes gris-vert devant la maison. Le sol est un large gravier clair beige rosé, parsemé de feuilles mortes, qui forme une allée courbe vers la gauche. À gauche, un mur de clôture en enduit beige, une haie dense vert foncé et un arbre au feuillage d'automne orange et jaune au premier plan. Aucune personne, aucun véhicule.\n\nLighting and color grade shared by the whole sequence: Bright clear daytime sunlight, crisp defined shadows, clean sky, high contrast, natural colours, fine 35mm grain.\n\nPHOTO STYLE: Photorealistic, like a frame from a high-end music video shot on a cinema camera: real people, real places, real light, professional cinematography and art direction. Flattering and polished, never ugly: healthy even skin with a natural finish, no visible pores, no blemishes, no greasy shine, no exaggerated wrinkles or flaws; clean styling, neat hair, tidy sets. Controlled cinematic lighting with soft contrast, rich natural colours, subtle fine film grain. Not CGI, not a 3D render, not an illustration, no plastic or waxy skin, no heavy beauty filter.",
+      "model_key": "cloudflare:klein-4b",
+      "seed": null,
+      "params": {},
+      "cost_usd": 0.0,
+      "status": "failed",
+      "error": "FLUX.2 klein 4B (Cloudflare) : quota gratuit du jour épuisé. Choisis un autre modèle et relance.",
+      "created_at": "2026-11-08T16:42:14Z",
+      "funding": "free",
+      "missing": true
+    }
+  ],
+  "reviews": [],
+  "cost_usd": 0,
+  "historique": [
+    {
+      "author": "machine",
+      "text": "Visuel non fait. FLUX.2 klein 4B (Cloudflare) : quota gratuit du jour épuisé. Choisis un autre modèle et relance.",
+      "created_at": "2026-11-08T16:42:15Z"
+    },
+    {
+      "author": "machine",
+      "text": "Visuel non fait. FLUX.2 klein 9B (Cloudflare) : quota gratuit du jour épuisé. Choisis un autre modèle et relance.",
+      "created_at": "2026-11-07T13:57:43Z"
+    }
+  ],
+  "changes": [
+    {
+      "id": 411,
+      "table_name": "shots",
+      "row_id": "12",
+      "field": "failed_step",
+      "old": null,
+      "new": "image",
+      "author": "worker",
+      "reason": "aucune proposition de visuel n'a abouti",
+      "created_at": "2026-11-08T16:42:15Z"
+    },
+    {
+      "id": 410,
+      "table_name": "shots",
+      "row_id": "12",
+      "field": "status",
+      "old": "image_gen",
+      "new": "failed",
+      "author": "worker",
+      "reason": "aucune proposition de visuel n'a abouti",
+      "created_at": "2026-11-08T16:42:15Z"
+    },
+    {
+      "id": 409,
+      "table_name": "shots",
+      "row_id": "12",
+      "field": "status",
+      "old": "image_todo",
+      "new": "image_gen",
+      "author": "michael",
+      "reason": null,
+      "created_at": "2026-11-08T16:42:14Z"
+    },
+    {
+      "id": 360,
+      "table_name": "shots",
+      "row_id": "12",
+      "field": "status",
+      "old": "failed",
+      "new": "image_todo",
+      "author": "agent:orchestrateur",
+      "reason": null,
+      "created_at": "2026-11-07T15:01:39Z"
+    },
+    {
+      "id": 359,
+      "table_name": "shots",
+      "row_id": "12",
+      "field": "failed_step",
+      "old": "image",
+      "new": null,
+      "author": "agent:orchestrateur",
+      "reason": "relance après échec",
+      "created_at": "2026-11-07T15:01:39Z"
+    },
+    {
+      "id": 320,
+      "table_name": "shots",
+      "row_id": "12",
+      "field": "failed_step",
+      "old": null,
+      "new": "image",
+      "author": "worker",
+      "reason": "aucune proposition de visuel n'a abouti",
+      "created_at": "2026-11-07T13:57:43Z"
+    },
+    {
+      "id": 319,
+      "table_name": "shots",
+      "row_id": "12",
+      "field": "status",
+      "old": "image_gen",
+      "new": "failed",
+      "author": "worker",
+      "reason": "aucune proposition de visuel n'a abouti",
+      "created_at": "2026-11-07T13:57:43Z"
+    },
+    {
+      "id": 298,
+      "table_name": "shots",
+      "row_id": "12",
+      "field": "status",
+      "old": "image_todo",
+      "new": "image_gen",
+      "author": "worker",
+      "reason": null,
+      "created_at": "2026-11-07T13:57:40Z"
+    },
+    {
+      "id": 258,
+      "table_name": "shots",
+      "row_id": "12",
+      "field": "image_prompt",
+      "old": null,
+      "new": "Use the reference images for Alister's exact appearance (head, coat, eyes, ears, body proportions). Keep the identity identical. Alister, a one-year-old male Eurasier (about 34 kg), large and harmonious, photorealistic. Exceptionally thick, fluffy double coat with natural volume, light golden-beige on back and flanks, pale cream muzzle, a much lighter ivory-cream mane (ruff) around neck and chest. Broad Eurasier head, full fluffy cheeks, dark brown almond-shaped eyes, black nose, medium triangular ears always erect. Long, very bushy golden-cream tail carried high and curled over the back. Real canine anatomy. First frame: Alister stands just behind a glass pane of the stone house, mid-bark, lips lifted in a growl, mouth open, ears pushed slightly back, tense and wary, eyes fixed on something outside the frame, weight shifted forward ready to bounce with the next bark; faint breath fog on the glass. Seen from outside through the glass, with faint reflections of the sunny courtyard (use the reference image for the garden and house). The room behind him is darker. Close-up, 50mm, f/2.8, handheld feel, framed slightly loose to leave room for the shake. Bright clear sunlight outside, crisp defined shadows, high contrast, natural colours, fine 35mm grain. The thieves stay out of frame. No tear, no cartoon effect. Photorealistic, polished like a professional music-video shoot, never plastic, subtle film grain, shot on ARRI Alexa.",
+      "author": "agent:orchestrateur",
+      "reason": null,
+      "created_at": "2026-11-07T10:58:30Z"
+    },
+    {
+      "id": 237,
+      "table_name": "shots",
+      "row_id": "12",
+      "field": "cut_ok",
+      "old": "0",
+      "new": "1",
+      "author": "michael",
+      "reason": "plan validé dans le découpage",
+      "created_at": "2026-11-07T10:44:05Z"
+    },
+    {
+      "id": 236,
+      "table_name": "shots",
+      "row_id": "12",
+      "field": "detail_edited",
+      "old": "0",
+      "new": "1",
+      "author": "michael",
+      "reason": "découpage enregistré",
+      "created_at": "2026-11-07T10:44:03Z"
+    },
+    {
+      "id": 235,
+      "table_name": "shots",
+      "row_id": "12",
+      "field": "detail",
+      "old": "@alister barks frantically behind a glass pane of the house in @jardin-de-jj, front paws up on the glass, ears back, jaws snapping, breath fogging the pane, bouncing with each bark. Seen from outside through the glass, with faint reflections of the sunny courtyard. Close-up, 50mm, handheld with a slight shake that matches his panic. Bright sunlight outside, the room behind him darker. Heroic and useless: he is the only one raising the alarm, and nobody hears him. The thieves stay out of frame. No tear, no cartoon effect.",
+      "new": "@alister growl and barks behind a glass pane of the house in @jardin-de-jj, ears back, jaws snapping, breath fogging the pane, bouncing with each bark. Seen from outside through the glass, with faint reflections of the sunny courtyard. Close-up, 50mm, handheld with a slight shake that matches his panic. Bright sunlight outside, the room behind him darker. Heroic and useless: he is the only one raising the alarm, and nobody hears him. The thieves stay out of frame. No tear, no cartoon effect.",
+      "author": "michael",
+      "reason": "découpage enregistré",
+      "created_at": "2026-11-07T10:44:03Z"
+    },
+    {
+      "id": 234,
+      "table_name": "shots",
+      "row_id": "12",
+      "field": "description",
+      "old": "Le chien aboie derrière la vitre, frénétique.",
+      "new": "Le chien aboie derrière la vitre, stressé, mefiant.",
+      "author": "michael",
+      "reason": "découpage enregistré",
+      "created_at": "2026-11-07T10:44:03Z"
+    },
+    {
+      "id": 233,
+      "table_name": "shots",
+      "row_id": "12",
+      "field": "script",
+      "old": "Le chien aboie derrière la vitre, frénétique.",
+      "new": "Le chien aboie derrière la vitre, stressé, mefiant.",
+      "author": "michael",
+      "reason": "découpage enregistré",
+      "created_at": "2026-11-07T10:44:03Z"
+    }
+  ],
+  "elements": [
+    {
+      "kind": "decor",
+      "slug": "jardin-de-jj",
+      "name": "Jardin de JJ",
+      "state": null,
+      "description": "Cour rustique devant une maison ancienne en pierre calcaire beige crème, vue en plein air par une lumière dorée basse d'automne, ciel bleu pâle, ombres longues et franches. La façade en pierre de taille est couverte de vigne vierge aux feuilles jaunes et de jasmin à petites fleurs blanches. Porte d'entrée à deux vantaux vitrés peinte en bleu-gris, sous un auvent en métal noir et verre avec une lanterne noire suspendue. Fenêtres à petits carreaux avec volets pleins bleu-gris. Trois marches en pierre claire mènent à la porte, encadrée de deux grands pots en pierre patinée portant chacun un buis taillé en boule. Deux hauts cyprès sombres se dressent de part et d'autre de la façade. Massifs de lavande et d'arbustes gris-vert devant la maison. Le sol est un large gravier clair beige rosé, parsemé de feuilles mortes, qui forme une allée courbe vers la gauche. À gauche, un mur de clôture en enduit beige, une haie dense vert foncé et un arbre au feuillage d'automne orange et jaune au premier plan. Aucune personne, aucun véhicule.",
+      "refs": [
+        "clips/nobody-saw/decors/jardin-de-jj/depart/cour-rustique-devant-la-maison-en-pierre.png"
+      ]
+    }
+  ],
+  "video_model": {
+    "key": "veo-31-fast-vertex",
+    "label": "Veo 3.1 Fast",
+    "chosen": false,
+    "by_michael": false
+  },
+  "fit": {
+    "level": "warn",
+    "generated": 4,
+    "waste": 2.7,
+    "text": "Plan de 1,3 s, mais Veo 3.1 Fast fait au moins 4 s (4, 6, 8 s possibles) : 2,7 s payées en trop."
+  },
+  "video_cost": 0.4,
+  "waiting": null,
+  "owner": {
+    "who": "agent:orchestrateur",
+    "name": "l'orchestrateur",
+    "why": "",
+    "label": "En attente de : l'orchestrateur"
+  },
+  "actions": {
+    "run": "Relancer le visuel",
+    "skip": null
+  },
+  "image_launch": {
+    "counts": {
+      "gratuit": 3,
+      "payant": 1
+    },
+    "max": 4,
+    "task": "visuel"
+  },
+  "casting": [
+    {
+      "character": "alister",
+      "version": 1,
+      "look": null,
+      "tenue": null,
+      "refs": [
+        "characters/alister/v1/sheet/canon-brouillon-2.png",
+        "characters/alister/v1/canon.png"
+      ],
+      "adn": "Alister is a one-year-old male Eurasier weighing approximately 34 kg. He is a large, strong and harmonious dog, with authentic Eurasier breed proportions: a broad chest, sturdy legs, a solid neck and a balanced body. His silhouette is powerful yet elegant, never overweight or excessively bulky.\n\nHis most distinctive feature is his exceptionally thick, dense and fluffy double coat. His fur is abundant, soft and naturally voluminous, with a particularly impressive mane around his neck, chest and shoulders, fluffy cheeks, well-feathered legs and a very bushy tail. His coat should look luxurious, slightly tousled and full of natural volume, with visible individual hairs, especially around the ruff and tail.\n\nHis coloration is predominantly light golden beige and warm pale fawn. His back and flanks are slightly darker golden beige, while his face, muzzle, neck and chest have lighter cream and ivory tones. His neck and chest form a particularly abundant, pale cream mane, clearly contrasting with his golden-beige body. His muzzle is pale cream, his nose is black and his eyes are dark brown, medium-sized and slightly almond-shaped. He has a broad, harmonious Eurasier head, a moderately tapered muzzle and fluffy cheeks. His triangular ears are medium-sized, slightly rounded at the tips and always firmly upright. His tail is extremely thick and fluffy, naturally carried high and curled forward over his back, as characteristic of the Eurasier breed.\n\nAlister must always retain these exact physical characteristics: his light golden-cream coloration, prominent pale mane, exceptionally fluffy coat, facial proportions, dark eyes, upright ears, substantial build and magnificent curled tail. Never change his coat color, shorten his fur, alter his muzzle or make him look like a different dog.\n\n**Personality and temperament:** Alister is affectionate, cuddly, protective, mischievous, extremely playful, highly intelligent, curious and gentle. He is a big fluffy teddy bear with the personality of a cheeky little troublemaker. He loves physical contact and attention, often leaning his large fluffy body against people, nudging them with his muzzle or resting his head on their legs. He is very attached to his humans and enjoys being close to them.\n\nHe is naturally curious and observant, always investigating his surroundings and paying attention to new things. His intelligence is visible through his expressive dark eyes, attentive gaze and quick reactions. He frequently tilts his head when something intrigues or confuses him. He has a mischievous expression, as if he is constantly planning his next little prank.\n\n**Playful behavior:** Alister is extremely energetic and loves running, chasing, jumping, wrestling and initiating games. He often adopts the classic play bow, lowering his front legs while keeping his hindquarters raised, inviting others to play. He can be exuberant and slightly clumsy because of his large size.\n\nHe particularly enjoys mock fighting and playful wrestling. During these games, he opens his mouth wide, lifts his lips, shows his impressive white canines and produces exaggerated playful growls. He may make playful lunges, gently grab his playmate with his mouth, wrestle and bounce backwards to invite another round. His teeth-baring and growling are expressive elements of his playful personality, not signs of genuine aggression. His body language remains loose, animated and inviting.\n\n**Protective and affectionate behavior:** Alister is attentive to his surroundings and protective of the people he loves. He may position himself close to them, observe unfamiliar situations and adopt a confident, watchful posture. His protective nature is expressed through attentiveness and presence rather than unnecessary aggression.\n\nHis expressions range from a gentle, affectionate look to an excited open-mouth grin, a curious head tilt or a cheeky expression with his teeth showing during play. His behavior should always feel natural, spontaneous and recognizably canine.\n\n**Visual consistency:** Always portray Alister as the exact same individual dog in every image and video, regardless of camera angle, lighting or environment. Preserve his facial structure, body proportions, coat coloration, fur density, cream-colored mane, upright ears and curled bushy tail. His abundant coat must move naturally when he walks, runs or plays. Use photorealistic rendering, realistic canine anatomy, natural expressions and physically accurate dog movements. Never anthropomorphize, stylize or transform him into another breed.\n",
+      "resume_visuel": "Alister, a one-year-old male Eurasier (about 34 kg), large and harmonious, photorealistic. Exceptionally thick, fluffy double coat with natural volume, light golden-beige on back and flanks, pale cream muzzle, a much lighter ivory-cream mane (ruff) around neck and chest. Broad Eurasier head, full fluffy cheeks, dark brown almond-shaped eyes, black nose, medium triangular ears always erect. Long, very bushy golden-cream tail carried high and curled over the back. Gentle, intelligent, slightly mischievous expression. Real canine anatomy. Never dark red, orange, brown, black or mostly white; never short, flat or wet fur; never a straight or hanging tail; never cartoonish or anthropomorphic."
+    }
+  ],
+  "aspect_ratio": "16:9",
+  "direction_artistique": "Ambiance « vraie vie » d'une jeune cadre.\nJJ est directrice dans un cabinet de conseil : au travail, elle a le look d'une jeune cadre de cabinet de conseil. Pas de Doc Martens, pas de look rock."
+}

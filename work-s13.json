@@ -1,0 +1,421 @@
+{
+  "id": 13,
+  "clip_slug": "nobody-saw",
+  "num": 13,
+  "section": "Couplet 1 : ils guettaient",
+  "t_start": 44.4,
+  "t_end": 50.9,
+  "description": "Dans le passé, on voit les voleurs qui observent la rue, sourires en coin : l'un a des jumelles, un autre regarde sa montre. Retour en arrière sur le matin du début du clip, avant le vol : les voleurs sont accroupis derrière la haute haie de l'autre côté de la rue, celle où JJ a cru voir une capuche en partant. Ils guettent la rue et le portail fermé de JJ. Le passé se lit à trois signes : la lumière basse et dorée du petit matin, celle du début (le vol, lui, a lieu en plein midi) ; une image délavée de souvenir (couleurs passées, noirs laiteux, grain plus fort, léger vignettage) ; à la fin du plan, le plus proche baisse la tête et sa capuche grise disparaît derrière la haie, c'est ce que JJ remarque en se retournant. Aucun texte ni date à l'image.",
+  "framing": "MS",
+  "motion": "low",
+  "camera": "slow push-in",
+  "characters": [],
+  "singing": 0,
+  "tier": null,
+  "model_key": null,
+  "seed": null,
+  "image_prompt": "Flashback to the same early morning as the opening of the film, before the theft. Three of @les-voleurs crouch side by side behind the tall dark-green hedge on the far side of @rue-du-quartier, peering through a gap in the leaves at the empty street and, beyond it, the closed, padlocked @portail-du-jardin of @jardin-de-jj. The one on the left raises a pair of binoculars to his eyes; the one in the middle glances at his wristwatch (plain analogue face, no digits) and taps it with a finger, right on time; the third nods slowly. They trade smug half-smiles under their cap brims, relaxed, in no hurry. Identical grey hooded sweatshirts, caps, gloves; faces half hidden. The nearest one is turning his head, his grey hood about to sink below the hedge line. Medium shot from behind and beside them, 50mm, f/2.8, slightly low angle, the street soft in the background. Low warm golden sunrise light, long soft shadows across the pavement, as in the opening of the film, in a faded memory grade: muted washed-out colours, lifted milky blacks, soft highlights, heavier film grain, gentle vignette. Not midday, no harsh high sun, no crisp noon shadows. Photorealistic, natural healthy skin with a fine, even, matte finish, no visible pores, no blemishes, no shine, subtle natural asymmetry, polished like a professional music-video shoot, never plastic, subtle film grain, shot on ARRI Alexa. No on-screen text, no date, no caption.",
+  "video_prompt": null,
+  "negative_prompt": null,
+  "status": "failed",
+  "qc_retries": 0,
+  "notes": "Plan 12 du dossier. Paroles : They were watching, had to be, / Knew the hour, knew the street. | Jumelles et montre : détails de la v2 validée (plan 8 v2).",
+  "updated_at": "2026-11-08T16:42:39Z",
+  "block_id": 4,
+  "route_reason": null,
+  "detail": "The thieves, @les-voleurs, crouch behind the hedge of @jardin-de-jj and peer out at the street through a gap in the leaves. One looks through a pair of binoculars; another checks his wristwatch and taps it with a finger, right on time; the third nods. They exchange smug half-smiles under their cap brims, perfectly relaxed, in no hurry. Medium shot, low angle from the courtyard side, 50mm, slow push-in on the smirks. Sunlight dappled through the hedge, crisp shadows, high contrast. Comic and infuriating: they knew the hour, they knew the street.",
+  "detail_edited": 1,
+  "failed_step": "image",
+  "lipsync_key": null,
+  "cut_ok": 1,
+  "looks": null,
+  "refs_ok": 0,
+  "looks_manual": 0,
+  "deleted_at": null,
+  "script": "Dans le passé, on voit les voleurs qui observent la rue, sourires en coin : l'un a des jumelles, un autre regarde sa montre.",
+  "prod_outdated": 0,
+  "assets": [
+    {
+      "id": 133,
+      "shot_id": 13,
+      "kind": "image",
+      "version": 1,
+      "path": "clips/nobody-saw/storyboard/plan-013-v1.png",
+      "remote_url": null,
+      "prompt": "Flashback to the same early morning as the opening of the film, before the theft. Three of @les-voleurs crouch side by side behind the tall dark-green hedge on the far side of @rue-du-quartier, peering through a gap in the leaves at the empty street and, beyond it, the closed, padlocked @portail-du-jardin of @jardin-de-jj. The one on the left raises a pair of binoculars to his eyes; the one in the middle glances at his wristwatch (plain analogue face, no digits) and taps it with a finger, right on time; the third nods slowly. They trade smug half-smiles under their cap brims, relaxed, in no hurry. Identical grey hooded sweatshirts, caps, gloves; faces half hidden. The nearest one is turning his head, his grey hood about to sink below the hedge line. Medium shot from behind and beside them, 50mm, f/2.8, slightly low angle, the street soft in the background. Low warm golden sunrise light, long soft shadows across the pavement, as in the opening of the film, in a faded memory grade: muted washed-out colours, lifted milky blacks, soft highlights, heavier film grain, gentle vignette. Not midday, no harsh high sun, no crisp noon shadows. Photorealistic, natural healthy skin with a fine, even, matte finish, no visible pores, no blemishes, no shine, subtle natural asymmetry, polished like a professional music-video shoot, never plastic, subtle film grain, shot on ARRI Alexa. No on-screen text, no date, no caption.\n\nSetting, props and secondary characters (keep them exactly as in their reference images):\n- Décor « Jardin de JJ » (@jardin-de-jj) : Cour rustique devant une maison ancienne en pierre calcaire beige crème, vue en plein air par une lumière dorée basse d'automne, ciel bleu pâle, ombres longues et franches. La façade en pierre de taille est couverte de vigne vierge aux feuilles jaunes et de jasmin à petites fleurs blanches. Porte d'entrée à deux vantaux vitrés peinte en bleu-gris, sous un auvent en métal noir et verre avec une lanterne noire suspendue. Fenêtres à petits carreaux avec volets pleins bleu-gris. Trois marches en pierre claire mènent à la porte, encadrée de deux grands pots en pierre patinée portant chacun un buis taillé en boule. Deux hauts cyprès sombres se dressent de part et d'autre de la façade. Massifs de lavande et d'arbustes gris-vert devant la maison. Le sol est un large gravier clair beige rosé, parsemé de feuilles mortes, qui forme une allée courbe vers la gauche. À gauche, un mur de clôture en enduit beige, une haie dense vert foncé et un arbre au feuillage d'automne orange et jaune au premier plan. Aucune personne, aucun véhicule.\n- Décor « Rue du quartier » (@rue-du-quartier) : Rue résidentielle pavillonnaire, vue en enfilade depuis le trottoir, en lumière dorée basse d'automne, ciel pâle voilé. Au premier plan à gauche, un pilier de clôture en enduit beige et un grand portail noir à deux vantaux, au sommet cintré, suivi d'un muret en pierre calcaire surmonté d'une grille noire et d'une haute haie vert foncé. Le trottoir est en larges dalles de pierre claire, bordé à gauche d'une bande d'herbe couverte de feuilles mortes jaunes et orange, avec une bouche d'incendie rouge et, plus loin, un panneau STOP rouge et un lampadaire à bras courbe. À droite, une chaussée d'asphalte gris avec une plaque d'égout ronde et des feuilles mortes au bord. Des voitures sont garées en file à droite (berline bleu marine, citadine grise, voitures sombres plus loin). Au fond, maisons à toits de tuiles brunes et murs blancs ou crème, haies taillées, arbres aux feuillages d'automne orange et jaune, branche jaune en haut à gauche. Aucune personne.\n- Figurant « Les voleurs » (@les-voleurs) : Deux à trois hommes en sweats gris à capuche identiques, casquettes, gants. Silhouettes banales, visages peu visibles sous les capuches.\n- Objet « Portail du jardin » (@portail-du-jardin) : Grand portail noir à deux vantaux, au sommet cintré en arc, sur un pilier de clôture en enduit beige à chapeau plat. Le haut des vantaux est ajouré, à barreaux fins et volutes ; le bas est plein, à lames verticales, avec une poignée et une serrure sur le vantail de droite. Un second pilier beige à chapeau plat sépare le portail d'un muret en pierre calcaire surmonté d'une grille noire à barreaux fins. Derrière, une haute haie vert foncé. Seuil en pavés clairs, pelouse devant couverte de feuilles mortes jaunes et orange. Lumière dorée basse d'automne. Le portail est vu en bord de rue, sur la gauche d'un trottoir en dalles claires.\n\nLighting and color grade shared by the whole sequence: Bright clear daytime sunlight, crisp defined shadows, clean sky, high contrast, natural colours, fine 35mm grain.\n\nPHOTO STYLE: Photorealistic, like a frame from a high-end music video shot on a cinema camera: real people, real places, real light, professional cinematography and art direction. Flattering and polished, never ugly: healthy even skin with a natural finish, no visible pores, no blemishes, no greasy shine, no exaggerated wrinkles or flaws; clean styling, neat hair, tidy sets. Controlled cinematic lighting with soft contrast, rich natural colours, subtle fine film grain. Not CGI, not a 3D render, not an illustration, no plastic or waxy skin, no heavy beauty filter.",
+      "model_key": "cloudflare:klein-9b",
+      "seed": null,
+      "params": {},
+      "cost_usd": 0.0,
+      "status": "superseded",
+      "error": "FLUX.2 klein 9B (Cloudflare) : quota gratuit du jour épuisé. Choisis un autre modèle et relance.",
+      "created_at": "2026-11-07T13:57:41Z",
+      "funding": "free",
+      "missing": true
+    },
+    {
+      "id": 134,
+      "shot_id": 13,
+      "kind": "image",
+      "version": 2,
+      "path": "clips/nobody-saw/storyboard/plan-013-v2.png",
+      "remote_url": null,
+      "prompt": "Flashback to the same early morning as the opening of the film, before the theft. Three of @les-voleurs crouch side by side behind the tall dark-green hedge on the far side of @rue-du-quartier, peering through a gap in the leaves at the empty street and, beyond it, the closed, padlocked @portail-du-jardin of @jardin-de-jj. The one on the left raises a pair of binoculars to his eyes; the one in the middle glances at his wristwatch (plain analogue face, no digits) and taps it with a finger, right on time; the third nods slowly. They trade smug half-smiles under their cap brims, relaxed, in no hurry. Identical grey hooded sweatshirts, caps, gloves; faces half hidden. The nearest one is turning his head, his grey hood about to sink below the hedge line. Medium shot from behind and beside them, 50mm, f/2.8, slightly low angle, the street soft in the background. Low warm golden sunrise light, long soft shadows across the pavement, as in the opening of the film, in a faded memory grade: muted washed-out colours, lifted milky blacks, soft highlights, heavier film grain, gentle vignette. Not midday, no harsh high sun, no crisp noon shadows. Photorealistic, natural healthy skin with a fine, even, matte finish, no visible pores, no blemishes, no shine, subtle natural asymmetry, polished like a professional music-video shoot, never plastic, subtle film grain, shot on ARRI Alexa. No on-screen text, no date, no caption.\n\nSetting, props and secondary characters (keep them exactly as in their reference images):\n- Décor « Jardin de JJ » (@jardin-de-jj) : Cour rustique devant une maison ancienne en pierre calcaire beige crème, vue en plein air par une lumière dorée basse d'automne, ciel bleu pâle, ombres longues et franches. La façade en pierre de taille est couverte de vigne vierge aux feuilles jaunes et de jasmin à petites fleurs blanches. Porte d'entrée à deux vantaux vitrés peinte en bleu-gris, sous un auvent en métal noir et verre avec une lanterne noire suspendue. Fenêtres à petits carreaux avec volets pleins bleu-gris. Trois marches en pierre claire mènent à la porte, encadrée de deux grands pots en pierre patinée portant chacun un buis taillé en boule. Deux hauts cyprès sombres se dressent de part et d'autre de la façade. Massifs de lavande et d'arbustes gris-vert devant la maison. Le sol est un large gravier clair beige rosé, parsemé de feuilles mortes, qui forme une allée courbe vers la gauche. À gauche, un mur de clôture en enduit beige, une haie dense vert foncé et un arbre au feuillage d'automne orange et jaune au premier plan. Aucune personne, aucun véhicule.\n- Décor « Rue du quartier » (@rue-du-quartier) : Rue résidentielle pavillonnaire, vue en enfilade depuis le trottoir, en lumière dorée basse d'automne, ciel pâle voilé. Au premier plan à gauche, un pilier de clôture en enduit beige et un grand portail noir à deux vantaux, au sommet cintré, suivi d'un muret en pierre calcaire surmonté d'une grille noire et d'une haute haie vert foncé. Le trottoir est en larges dalles de pierre claire, bordé à gauche d'une bande d'herbe couverte de feuilles mortes jaunes et orange, avec une bouche d'incendie rouge et, plus loin, un panneau STOP rouge et un lampadaire à bras courbe. À droite, une chaussée d'asphalte gris avec une plaque d'égout ronde et des feuilles mortes au bord. Des voitures sont garées en file à droite (berline bleu marine, citadine grise, voitures sombres plus loin). Au fond, maisons à toits de tuiles brunes et murs blancs ou crème, haies taillées, arbres aux feuillages d'automne orange et jaune, branche jaune en haut à gauche. Aucune personne.\n- Figurant « Les voleurs » (@les-voleurs) : Deux à trois hommes en sweats gris à capuche identiques, casquettes, gants. Silhouettes banales, visages peu visibles sous les capuches.\n- Objet « Portail du jardin » (@portail-du-jardin) : Grand portail noir à deux vantaux, au sommet cintré en arc, sur un pilier de clôture en enduit beige à chapeau plat. Le haut des vantaux est ajouré, à barreaux fins et volutes ; le bas est plein, à lames verticales, avec une poignée et une serrure sur le vantail de droite. Un second pilier beige à chapeau plat sépare le portail d'un muret en pierre calcaire surmonté d'une grille noire à barreaux fins. Derrière, une haute haie vert foncé. Seuil en pavés clairs, pelouse devant couverte de feuilles mortes jaunes et orange. Lumière dorée basse d'automne. Le portail est vu en bord de rue, sur la gauche d'un trottoir en dalles claires.\n\nLighting and color grade shared by the whole sequence: Bright clear daytime sunlight, crisp defined shadows, clean sky, high contrast, natural colours, fine 35mm grain.\n\nPHOTO STYLE: Photorealistic, like a frame from a high-end music video shot on a cinema camera: real people, real places, real light, professional cinematography and art direction. Flattering and polished, never ugly: healthy even skin with a natural finish, no visible pores, no blemishes, no greasy shine, no exaggerated wrinkles or flaws; clean styling, neat hair, tidy sets. Controlled cinematic lighting with soft contrast, rich natural colours, subtle fine film grain. Not CGI, not a 3D render, not an illustration, no plastic or waxy skin, no heavy beauty filter.",
+      "model_key": "cloudflare:klein-9b",
+      "seed": null,
+      "params": {},
+      "cost_usd": 0.0,
+      "status": "superseded",
+      "error": "FLUX.2 klein 9B (Cloudflare) : quota gratuit du jour épuisé. Choisis un autre modèle et relance.",
+      "created_at": "2026-11-07T13:57:41Z",
+      "funding": "free",
+      "missing": true
+    },
+    {
+      "id": 135,
+      "shot_id": 13,
+      "kind": "image",
+      "version": 3,
+      "path": "clips/nobody-saw/storyboard/plan-013-v3.png",
+      "remote_url": null,
+      "prompt": "Flashback to the same early morning as the opening of the film, before the theft. Three of @les-voleurs crouch side by side behind the tall dark-green hedge on the far side of @rue-du-quartier, peering through a gap in the leaves at the empty street and, beyond it, the closed, padlocked @portail-du-jardin of @jardin-de-jj. The one on the left raises a pair of binoculars to his eyes; the one in the middle glances at his wristwatch (plain analogue face, no digits) and taps it with a finger, right on time; the third nods slowly. They trade smug half-smiles under their cap brims, relaxed, in no hurry. Identical grey hooded sweatshirts, caps, gloves; faces half hidden. The nearest one is turning his head, his grey hood about to sink below the hedge line. Medium shot from behind and beside them, 50mm, f/2.8, slightly low angle, the street soft in the background. Low warm golden sunrise light, long soft shadows across the pavement, as in the opening of the film, in a faded memory grade: muted washed-out colours, lifted milky blacks, soft highlights, heavier film grain, gentle vignette. Not midday, no harsh high sun, no crisp noon shadows. Photorealistic, natural healthy skin with a fine, even, matte finish, no visible pores, no blemishes, no shine, subtle natural asymmetry, polished like a professional music-video shoot, never plastic, subtle film grain, shot on ARRI Alexa. No on-screen text, no date, no caption.\n\nSetting, props and secondary characters (keep them exactly as in their reference images):\n- Décor « Jardin de JJ » (@jardin-de-jj) : Cour rustique devant une maison ancienne en pierre calcaire beige crème, vue en plein air par une lumière dorée basse d'automne, ciel bleu pâle, ombres longues et franches. La façade en pierre de taille est couverte de vigne vierge aux feuilles jaunes et de jasmin à petites fleurs blanches. Porte d'entrée à deux vantaux vitrés peinte en bleu-gris, sous un auvent en métal noir et verre avec une lanterne noire suspendue. Fenêtres à petits carreaux avec volets pleins bleu-gris. Trois marches en pierre claire mènent à la porte, encadrée de deux grands pots en pierre patinée portant chacun un buis taillé en boule. Deux hauts cyprès sombres se dressent de part et d'autre de la façade. Massifs de lavande et d'arbustes gris-vert devant la maison. Le sol est un large gravier clair beige rosé, parsemé de feuilles mortes, qui forme une allée courbe vers la gauche. À gauche, un mur de clôture en enduit beige, une haie dense vert foncé et un arbre au feuillage d'automne orange et jaune au premier plan. Aucune personne, aucun véhicule.\n- Décor « Rue du quartier » (@rue-du-quartier) : Rue résidentielle pavillonnaire, vue en enfilade depuis le trottoir, en lumière dorée basse d'automne, ciel pâle voilé. Au premier plan à gauche, un pilier de clôture en enduit beige et un grand portail noir à deux vantaux, au sommet cintré, suivi d'un muret en pierre calcaire surmonté d'une grille noire et d'une haute haie vert foncé. Le trottoir est en larges dalles de pierre claire, bordé à gauche d'une bande d'herbe couverte de feuilles mortes jaunes et orange, avec une bouche d'incendie rouge et, plus loin, un panneau STOP rouge et un lampadaire à bras courbe. À droite, une chaussée d'asphalte gris avec une plaque d'égout ronde et des feuilles mortes au bord. Des voitures sont garées en file à droite (berline bleu marine, citadine grise, voitures sombres plus loin). Au fond, maisons à toits de tuiles brunes et murs blancs ou crème, haies taillées, arbres aux feuillages d'automne orange et jaune, branche jaune en haut à gauche. Aucune personne.\n- Figurant « Les voleurs » (@les-voleurs) : Deux à trois hommes en sweats gris à capuche identiques, casquettes, gants. Silhouettes banales, visages peu visibles sous les capuches.\n- Objet « Portail du jardin » (@portail-du-jardin) : Grand portail noir à deux vantaux, au sommet cintré en arc, sur un pilier de clôture en enduit beige à chapeau plat. Le haut des vantaux est ajouré, à barreaux fins et volutes ; le bas est plein, à lames verticales, avec une poignée et une serrure sur le vantail de droite. Un second pilier beige à chapeau plat sépare le portail d'un muret en pierre calcaire surmonté d'une grille noire à barreaux fins. Derrière, une haute haie vert foncé. Seuil en pavés clairs, pelouse devant couverte de feuilles mortes jaunes et orange. Lumière dorée basse d'automne. Le portail est vu en bord de rue, sur la gauche d'un trottoir en dalles claires.\n\nLighting and color grade shared by the whole sequence: Bright clear daytime sunlight, crisp defined shadows, clean sky, high contrast, natural colours, fine 35mm grain.\n\nPHOTO STYLE: Photorealistic, like a frame from a high-end music video shot on a cinema camera: real people, real places, real light, professional cinematography and art direction. Flattering and polished, never ugly: healthy even skin with a natural finish, no visible pores, no blemishes, no greasy shine, no exaggerated wrinkles or flaws; clean styling, neat hair, tidy sets. Controlled cinematic lighting with soft contrast, rich natural colours, subtle fine film grain. Not CGI, not a 3D render, not an illustration, no plastic or waxy skin, no heavy beauty filter.",
+      "model_key": "cloudflare:klein-9b",
+      "seed": null,
+      "params": {},
+      "cost_usd": 0.0,
+      "status": "superseded",
+      "error": "FLUX.2 klein 9B (Cloudflare) : quota gratuit du jour épuisé. Choisis un autre modèle et relance.",
+      "created_at": "2026-11-07T13:57:41Z",
+      "funding": "free",
+      "missing": true
+    },
+    {
+      "id": 157,
+      "shot_id": 13,
+      "kind": "image",
+      "version": 4,
+      "path": "clips/nobody-saw/storyboard/plan-013-v4.png",
+      "remote_url": null,
+      "prompt": "Flashback to the same early morning as the opening of the film, before the theft. Three of @les-voleurs crouch side by side behind the tall dark-green hedge on the far side of @rue-du-quartier, peering through a gap in the leaves at the empty street and, beyond it, the closed, padlocked @portail-du-jardin of @jardin-de-jj. The one on the left raises a pair of binoculars to his eyes; the one in the middle glances at his wristwatch (plain analogue face, no digits) and taps it with a finger, right on time; the third nods slowly. They trade smug half-smiles under their cap brims, relaxed, in no hurry. Identical grey hooded sweatshirts, caps, gloves; faces half hidden. The nearest one is turning his head, his grey hood about to sink below the hedge line. Medium shot from behind and beside them, 50mm, f/2.8, slightly low angle, the street soft in the background. Low warm golden sunrise light, long soft shadows across the pavement, as in the opening of the film, in a faded memory grade: muted washed-out colours, lifted milky blacks, soft highlights, heavier film grain, gentle vignette. Not midday, no harsh high sun, no crisp noon shadows. Photorealistic, natural healthy skin with a fine, even, matte finish, no visible pores, no blemishes, no shine, subtle natural asymmetry, polished like a professional music-video shoot, never plastic, subtle film grain, shot on ARRI Alexa. No on-screen text, no date, no caption.\n\nSetting, props and secondary characters (keep them exactly as in their reference images):\n- Décor « Jardin de JJ » (@jardin-de-jj) : Cour rustique devant une maison ancienne en pierre calcaire beige crème, vue en plein air par une lumière dorée basse d'automne, ciel bleu pâle, ombres longues et franches. La façade en pierre de taille est couverte de vigne vierge aux feuilles jaunes et de jasmin à petites fleurs blanches. Porte d'entrée à deux vantaux vitrés peinte en bleu-gris, sous un auvent en métal noir et verre avec une lanterne noire suspendue. Fenêtres à petits carreaux avec volets pleins bleu-gris. Trois marches en pierre claire mènent à la porte, encadrée de deux grands pots en pierre patinée portant chacun un buis taillé en boule. Deux hauts cyprès sombres se dressent de part et d'autre de la façade. Massifs de lavande et d'arbustes gris-vert devant la maison. Le sol est un large gravier clair beige rosé, parsemé de feuilles mortes, qui forme une allée courbe vers la gauche. À gauche, un mur de clôture en enduit beige, une haie dense vert foncé et un arbre au feuillage d'automne orange et jaune au premier plan. Aucune personne, aucun véhicule.\n- Décor « Rue du quartier » (@rue-du-quartier) : Rue résidentielle pavillonnaire, vue en enfilade depuis le trottoir, en lumière dorée basse d'automne, ciel pâle voilé. Au premier plan à gauche, un pilier de clôture en enduit beige et un grand portail noir à deux vantaux, au sommet cintré, suivi d'un muret en pierre calcaire surmonté d'une grille noire et d'une haute haie vert foncé. Le trottoir est en larges dalles de pierre claire, bordé à gauche d'une bande d'herbe couverte de feuilles mortes jaunes et orange, avec une bouche d'incendie rouge et, plus loin, un panneau STOP rouge et un lampadaire à bras courbe. À droite, une chaussée d'asphalte gris avec une plaque d'égout ronde et des feuilles mortes au bord. Des voitures sont garées en file à droite (berline bleu marine, citadine grise, voitures sombres plus loin). Au fond, maisons à toits de tuiles brunes et murs blancs ou crème, haies taillées, arbres aux feuillages d'automne orange et jaune, branche jaune en haut à gauche. Aucune personne.\n- Figurant « Les voleurs » (@les-voleurs) : Deux à trois hommes en sweats gris à capuche identiques, casquettes, gants. Silhouettes banales, visages peu visibles sous les capuches.\n- Objet « Portail du jardin » (@portail-du-jardin) : Grand portail noir à deux vantaux, au sommet cintré en arc, sur un pilier de clôture en enduit beige à chapeau plat. Le haut des vantaux est ajouré, à barreaux fins et volutes ; le bas est plein, à lames verticales, avec une poignée et une serrure sur le vantail de droite. Un second pilier beige à chapeau plat sépare le portail d'un muret en pierre calcaire surmonté d'une grille noire à barreaux fins. Derrière, une haute haie vert foncé. Seuil en pavés clairs, pelouse devant couverte de feuilles mortes jaunes et orange. Lumière dorée basse d'automne. Le portail est vu en bord de rue, sur la gauche d'un trottoir en dalles claires.\n\nLighting and color grade shared by the whole sequence: Bright clear daytime sunlight, crisp defined shadows, clean sky, high contrast, natural colours, fine 35mm grain.\n\nPHOTO STYLE: Photorealistic, like a frame from a high-end music video shot on a cinema camera: real people, real places, real light, professional cinematography and art direction. Flattering and polished, never ugly: healthy even skin with a natural finish, no visible pores, no blemishes, no greasy shine, no exaggerated wrinkles or flaws; clean styling, neat hair, tidy sets. Controlled cinematic lighting with soft contrast, rich natural colours, subtle fine film grain. Not CGI, not a 3D render, not an illustration, no plastic or waxy skin, no heavy beauty filter.",
+      "model_key": "cloudflare:klein-4b",
+      "seed": null,
+      "params": {},
+      "cost_usd": 0.0,
+      "status": "failed",
+      "error": "FLUX.2 klein 4B (Cloudflare) : quota gratuit du jour épuisé. Choisis un autre modèle et relance.",
+      "created_at": "2026-11-08T16:42:38Z",
+      "funding": "free",
+      "missing": true
+    }
+  ],
+  "reviews": [
+    {
+      "id": 28,
+      "clip_slug": "nobody-saw",
+      "shot_id": 13,
+      "asset_id": null,
+      "gate": "decoupage",
+      "decision": "change",
+      "comment": "Il faut trouver une façon pour que on comprenne que cette scène se passe dans le passé",
+      "route": "script",
+      "handled": 1,
+      "handled_note": "Plan 13 : retour en arrière sur le matin du début. Les voleurs guettent derrière la haie d'en face (la capuche du plan 5). Le passé se lit par la lumière du petit matin du pré-intro, une image délavée de souvenir (couleurs passées, noirs laiteux, grain, vignettage) et la capuche qui disparaît à la fin. Description, prompt détaillé et note mis à jour, ta ligne et les timecodes inchangés. Plans 14 et 15 inchangés (présent, midi). Options montage (rembobinage, carton) et risque de référence de look du bloc dans notes.md.",
+      "created_at": "2026-11-07T10:47:07Z"
+    }
+  ],
+  "cost_usd": 0,
+  "historique": [
+    {
+      "author": "machine",
+      "text": "Visuel non fait. FLUX.2 klein 4B (Cloudflare) : quota gratuit du jour épuisé. Choisis un autre modèle et relance.",
+      "created_at": "2026-11-08T16:42:39Z"
+    },
+    {
+      "author": "machine",
+      "text": "Visuel non fait. FLUX.2 klein 9B (Cloudflare) : quota gratuit du jour épuisé. Choisis un autre modèle et relance.",
+      "created_at": "2026-11-07T13:57:44Z"
+    },
+    {
+      "author": "michael",
+      "text": "Il faut trouver une façon pour que on comprenne que cette scène se passe dans le passé",
+      "created_at": "2026-11-07T10:47:07Z"
+    }
+  ],
+  "changes": [
+    {
+      "id": 415,
+      "table_name": "shots",
+      "row_id": "13",
+      "field": "failed_step",
+      "old": null,
+      "new": "image",
+      "author": "worker",
+      "reason": "aucune proposition de visuel n'a abouti",
+      "created_at": "2026-11-08T16:42:39Z"
+    },
+    {
+      "id": 414,
+      "table_name": "shots",
+      "row_id": "13",
+      "field": "status",
+      "old": "image_gen",
+      "new": "failed",
+      "author": "worker",
+      "reason": "aucune proposition de visuel n'a abouti",
+      "created_at": "2026-11-08T16:42:39Z"
+    },
+    {
+      "id": 413,
+      "table_name": "shots",
+      "row_id": "13",
+      "field": "status",
+      "old": "image_todo",
+      "new": "image_gen",
+      "author": "michael",
+      "reason": null,
+      "created_at": "2026-11-08T16:42:38Z"
+    },
+    {
+      "id": 362,
+      "table_name": "shots",
+      "row_id": "13",
+      "field": "status",
+      "old": "failed",
+      "new": "image_todo",
+      "author": "agent:orchestrateur",
+      "reason": null,
+      "created_at": "2026-11-07T15:01:40Z"
+    },
+    {
+      "id": 361,
+      "table_name": "shots",
+      "row_id": "13",
+      "field": "failed_step",
+      "old": "image",
+      "new": null,
+      "author": "agent:orchestrateur",
+      "reason": "relance après échec",
+      "created_at": "2026-11-07T15:01:40Z"
+    },
+    {
+      "id": 328,
+      "table_name": "shots",
+      "row_id": "13",
+      "field": "failed_step",
+      "old": null,
+      "new": "image",
+      "author": "worker",
+      "reason": "aucune proposition de visuel n'a abouti",
+      "created_at": "2026-11-07T13:57:44Z"
+    },
+    {
+      "id": 327,
+      "table_name": "shots",
+      "row_id": "13",
+      "field": "status",
+      "old": "image_gen",
+      "new": "failed",
+      "author": "worker",
+      "reason": "aucune proposition de visuel n'a abouti",
+      "created_at": "2026-11-07T13:57:44Z"
+    },
+    {
+      "id": 306,
+      "table_name": "shots",
+      "row_id": "13",
+      "field": "status",
+      "old": "image_todo",
+      "new": "image_gen",
+      "author": "worker",
+      "reason": null,
+      "created_at": "2026-11-07T13:57:41Z"
+    },
+    {
+      "id": 291,
+      "table_name": "shots",
+      "row_id": "13",
+      "field": "image_prompt",
+      "old": null,
+      "new": "Flashback to the same early morning as the opening of the film, before the theft. Three of @les-voleurs crouch side by side behind the tall dark-green hedge on the far side of @rue-du-quartier, peering through a gap in the leaves at the empty street and, beyond it, the closed, padlocked @portail-du-jardin of @jardin-de-jj. The one on the left raises a pair of binoculars to his eyes; the one in the middle glances at his wristwatch (plain analogue face, no digits) and taps it with a finger, right on time; the third nods slowly. They trade smug half-smiles under their cap brims, relaxed, in no hurry. Identical grey hooded sweatshirts, caps, gloves; faces half hidden. The nearest one is turning his head, his grey hood about to sink below the hedge line. Medium shot from behind and beside them, 50mm, f/2.8, slightly low angle, the street soft in the background. Low warm golden sunrise light, long soft shadows across the pavement, as in the opening of the film, in a faded memory grade: muted washed-out colours, lifted milky blacks, soft highlights, heavier film grain, gentle vignette. Not midday, no harsh high sun, no crisp noon shadows. Photorealistic, natural healthy skin with a fine, even, matte finish, no visible pores, no blemishes, no shine, subtle natural asymmetry, polished like a professional music-video shoot, never plastic, subtle film grain, shot on ARRI Alexa. No on-screen text, no date, no caption.",
+      "author": "agent:orchestrateur",
+      "reason": null,
+      "created_at": "2026-11-07T13:55:27Z"
+    },
+    {
+      "id": 255,
+      "table_name": "shots",
+      "row_id": "13",
+      "field": "cut_ok",
+      "old": "0",
+      "new": "1",
+      "author": "michael",
+      "reason": "plan validé dans le découpage",
+      "created_at": "2026-11-07T10:56:22Z"
+    },
+    {
+      "id": 245,
+      "table_name": "shots",
+      "row_id": "13",
+      "field": "notes",
+      "old": "Le passé se lit par la lumière du matin du début, une image délavée de souvenir, et la capuche qui disparaît derrière la haie, celle que JJ remarque en partant. Tu veux en plus, au montage, un court effet de rembobinage ou un carton « Ce matin-là » à l'entrée du plan ?",
+      "new": "Plan 12 du dossier. Paroles : They were watching, had to be, / Knew the hour, knew the street. | Jumelles et montre : détails de la v2 validée (plan 8 v2).",
+      "author": "michael",
+      "reason": "découpage enregistré",
+      "created_at": "2026-11-07T10:50:53Z"
+    },
+    {
+      "id": 244,
+      "table_name": "shots",
+      "row_id": "13",
+      "field": "detail_edited",
+      "old": "0",
+      "new": "1",
+      "author": "michael",
+      "reason": "découpage enregistré",
+      "created_at": "2026-11-07T10:50:53Z"
+    },
+    {
+      "id": 243,
+      "table_name": "shots",
+      "row_id": "13",
+      "field": "detail",
+      "old": "Flashback to that same early morning, before the theft. Three of @les-voleurs crouch behind the tall hedge across @rue-du-quartier, peering through a gap in the leaves at the empty street and, beyond it, the closed, padlocked @portail-du-jardin of @jardin-de-jj. One watches through binoculars; another checks his wristwatch (plain analogue face, no digits) and taps it once, right on time; the third nods. They trade smug half-smiles under their cap brims. At the very end the nearest one ducks, and his grey hood sinks below the hedge line. Medium shot from behind and beside them, 50mm, slow push-in on the smirks, the street soft behind. Low warm sunrise light and long soft shadows, as in the opening, in a faded memory grade: muted colours, lifted milky blacks, soft highlights, heavier film grain, gentle vignette. Comic and infuriating: they knew the hour, they knew the street. No on-screen text, no date, no midday sun.",
+      "new": "The thieves, @les-voleurs, crouch behind the hedge of @jardin-de-jj and peer out at the street through a gap in the leaves. One looks through a pair of binoculars; another checks his wristwatch and taps it with a finger, right on time; the third nods. They exchange smug half-smiles under their cap brims, perfectly relaxed, in no hurry. Medium shot, low angle from the courtyard side, 50mm, slow push-in on the smirks. Sunlight dappled through the hedge, crisp shadows, high contrast. Comic and infuriating: they knew the hour, they knew the street.",
+      "author": "michael",
+      "reason": "découpage enregistré",
+      "created_at": "2026-11-07T10:50:53Z"
+    },
+    {
+      "id": 242,
+      "table_name": "shots",
+      "row_id": "13",
+      "field": "detail",
+      "old": "The thieves, @les-voleurs, crouch behind the hedge of @jardin-de-jj and peer out at the street through a gap in the leaves. One looks through a pair of binoculars; another checks his wristwatch and taps it with a finger, right on time; the third nods. They exchange smug half-smiles under their cap brims, perfectly relaxed, in no hurry. Medium shot, low angle from the courtyard side, 50mm, slow push-in on the smirks. Sunlight dappled through the hedge, crisp shadows, high contrast. Comic and infuriating: they knew the hour, they knew the street.",
+      "new": "Flashback to that same early morning, before the theft. Three of @les-voleurs crouch behind the tall hedge across @rue-du-quartier, peering through a gap in the leaves at the empty street and, beyond it, the closed, padlocked @portail-du-jardin of @jardin-de-jj. One watches through binoculars; another checks his wristwatch (plain analogue face, no digits) and taps it once, right on time; the third nods. They trade smug half-smiles under their cap brims. At the very end the nearest one ducks, and his grey hood sinks below the hedge line. Medium shot from behind and beside them, 50mm, slow push-in on the smirks, the street soft behind. Low warm sunrise light and long soft shadows, as in the opening, in a faded memory grade: muted colours, lifted milky blacks, soft highlights, heavier film grain, gentle vignette. Comic and infuriating: they knew the hour, they knew the street. No on-screen text, no date, no midday sun.",
+      "author": "agent:orchestrateur",
+      "reason": null,
+      "created_at": "2026-11-07T10:50:41Z"
+    },
+    {
+      "id": 241,
+      "table_name": "shots",
+      "row_id": "13",
+      "field": "notes",
+      "old": "Plan 12 du dossier. Paroles : They were watching, had to be, / Knew the hour, knew the street. | Jumelles et montre : détails de la v2 validée (plan 8 v2).",
+      "new": "Le passé se lit par la lumière du matin du début, une image délavée de souvenir, et la capuche qui disparaît derrière la haie, celle que JJ remarque en partant. Tu veux en plus, au montage, un court effet de rembobinage ou un carton « Ce matin-là » à l'entrée du plan ?",
+      "author": "agent:orchestrateur",
+      "reason": null,
+      "created_at": "2026-11-07T10:50:41Z"
+    },
+    {
+      "id": 240,
+      "table_name": "shots",
+      "row_id": "13",
+      "field": "description",
+      "old": "Dans le passé, on voit les voleurs qui observent la rue, sourires en coin : l'un a des jumelles, un autre regarde sa montre.",
+      "new": "Dans le passé, on voit les voleurs qui observent la rue, sourires en coin : l'un a des jumelles, un autre regarde sa montre. Retour en arrière sur le matin du début du clip, avant le vol : les voleurs sont accroupis derrière la haute haie de l'autre côté de la rue, celle où JJ a cru voir une capuche en partant. Ils guettent la rue et le portail fermé de JJ. Le passé se lit à trois signes : la lumière basse et dorée du petit matin, celle du début (le vol, lui, a lieu en plein midi) ; une image délavée de souvenir (couleurs passées, noirs laiteux, grain plus fort, léger vignettage) ; à la fin du plan, le plus proche baisse la tête et sa capuche grise disparaît derrière la haie, c'est ce que JJ remarque en se retournant. Aucun texte ni date à l'image.",
+      "author": "agent:orchestrateur",
+      "reason": null,
+      "created_at": "2026-11-07T10:50:41Z"
+    },
+    {
+      "id": 239,
+      "table_name": "shots",
+      "row_id": "13",
+      "field": "description",
+      "old": "Plan sur les voleurs qui observent la rue, sourires en coin : l'un a des jumelles, un autre regarde sa montre.",
+      "new": "Dans le passé, on voit les voleurs qui observent la rue, sourires en coin : l'un a des jumelles, un autre regarde sa montre.",
+      "author": "michael",
+      "reason": "découpage enregistré",
+      "created_at": "2026-11-07T10:45:18Z"
+    },
+    {
+      "id": 238,
+      "table_name": "shots",
+      "row_id": "13",
+      "field": "script",
+      "old": "Plan sur les voleurs qui observent la rue, sourires en coin : l'un a des jumelles, un autre regarde sa montre.",
+      "new": "Dans le passé, on voit les voleurs qui observent la rue, sourires en coin : l'un a des jumelles, un autre regarde sa montre.",
+      "author": "michael",
+      "reason": "découpage enregistré",
+      "created_at": "2026-11-07T10:45:18Z"
+    }
+  ],
+  "elements": [
+    {
+      "kind": "decor",
+      "slug": "jardin-de-jj",
+      "name": "Jardin de JJ",
+      "state": null,
+      "description": "Cour rustique devant une maison ancienne en pierre calcaire beige crème, vue en plein air par une lumière dorée basse d'automne, ciel bleu pâle, ombres longues et franches. La façade en pierre de taille est couverte de vigne vierge aux feuilles jaunes et de jasmin à petites fleurs blanches. Porte d'entrée à deux vantaux vitrés peinte en bleu-gris, sous un auvent en métal noir et verre avec une lanterne noire suspendue. Fenêtres à petits carreaux avec volets pleins bleu-gris. Trois marches en pierre claire mènent à la porte, encadrée de deux grands pots en pierre patinée portant chacun un buis taillé en boule. Deux hauts cyprès sombres se dressent de part et d'autre de la façade. Massifs de lavande et d'arbustes gris-vert devant la maison. Le sol est un large gravier clair beige rosé, parsemé de feuilles mortes, qui forme une allée courbe vers la gauche. À gauche, un mur de clôture en enduit beige, une haie dense vert foncé et un arbre au feuillage d'automne orange et jaune au premier plan. Aucune personne, aucun véhicule.",
+      "refs": [
+        "clips/nobody-saw/decors/jardin-de-jj/depart/cour-rustique-devant-la-maison-en-pierre.png"
+      ]
+    },
+    {
+      "kind": "decor",
+      "slug": "rue-du-quartier",
+      "name": "Rue du quartier",
+      "state": null,
+      "description": "Rue résidentielle pavillonnaire, vue en enfilade depuis le trottoir, en lumière dorée basse d'automne, ciel pâle voilé. Au premier plan à gauche, un pilier de clôture en enduit beige et un grand portail noir à deux vantaux, au sommet cintré, suivi d'un muret en pierre calcaire surmonté d'une grille noire et d'une haute haie vert foncé. Le trottoir est en larges dalles de pierre claire, bordé à gauche d'une bande d'herbe couverte de feuilles mortes jaunes et orange, avec une bouche d'incendie rouge et, plus loin, un panneau STOP rouge et un lampadaire à bras courbe. À droite, une chaussée d'asphalte gris avec une plaque d'égout ronde et des feuilles mortes au bord. Des voitures sont garées en file à droite (berline bleu marine, citadine grise, voitures sombres plus loin). Au fond, maisons à toits de tuiles brunes et murs blancs ou crème, haies taillées, arbres aux feuillages d'automne orange et jaune, branche jaune en haut à gauche. Aucune personne.",
+      "refs": [
+        "clips/nobody-saw/decors/rue-du-quartier/depart/rue-181021.png"
+      ]
+    },
+    {
+      "kind": "figurant",
+      "slug": "les-voleurs",
+      "name": "Les voleurs",
+      "state": null,
+      "description": "Deux à trois hommes en sweats gris à capuche identiques, casquettes, gants. Silhouettes banales, visages peu visibles sous les capuches.",
+      "refs": [
+        "clips/nobody-saw/decors/les-voleurs/sources/grok-imagine-2026-11-05-00-56-59-235815.png"
+      ]
+    },
+    {
+      "kind": "objet",
+      "slug": "portail-du-jardin",
+      "name": "Portail du jardin",
+      "state": null,
+      "description": "Grand portail noir à deux vantaux, au sommet cintré en arc, sur un pilier de clôture en enduit beige à chapeau plat. Le haut des vantaux est ajouré, à barreaux fins et volutes ; le bas est plein, à lames verticales, avec une poignée et une serrure sur le vantail de droite. Un second pilier beige à chapeau plat sépare le portail d'un muret en pierre calcaire surmonté d'une grille noire à barreaux fins. Derrière, une haute haie vert foncé. Seuil en pavés clairs, pelouse devant couverte de feuilles mortes jaunes et orange. Lumière dorée basse d'automne. Le portail est vu en bord de rue, sur la gauche d'un trottoir en dalles claires.",
+      "refs": [
+        "clips/nobody-saw/decors/portail-du-jardin/depart/rue-181350.png"
+      ]
+    }
+  ],
+  "video_model": {
+    "key": "veo-31-fast-vertex",
+    "label": "Veo 3.1 Fast",
+    "chosen": false,
+    "by_michael": false
+  },
+  "fit": {
+    "level": "warn",
+    "generated": 8,
+    "waste": 1.5,
+    "text": "Plan de 6,5 s, mais Veo 3.1 Fast fait au moins 8 s (4, 6, 8 s possibles) : 1,5 s payées en trop."
+  },
+  "video_cost": 0.8,
+  "waiting": null,
+  "owner": {
+    "who": "agent:orchestrateur",
+    "name": "l'orchestrateur",
+    "why": "",
+    "label": "En attente de : l'orchestrateur"
+  },
+  "actions": {
+    "run": "Relancer le visuel",
+    "skip": null
+  },
+  "image_launch": {
+    "counts": {
+      "gratuit": 3,
+      "payant": 1
+    },
+    "max": 4,
+    "task": "visuel"
+  },
+  "casting": [],
+  "aspect_ratio": "16:9",
+  "direction_artistique": "Ambiance « vraie vie » d'une jeune cadre.\nJJ est directrice dans un cabinet de conseil : au travail, elle a le look d'une jeune cadre de cabinet de conseil. Pas de Doc Martens, pas de look rock."
+}

@@ -1,0 +1,223 @@
+{
+  "id": 14,
+  "clip_slug": "nobody-saw",
+  "num": 14,
+  "section": "Couplet 1 : ils guettaient",
+  "t_start": 50.9,
+  "t_end": 53.9,
+  "description": "Le vélo mal attaché : un voleur soulève l'antivol du bout des doigts, puis le vélo.",
+  "framing": "CU",
+  "motion": "low",
+  "camera": "tilt up, slight widening",
+  "characters": [],
+  "singing": 0,
+  "tier": null,
+  "model_key": null,
+  "seed": null,
+  "image_prompt": "First frame: extreme close-up on the loose cable lock chain hanging from the frame of the pale mint-green electric city bike parked against the house wall in the gravel courtyard of the house, the lock looped through nothing. A gloved hand of one of the thieves (grey hooded sweatshirt sleeve, glove) pinches the chain between two fingertips and starts to lift it, letting it dangle. Only the hand, the lock and the lower bike frame are in frame, the thief's face is not visible. Room above the frame for the tilt up. Close-up, 50mm, f/2.8, camera low, locked on the dangling lock. Bright clear daytime sunlight, crisp defined shadows, clean sky, high contrast, natural colours, fine 35mm grain. Photorealistic, real material texture on metal and gravel, natural asymmetry, polished like a professional music-video shoot, never plastic, shot on ARRI Alexa. Deadpan mood.",
+  "video_prompt": null,
+  "negative_prompt": null,
+  "status": "failed",
+  "qc_retries": 0,
+  "notes": "Plan 13 du dossier. Paroles : Bike not chained the way it should, | « Du bout des doigts » : v2 ; « presque déçu » : v1, non refusé.",
+  "updated_at": "2026-11-08T16:43:26Z",
+  "block_id": 4,
+  "route_reason": null,
+  "detail": "Close on @velo-electrique-de-jj parked against the house wall in @jardin-de-jj: its cable lock hangs loose from the frame, looped through nothing. A hand of one of @les-voleurs lifts the chain between two fingertips and lets it dangle; the thief, almost disappointed it is so easy, grabs the bike by the frame and lifts it off the gravel in one move. Starts close on the dangling lock, then tilts up and widens slightly as the bike rises. 50mm, smooth tilt. Bright clear sunlight, crisp defined shadows, clean sky, high contrast. Deadpan: the bike was not chained the way it should be.",
+  "detail_edited": 1,
+  "failed_step": "image",
+  "lipsync_key": null,
+  "cut_ok": 1,
+  "looks": null,
+  "refs_ok": 0,
+  "looks_manual": 0,
+  "deleted_at": null,
+  "script": "Le vélo mal attaché : un voleur soulève l'antivol du bout des doigts, puis le vélo.",
+  "prod_outdated": 0,
+  "assets": [
+    {
+      "id": 158,
+      "shot_id": 14,
+      "kind": "image",
+      "version": 1,
+      "path": "clips/nobody-saw/storyboard/plan-014-v1.png",
+      "remote_url": null,
+      "prompt": "First frame: extreme close-up on the loose cable lock chain hanging from the frame of the pale mint-green electric city bike parked against the house wall in the gravel courtyard of the house, the lock looped through nothing. A gloved hand of one of the thieves (grey hooded sweatshirt sleeve, glove) pinches the chain between two fingertips and starts to lift it, letting it dangle. Only the hand, the lock and the lower bike frame are in frame, the thief's face is not visible. Room above the frame for the tilt up. Close-up, 50mm, f/2.8, camera low, locked on the dangling lock. Bright clear daytime sunlight, crisp defined shadows, clean sky, high contrast, natural colours, fine 35mm grain. Photorealistic, real material texture on metal and gravel, natural asymmetry, polished like a professional music-video shoot, never plastic, shot on ARRI Alexa. Deadpan mood.\n\nSetting, props and secondary characters (keep them exactly as in their reference images):\n- Décor « Jardin de JJ » (@jardin-de-jj) : Cour rustique devant une maison ancienne en pierre calcaire beige crème, vue en plein air par une lumière dorée basse d'automne, ciel bleu pâle, ombres longues et franches. La façade en pierre de taille est couverte de vigne vierge aux feuilles jaunes et de jasmin à petites fleurs blanches. Porte d'entrée à deux vantaux vitrés peinte en bleu-gris, sous un auvent en métal noir et verre avec une lanterne noire suspendue. Fenêtres à petits carreaux avec volets pleins bleu-gris. Trois marches en pierre claire mènent à la porte, encadrée de deux grands pots en pierre patinée portant chacun un buis taillé en boule. Deux hauts cyprès sombres se dressent de part et d'autre de la façade. Massifs de lavande et d'arbustes gris-vert devant la maison. Le sol est un large gravier clair beige rosé, parsemé de feuilles mortes, qui forme une allée courbe vers la gauche. À gauche, un mur de clôture en enduit beige, une haie dense vert foncé et un arbre au feuillage d'automne orange et jaune au premier plan. Aucune personne, aucun véhicule.\n- Figurant « Les voleurs » (@les-voleurs) : Deux à trois hommes en sweats gris à capuche identiques, casquettes, gants. Silhouettes banales, visages peu visibles sous les capuches.\n- Objet « Vélo électrique de JJ » (@velo-electrique-de-jj) : Vélo électrique de ville, cadre bas à enjambement ouvert, peinture vert menthe pâle mat. Grosse batterie intégrée dans le tube diagonal, du même vert. Guidon noir relevé avec poignées noires, leviers de frein, sonnette et petit écran. Selle noire en forme de poire. Porte-bagages arrière noir. Garde-boue noirs mat avant et arrière. Fourche avant noire à suspension, frein à disque, phare avant noir fixé sur la fourche. Moteur dans le moyeu arrière, dérailleur arrière noir, chaîne, pédalier noir avec pédales noires à réflecteurs orange. Roues à fins rayons, pneus noirs à flancs unis, réflecteurs orange dans les rayons. Vélo neuf, sans rayure, vu de trois quarts avant droit sur fond blanc uni. Aucun antivol visible.\n\nLighting and color grade shared by the whole sequence: Bright clear daytime sunlight, crisp defined shadows, clean sky, high contrast, natural colours, fine 35mm grain.\n\nPHOTO STYLE: Photorealistic, like a frame from a high-end music video shot on a cinema camera: real people, real places, real light, professional cinematography and art direction. Flattering and polished, never ugly: healthy even skin with a natural finish, no visible pores, no blemishes, no greasy shine, no exaggerated wrinkles or flaws; clean styling, neat hair, tidy sets. Controlled cinematic lighting with soft contrast, rich natural colours, subtle fine film grain. Not CGI, not a 3D render, not an illustration, no plastic or waxy skin, no heavy beauty filter.",
+      "model_key": "huggingface:flux2-dev",
+      "seed": null,
+      "params": {},
+      "cost_usd": 0.0,
+      "status": "failed",
+      "error": "FLUX.2 dev (Hugging Face) : GPU gratuit refusé (quota du jour épuisé ou file saturée), réessaie plus tard ou prends un autre modèle. Choisis un autre modèle et relance.",
+      "created_at": "2026-11-08T16:43:03Z",
+      "funding": "free",
+      "missing": true
+    }
+  ],
+  "reviews": [],
+  "cost_usd": 0,
+  "historique": [
+    {
+      "author": "machine",
+      "text": "Visuel non fait. FLUX.2 dev (Hugging Face) : GPU gratuit refusé (quota du jour épuisé ou file saturée), réessaie plus tard ou prends un autre modèle. Choisis un autre modèle et relance.",
+      "created_at": "2026-11-08T16:43:26Z"
+    }
+  ],
+  "changes": [
+    {
+      "id": 418,
+      "table_name": "shots",
+      "row_id": "14",
+      "field": "failed_step",
+      "old": null,
+      "new": "image",
+      "author": "worker",
+      "reason": "aucune proposition de visuel n'a abouti",
+      "created_at": "2026-11-08T16:43:26Z"
+    },
+    {
+      "id": 417,
+      "table_name": "shots",
+      "row_id": "14",
+      "field": "status",
+      "old": "image_gen",
+      "new": "failed",
+      "author": "worker",
+      "reason": "aucune proposition de visuel n'a abouti",
+      "created_at": "2026-11-08T16:43:26Z"
+    },
+    {
+      "id": 416,
+      "table_name": "shots",
+      "row_id": "14",
+      "field": "status",
+      "old": "image_todo",
+      "new": "image_gen",
+      "author": "michael",
+      "reason": null,
+      "created_at": "2026-11-08T16:43:03Z"
+    },
+    {
+      "id": 339,
+      "table_name": "shots",
+      "row_id": "14",
+      "field": "image_prompt",
+      "old": "First frame: extreme close-up on the loose cable lock hanging from the frame of the pale mint-green electric city bike parked against the house wall in the sunlit gravel courtyard, the lock looped through nothing. A gloved hand of one of the thieves (grey hooded sweatshirt sleeve, glove) pinches the chain between two fingertips and starts to lift it, letting it dangle. Only the hand, the lock and the lower bike frame are in frame, the thief's face is not visible. Room above the frame for the tilt up. Close-up, 50mm, f/2.8, camera low, locked on the dangling lock. Bright clear daytime sunlight, crisp defined shadows, clean sky, high contrast, natural colours, fine 35mm grain. Photorealistic, real material texture on metal and gravel, natural asymmetry, polished like a professional music-video shoot, never plastic, shot on ARRI Alexa. Deadpan mood.",
+      "new": "First frame: extreme close-up on the loose cable lock chain hanging from the frame of the pale mint-green electric city bike parked against the house wall in the gravel courtyard of the house, the lock looped through nothing. A gloved hand of one of the thieves (grey hooded sweatshirt sleeve, glove) pinches the chain between two fingertips and starts to lift it, letting it dangle. Only the hand, the lock and the lower bike frame are in frame, the thief's face is not visible. Room above the frame for the tilt up. Close-up, 50mm, f/2.8, camera low, locked on the dangling lock. Bright clear daytime sunlight, crisp defined shadows, clean sky, high contrast, natural colours, fine 35mm grain. Photorealistic, real material texture on metal and gravel, natural asymmetry, polished like a professional music-video shoot, never plastic, shot on ARRI Alexa. Deadpan mood.",
+      "author": "agent:orchestrateur",
+      "reason": null,
+      "created_at": "2026-11-07T14:38:16Z"
+    },
+    {
+      "id": 294,
+      "table_name": "shots",
+      "row_id": "14",
+      "field": "image_prompt",
+      "old": null,
+      "new": "First frame: extreme close-up on the loose cable lock hanging from the frame of the pale mint-green electric city bike parked against the house wall in the sunlit gravel courtyard, the lock looped through nothing. A gloved hand of one of the thieves (grey hooded sweatshirt sleeve, glove) pinches the chain between two fingertips and starts to lift it, letting it dangle. Only the hand, the lock and the lower bike frame are in frame, the thief's face is not visible. Room above the frame for the tilt up. Close-up, 50mm, f/2.8, camera low, locked on the dangling lock. Bright clear daytime sunlight, crisp defined shadows, clean sky, high contrast, natural colours, fine 35mm grain. Photorealistic, real material texture on metal and gravel, natural asymmetry, polished like a professional music-video shoot, never plastic, shot on ARRI Alexa. Deadpan mood.",
+      "author": "agent:orchestrateur",
+      "reason": null,
+      "created_at": "2026-11-07T13:57:30Z"
+    },
+    {
+      "id": 248,
+      "table_name": "shots",
+      "row_id": "14",
+      "field": "cut_ok",
+      "old": "0",
+      "new": "1",
+      "author": "michael",
+      "reason": "plan validé dans le découpage",
+      "created_at": "2026-11-07T10:50:55Z"
+    },
+    {
+      "id": 247,
+      "table_name": "shots",
+      "row_id": "14",
+      "field": "detail_edited",
+      "old": "0",
+      "new": "1",
+      "author": "michael",
+      "reason": "découpage enregistré",
+      "created_at": "2026-11-07T10:50:53Z"
+    },
+    {
+      "id": 246,
+      "table_name": "shots",
+      "row_id": "14",
+      "field": "detail",
+      "old": "Close on @velo-electrique-de-jj parked against the house wall in @jardin-de-jj: its cable lock hangs loose from the frame, looped through nothing. A gloved hand of one of @les-voleurs lifts the cable between two fingertips and lets it dangle; the thief, almost disappointed it is so easy, grabs the bike by the frame and lifts it off the gravel in one move. Starts close on the dangling lock, then tilts up and widens slightly as the bike rises. 50mm, smooth tilt. Bright clear sunlight, crisp defined shadows, clean sky, high contrast. Deadpan: the bike was not chained the way it should be.",
+      "new": "Close on @velo-electrique-de-jj parked against the house wall in @jardin-de-jj: its cable lock hangs loose from the frame, looped through nothing. A hand of one of @les-voleurs lifts the chain between two fingertips and lets it dangle; the thief, almost disappointed it is so easy, grabs the bike by the frame and lifts it off the gravel in one move. Starts close on the dangling lock, then tilts up and widens slightly as the bike rises. 50mm, smooth tilt. Bright clear sunlight, crisp defined shadows, clean sky, high contrast. Deadpan: the bike was not chained the way it should be.",
+      "author": "michael",
+      "reason": "découpage enregistré",
+      "created_at": "2026-11-07T10:50:53Z"
+    }
+  ],
+  "elements": [
+    {
+      "kind": "decor",
+      "slug": "jardin-de-jj",
+      "name": "Jardin de JJ",
+      "state": null,
+      "description": "Cour rustique devant une maison ancienne en pierre calcaire beige crème, vue en plein air par une lumière dorée basse d'automne, ciel bleu pâle, ombres longues et franches. La façade en pierre de taille est couverte de vigne vierge aux feuilles jaunes et de jasmin à petites fleurs blanches. Porte d'entrée à deux vantaux vitrés peinte en bleu-gris, sous un auvent en métal noir et verre avec une lanterne noire suspendue. Fenêtres à petits carreaux avec volets pleins bleu-gris. Trois marches en pierre claire mènent à la porte, encadrée de deux grands pots en pierre patinée portant chacun un buis taillé en boule. Deux hauts cyprès sombres se dressent de part et d'autre de la façade. Massifs de lavande et d'arbustes gris-vert devant la maison. Le sol est un large gravier clair beige rosé, parsemé de feuilles mortes, qui forme une allée courbe vers la gauche. À gauche, un mur de clôture en enduit beige, une haie dense vert foncé et un arbre au feuillage d'automne orange et jaune au premier plan. Aucune personne, aucun véhicule.",
+      "refs": [
+        "clips/nobody-saw/decors/jardin-de-jj/depart/cour-rustique-devant-la-maison-en-pierre.png"
+      ]
+    },
+    {
+      "kind": "figurant",
+      "slug": "les-voleurs",
+      "name": "Les voleurs",
+      "state": null,
+      "description": "Deux à trois hommes en sweats gris à capuche identiques, casquettes, gants. Silhouettes banales, visages peu visibles sous les capuches.",
+      "refs": [
+        "clips/nobody-saw/decors/les-voleurs/sources/grok-imagine-2026-11-05-00-56-59-235815.png"
+      ]
+    },
+    {
+      "kind": "objet",
+      "slug": "velo-electrique-de-jj",
+      "name": "Vélo électrique de JJ",
+      "state": null,
+      "description": "Vélo électrique de ville, cadre bas à enjambement ouvert, peinture vert menthe pâle mat. Grosse batterie intégrée dans le tube diagonal, du même vert. Guidon noir relevé avec poignées noires, leviers de frein, sonnette et petit écran. Selle noire en forme de poire. Porte-bagages arrière noir. Garde-boue noirs mat avant et arrière. Fourche avant noire à suspension, frein à disque, phare avant noir fixé sur la fourche. Moteur dans le moyeu arrière, dérailleur arrière noir, chaîne, pédalier noir avec pédales noires à réflecteurs orange. Roues à fins rayons, pneus noirs à flancs unis, réflecteurs orange dans les rayons. Vélo neuf, sans rayure, vu de trois quarts avant droit sur fond blanc uni. Aucun antivol visible.",
+      "refs": [
+        "clips/nobody-saw/decors/velo-electrique-de-jj/depart/abdb17a4-8ad6-4502-afde-f04db9892177-180405.png"
+      ]
+    }
+  ],
+  "video_model": {
+    "key": "veo-31-fast-vertex",
+    "label": "Veo 3.1 Fast",
+    "chosen": false,
+    "by_michael": false
+  },
+  "fit": {
+    "level": "ok",
+    "generated": 4,
+    "waste": 1.0,
+    "text": "Veo 3.1 Fast génère 4 s pour ce plan."
+  },
+  "video_cost": 0.4,
+  "waiting": null,
+  "owner": {
+    "who": "agent:orchestrateur",
+    "name": "l'orchestrateur",
+    "why": "",
+    "label": "En attente de : l'orchestrateur"
+  },
+  "actions": {
+    "run": "Relancer le visuel",
+    "skip": null
+  },
+  "image_launch": {
+    "counts": {
+      "gratuit": 3,
+      "payant": 1
+    },
+    "max": 4,
+    "task": "visuel"
+  },
+  "casting": [],
+  "aspect_ratio": "16:9",
+  "direction_artistique": "Ambiance « vraie vie » d'une jeune cadre.\nJJ est directrice dans un cabinet de conseil : au travail, elle a le look d'une jeune cadre de cabinet de conseil. Pas de Doc Martens, pas de look rock."
+}
