@@ -155,6 +155,14 @@ def _should_wake(conn: sqlite3.Connection, slug: str, need: dict) -> bool:
     # On attend avant de réessayer pour ne pas brûler le quota de l'abonnement.
     if last["ended_at"] is None or not need.get("retry_on_backoff", True):
         return False
+    # Au plus RIOT_AGENT_MAX_RETRIES relances sur une situation identique : au-delà, l'agent
+    # attend qu'un changement (validation, nouvelle consigne) modifie l'empreinte.
+    recents = conn.execute(
+        "SELECT fingerprint FROM agent_runs WHERE clip_slug=? ORDER BY id DESC LIMIT ?",
+        (slug, get_settings().agent_max_retries + 1),
+    ).fetchall()
+    if len(recents) > get_settings().agent_max_retries and all(r["fingerprint"] == fingerprint for r in recents):
+        return False
     return db.age_seconds(last["ended_at"]) > get_settings().agent_backoff_s
 
 

@@ -52,6 +52,7 @@ class Settings:
     claude_model: str | None
     agent_timeout_s: int
     agent_backoff_s: int
+    agent_max_retries: int
     agents_enabled: bool
 
     @property
@@ -94,6 +95,7 @@ def get_settings() -> Settings:
         claude_model=os.environ.get("RIOT_CLAUDE_MODEL") or None,
         agent_timeout_s=int(os.environ.get("RIOT_AGENT_TIMEOUT", "2400")),
         agent_backoff_s=int(os.environ.get("RIOT_AGENT_BACKOFF", "600")),
+        agent_max_retries=int(os.environ.get("RIOT_AGENT_MAX_RETRIES", "2")),
         agents_enabled=_env_bool("RIOT_AGENTS_ENABLED", default=True),
     )
 
