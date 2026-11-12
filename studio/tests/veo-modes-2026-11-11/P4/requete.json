@@ -1,0 +1,25 @@
+{
+ "model": "veo-3.1-fast-generate-001",
+ "instances": [
+  {
+   "prompt": "Medium shot on the sidewalk in front of a black wrought-iron garden gate between two pale stone pillars. A woman of about 25, mixed race with light golden skin, light grey-blue almond-shaped eyes, faint diffuse freckles across her nose and cheeks, very voluminous long tight curls falling to mid-back, dark brown at the roots with copper highlights, wearing a black tailored single-breasted blazer with a deep V neckline and one button at the waist, matching black high-waisted wide-leg trousers, nude strappy heeled sandals, with a structured tan leather handbag with a front envelope flap and two thin top handles on her shoulder, turns a small key in the keyhole of the closed gate and pulls the key out. She grips a bar and pulls the gate toward her twice to check that it is shut; it stays firmly closed with a short metallic click. She lets go and half turns toward the sidewalk, key in hand. Static camera. Low warm autumn morning sun, long soft shadows, natural warm grade, fine film grain.",
+   "image": {
+    "bytesBase64Encoded": "<base64 1061176 car.>",
+    "mimeType": "image/png"
+   },
+   "lastFrame": {
+    "bytesBase64Encoded": "<base64 1035988 car.>",
+    "mimeType": "image/png"
+   }
+  }
+ ],
+ "parameters": {
+  "aspectRatio": "16:9",
+  "durationSeconds": 8,
+  "resolution": "720p",
+  "generateAudio": false,
+  "sampleCount": 1,
+  "personGeneration": "allow_adult",
+  "negativePrompt": "padlock, extra hands, extra fingers, text, watermark, morphing face, blurry"
+ }
+}

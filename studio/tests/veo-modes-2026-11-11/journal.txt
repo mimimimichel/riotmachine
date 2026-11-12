@@ -1,0 +1,13 @@
+P4 reporté : images non faites (FLUX.2 klein 9B (Cloudflare) : indisponible pour l'instant (500 : {"errors":[{"message":"AiError: AiError: Internal server error (ece91660-fa83-4ef6-a83a-2d58dbdac336)","code":3043}],"su). Choisis un autre modèle et relance.)
+P1 : soumis sur veo-3.1-fast-generate-001
+P2 : soumis sur veo-3.1-fast-generate-001
+P3 : soumis sur veo-3.1-fast-generate-001
+P5 : soumis sur veo-3.1-fast-generate-001
+P1b : soumis sur veo-3.1-generate-001
+P1 : refusé ou vide, voir /home/michael/projets/riotmachine/studio/tests/veo-modes-2026-11-11/P1/reponse.json
+P2 : refusé ou vide, voir /home/michael/projets/riotmachine/studio/tests/veo-modes-2026-11-11/P2/reponse.json
+P3 : refusé ou vide, voir /home/michael/projets/riotmachine/studio/tests/veo-modes-2026-11-11/P3/reponse.json
+P1b : refusé ou vide, voir /home/michael/projets/riotmachine/studio/tests/veo-modes-2026-11-11/P1b/reponse.json
+P5 : vidéo reçue en 55 s
+Total dépensé : 0.64 $
+fin, code 0

@@ -1,0 +1,21 @@
+{
+ "model": "veo-3.1-fast-generate-001",
+ "instances": [
+  {
+   "prompt": "Medium over-the-shoulder shot, static camera on a tripod, no camera movement. JJ stands on the pavement of a quiet suburban street in soft early morning light. She turns her head slowly toward the tall hedge, looks at it for a moment, and frowns very slightly. The hedge stays completely still and empty. Then she turns her head back and starts walking away calmly, leaving the frame. Her face, curly hair, navy blazer, white blouse and leather bag stay consistent with the first frame, same lighting. Gentle, quiet mood, a faint unease quickly brushed off. No sound, no music.",
+   "image": {
+    "bytesBase64Encoded": "<base64 922628 car.>",
+    "mimeType": "image/png"
+   }
+  }
+ ],
+ "parameters": {
+  "aspectRatio": "16:9",
+  "durationSeconds": 8,
+  "resolution": "720p",
+  "generateAudio": false,
+  "sampleCount": 1,
+  "personGeneration": "allow_adult",
+  "negativePrompt": "blur, distorted hands, extra fingers, morphing face, identity change, flicker, low quality, camera movement, zoom, person in the hedge, hood, grey sweatshirt, hidden figure, shouting, big gesture, text, subtitles"
+ }
+}

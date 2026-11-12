@@ -1,0 +1,92 @@
+{
+ "P1": {
+  "shot": 5,
+  "mode": "references",
+  "model": "veo-3.1-fast-generate-001",
+  "res": "720p",
+  "dur": 8,
+  "refs": [
+   "characters/jj/v2/details/ancienne-canon-7.png",
+   "clips/nobody-saw/decors/porte-document/inspiration/11005-192213.jpg"
+  ],
+  "prompt": "Medium shot at eye level on a quiet suburban sidewalk in autumn, a tall trimmed green hedge on the left, parked cars and houses on the right. A woman of about 25, mixed race with light golden skin, light grey-blue almond-shaped eyes, faint diffuse freckles across her nose and cheeks, very voluminous long tight curls falling to mid-back, dark brown at the roots with copper highlights, wearing a black tailored single-breasted blazer with a deep V neckline and one button at the waist, matching black high-waisted wide-leg trousers, nude strappy heeled sandals, carries a structured tan leather handbag with a front envelope flap and two thin top handles on her shoulder and walks away from the camera along the sidewalk. After a few steps she slows, turns her head and shoulders back toward the hedge and looks at it for a moment, her eyebrows drawing together very slightly. Then she turns forward again and keeps walking calmly until she is a few meters further. The camera follows her at walking pace, smooth and steady. Low warm morning sun, long soft shadows, fallen leaves on the pavement, natural warm grade, fine film grain.",
+  "negative": "padlock, extra hands, extra fingers, text, watermark, morphing face, blurry",
+  "essais": [
+   "canon.png + tenue + sac : refus 15236754 à l'entrée"
+  ]
+ },
+ "P2": {
+  "shot": 2,
+  "mode": "references",
+  "model": "veo-3.1-fast-generate-001",
+  "res": "720p",
+  "dur": 8,
+  "refs": [
+   "characters/jj/v2/details/ancienne-canon-7.png",
+   "clips/nobody-saw/decors/porte-document/inspiration/11005-192213.jpg"
+  ],
+  "prompt": "Medium wide shot of the gravel courtyard in front of a limestone house with a blue-grey glazed double front door and three light stone steps. A woman of about 25, mixed race with light golden skin, light grey-blue almond-shaped eyes, faint diffuse freckles across her nose and cheeks, very voluminous long tight curls falling to mid-back, dark brown at the roots with copper highlights, wearing a black tailored single-breasted blazer with a deep V neckline and one button at the waist, matching black high-waisted wide-leg trousers, nude strappy heeled sandals, with a structured tan leather handbag with a front envelope flap and two thin top handles on her shoulder, comes out of the door and walks down the three steps. At the foot of the steps a pale mint-green step-through electric city bike stands on its kickstand against the house wall. As she passes it she looks at it with a faint satisfied smile and gives the saddle a quick brush with her sleeve, then continues across the courtyard toward the right of the frame. The camera pans slowly to follow her. Early morning light, low warm sun, long soft shadows, natural warm grade, fine film grain.",
+  "negative": "padlock, extra hands, extra fingers, text, watermark, morphing face, blurry",
+  "essais": [
+   "canon.png + tenue + sac : refus 15236754 à l'entrée"
+  ]
+ },
+ "P3": {
+  "shot": 4,
+  "mode": "references",
+  "model": "veo-3.1-fast-generate-001",
+  "res": "720p",
+  "dur": 8,
+  "note": "gros plan tiré du plan 4 : le bloc 1 n'a aucun gros plan de JJ ; details/ancienne-canon-7.png écartée : même vue de face que canon.png",
+  "refs": [
+   "characters/jj/v2/details/ancienne-canon-7.png"
+  ],
+  "prompt": "Close-up on the face and shoulders of a woman of about 25, mixed race with light golden skin, light grey-blue almond-shaped eyes, faint diffuse freckles across her nose and cheeks, very voluminous long tight curls falling to mid-back, dark brown at the roots with copper highlights, wearing a black tailored single-breasted blazer with a deep V neckline and one button at the waist, matching black high-waisted wide-leg trousers, nude strappy heeled sandals, standing by a black wrought-iron garden gate in soft autumn morning light, a trimmed hedge blurred behind her. She looks down at her hand on the gate, pulls the gate toward her twice to check that it is shut, then looks up with a small satisfied nod and turns her head toward the street. Static camera, shallow depth of field, low warm sun on her face, natural warm grade, fine film grain.",
+  "negative": "padlock, extra hands, extra fingers, text, watermark, morphing face, blurry",
+  "essais": [
+   "canon.png + tenue : refus 15236754",
+   "tshirt-blanc-rousseur.png + tenue : refus 15236754",
+   "tshirt-blanc-rousseur.png seule : entrée acceptée, vidéo filtrée en sortie (15236754, non facturée)",
+   "ancienne-canon-7.png seule : acceptée"
+  ]
+ },
+ "P4": {
+  "shot": 4,
+  "mode": "first_last",
+  "model": "veo-3.1-fast-generate-001",
+  "res": "720p",
+  "dur": 8,
+  "frames_refs": [
+   "characters/jj/v2/details/ancienne-canon-7.png",
+   "clips/nobody-saw/decors/porte-document/inspiration/11005-192213.jpg",
+   "clips/nobody-saw/decors/portail-du-jardin/depart/rue-181350.png"
+  ],
+  "first_frame_prompt": "Medium shot on the sidewalk in front of a closed black wrought-iron garden gate between two pale stone pillars, a tall trimmed hedge beside it. The woman from image 1, wearing a black tailored single-breasted blazer with a deep V neckline and matching black wide-leg trousers, carrying the bag from image 2 on her left shoulder, stands facing the gate in three-quarter view. Her right hand holds a small key inserted in the keyhole of the gate. Autumn morning, low warm sun, long soft shadows, photorealistic, fine film grain.",
+  "last_frame_prompt": "Same framing, same gate and hedge. The woman from image 1, wearing a black tailored single-breasted blazer with a deep V neckline and matching black wide-leg trousers, the bag from image 2 on her left shoulder, has let go of the gate, which is closed. She holds the small key in her right hand at waist height and her body is half turned toward the sidewalk, ready to walk away. Autumn morning, low warm sun, long soft shadows, photorealistic, fine film grain.",
+  "prompt": "Medium shot on the sidewalk in front of a black wrought-iron garden gate between two pale stone pillars. A woman of about 25, mixed race with light golden skin, light grey-blue almond-shaped eyes, faint diffuse freckles across her nose and cheeks, very voluminous long tight curls falling to mid-back, dark brown at the roots with copper highlights, wearing a black tailored single-breasted blazer with a deep V neckline and one button at the waist, matching black high-waisted wide-leg trousers, nude strappy heeled sandals, with a structured tan leather handbag with a front envelope flap and two thin top handles on her shoulder, turns a small key in the keyhole of the closed gate and pulls the key out. She grips a bar and pulls the gate toward her twice to check that it is shut; it stays firmly closed with a short metallic click. She lets go and half turns toward the sidewalk, key in hand. Static camera. Low warm autumn morning sun, long soft shadows, natural warm grade, fine film grain.",
+  "negative": "padlock, extra hands, extra fingers, text, watermark, morphing face, blurry",
+  "essais": [
+   "images Cloudflare avec canon.png : erreur 500 (deux fois)",
+   "photo de la tenue retirée des références (vraie personne probable, refusée par Google)"
+  ]
+ },
+ "P5": {
+  "shot": 5,
+  "mode": "image_to_video",
+  "model": "veo-3.1-fast-generate-001",
+  "res": "720p",
+  "dur": 8,
+  "first_frame": "clips/nobody-saw/storyboard/plan-005-v10.png",
+  "prompt": "(prompt vidéo actuel du plan 5, tel quel)",
+  "negative": "(négatif actuel du plan 5)"
+ },
+ "P1b": {
+  "shot": 5,
+  "mode": "references",
+  "model": "veo-3.1-generate-001",
+  "res": "720p",
+  "dur": 8,
+  "same_as": "P1",
+  "negative": "padlock, extra hands, extra fingers, text, watermark, morphing face, blurry"
+ }
+}

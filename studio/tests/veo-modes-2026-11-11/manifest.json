@@ -1,0 +1,106 @@
+{
+ "runs": {
+  "P4": {
+   "mode": "first_last",
+   "model": "veo-3.1-fast-generate-001",
+   "refs": null,
+   "notes": [],
+   "generation_s": 66,
+   "status": "ok",
+   "cost_usd": 0.64,
+   "video": "P4/P4.mp4",
+   "frames": [
+    "P4/images/frame-1.jpg",
+    "P4/images/frame-2.jpg",
+    "P4/images/frame-3.jpg"
+   ]
+  },
+  "P1": {
+   "mode": "references",
+   "model": "veo-3.1-fast-generate-001",
+   "refs": [
+    "characters/jj/v2/details/ancienne-canon-7.png",
+    "clips/nobody-saw/decors/porte-document/inspiration/11005-192213.jpg"
+   ],
+   "notes": [],
+   "generation_s": 56,
+   "status": "ok",
+   "cost_usd": 0.64,
+   "video": "P1/P1.mp4",
+   "frames": [
+    "P1/images/frame-1.jpg",
+    "P1/images/frame-2.jpg",
+    "P1/images/frame-3.jpg"
+   ]
+  },
+  "P2": {
+   "mode": "references",
+   "model": "veo-3.1-fast-generate-001",
+   "refs": [
+    "characters/jj/v2/details/ancienne-canon-7.png",
+    "clips/nobody-saw/decors/porte-document/inspiration/11005-192213.jpg"
+   ],
+   "notes": [],
+   "generation_s": 62,
+   "status": "ok",
+   "cost_usd": 0.64,
+   "video": "P2/P2.mp4",
+   "frames": [
+    "P2/images/frame-1.jpg",
+    "P2/images/frame-2.jpg",
+    "P2/images/frame-3.jpg"
+   ]
+  },
+  "P3": {
+   "mode": "references",
+   "model": "veo-3.1-fast-generate-001",
+   "refs": [
+    "characters/jj/v2/details/ancienne-canon-7.png"
+   ],
+   "notes": [],
+   "generation_s": 34,
+   "status": "ok",
+   "cost_usd": 0.64,
+   "video": "P3/P3.mp4",
+   "frames": [
+    "P3/images/frame-1.jpg",
+    "P3/images/frame-2.jpg",
+    "P3/images/frame-3.jpg"
+   ]
+  },
+  "P1b": {
+   "mode": "references",
+   "model": "veo-3.1-generate-001",
+   "refs": [
+    "characters/jj/v2/details/ancienne-canon-7.png",
+    "clips/nobody-saw/decors/porte-document/inspiration/11005-192213.jpg"
+   ],
+   "notes": [],
+   "generation_s": 50,
+   "status": "ok",
+   "cost_usd": 1.6,
+   "video": "P1b/P1b.mp4",
+   "frames": [
+    "P1b/images/frame-1.jpg",
+    "P1b/images/frame-2.jpg",
+    "P1b/images/frame-3.jpg"
+   ]
+  },
+  "P5": {
+   "mode": "image_to_video",
+   "model": "veo-3.1-fast-generate-001",
+   "refs": null,
+   "notes": [],
+   "generation_s": 55,
+   "status": "ok",
+   "cost_usd": 0.64,
+   "video": "P5/P5.mp4",
+   "frames": [
+    "P5/images/frame-1.jpg",
+    "P5/images/frame-2.jpg",
+    "P5/images/frame-3.jpg"
+   ]
+  }
+ },
+ "total_usd": 4.8
+}

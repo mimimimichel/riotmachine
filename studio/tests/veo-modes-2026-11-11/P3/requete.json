@@ -1,0 +1,26 @@
+{
+ "model": "veo-3.1-fast-generate-001",
+ "instances": [
+  {
+   "prompt": "Close-up on the face and shoulders of a woman of about 25, mixed race with light golden skin, light grey-blue almond-shaped eyes, faint diffuse freckles across her nose and cheeks, very voluminous long tight curls falling to mid-back, dark brown at the roots with copper highlights, wearing a black tailored single-breasted blazer with a deep V neckline and one button at the waist, matching black high-waisted wide-leg trousers, nude strappy heeled sandals, standing by a black wrought-iron garden gate in soft autumn morning light, a trimmed hedge blurred behind her. She looks down at her hand on the gate, pulls the gate toward her twice to check that it is shut, then looks up with a small satisfied nod and turns her head toward the street. Static camera, shallow depth of field, low warm sun on her face, natural warm grade, fine film grain.",
+   "referenceImages": [
+    {
+     "referenceType": "asset",
+     "image": {
+      "bytesBase64Encoded": "<base64 446908 car.>",
+      "mimeType": "image/png"
+     }
+    }
+   ]
+  }
+ ],
+ "parameters": {
+  "aspectRatio": "16:9",
+  "durationSeconds": 8,
+  "resolution": "720p",
+  "generateAudio": false,
+  "sampleCount": 1,
+  "personGeneration": "allow_adult",
+  "negativePrompt": "padlock, extra hands, extra fingers, text, watermark, morphing face, blurry"
+ }
+}

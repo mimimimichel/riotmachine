@@ -1,0 +1,33 @@
+{
+ "model": "veo-3.1-fast-generate-001",
+ "instances": [
+  {
+   "prompt": "Medium wide shot of the gravel courtyard in front of a limestone house with a blue-grey glazed double front door and three light stone steps. A woman of about 25, mixed race with light golden skin, light grey-blue almond-shaped eyes, faint diffuse freckles across her nose and cheeks, very voluminous long tight curls falling to mid-back, dark brown at the roots with copper highlights, wearing a black tailored single-breasted blazer with a deep V neckline and one button at the waist, matching black high-waisted wide-leg trousers, nude strappy heeled sandals, with a structured tan leather handbag with a front envelope flap and two thin top handles on her shoulder, comes out of the door and walks down the three steps. At the foot of the steps a pale mint-green step-through electric city bike stands on its kickstand against the house wall. As she passes it she looks at it with a faint satisfied smile and gives the saddle a quick brush with her sleeve, then continues across the courtyard toward the right of the frame. The camera pans slowly to follow her. Early morning light, low warm sun, long soft shadows, natural warm grade, fine film grain.",
+   "referenceImages": [
+    {
+     "referenceType": "asset",
+     "image": {
+      "bytesBase64Encoded": "<base64 446908 car.>",
+      "mimeType": "image/png"
+     }
+    },
+    {
+     "referenceType": "asset",
+     "image": {
+      "bytesBase64Encoded": "<base64 77492 car.>",
+      "mimeType": "image/jpeg"
+     }
+    }
+   ]
+  }
+ ],
+ "parameters": {
+  "aspectRatio": "16:9",
+  "durationSeconds": 8,
+  "resolution": "720p",
+  "generateAudio": false,
+  "sampleCount": 1,
+  "personGeneration": "allow_adult",
+  "negativePrompt": "padlock, extra hands, extra fingers, text, watermark, morphing face, blurry"
+ }
+}

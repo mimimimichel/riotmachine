@@ -1,0 +1,14 @@
+{
+ "name": "projects/project-df64a5ff-d0b2-497a-bec/locations/us-central1/publishers/google/models/veo-3.1-fast-generate-001/operations/470138c5-4a68-4d15-9fff-788c8daf04af",
+ "done": true,
+ "response": {
+  "@type": "type.googleapis.com/cloud.ai.large_models.vision.GenerateVideoResponse",
+  "raiMediaFilteredCount": 0,
+  "videos": [
+   {
+    "bytesBase64Encoded": "<base64 13192184 car.>",
+    "mimeType": "video/mp4"
+   }
+  ]
+ }
+}
