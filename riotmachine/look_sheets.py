@@ -72,10 +72,14 @@ def images(conn: sqlite3.Connection, lk: dict) -> dict:
     sync_photos(conn, lk)
     rows = db.rows(conn.execute("SELECT * FROM look_images WHERE look_id=? AND status!='rejected' ORDER BY id",
                                 (lk["id"],)).fetchall())
-    photos = [r for r in rows if r["role"] == "photo" and r["status"] == "kept"]
+    # inspiration seulement (rangée dans inspiration/) : sert à créer la feuille, ne part jamais en référence,
+    # par exemple la photo d'une vraie personne trouvée en ligne
+    is_inspi = lambda r: "/inspiration/" in (r["path"] or "")  # noqa: E731
+    photos = [r for r in rows if r["role"] == "photo" and r["status"] == "kept" and not is_inspi(r)]
+    inspi = [r for r in rows if r["role"] == "photo" and r["status"] == "kept" and is_inspi(r)]
     sheet = next((r for r in reversed(rows) if r["role"] == "sheet" and r["status"] == "kept"), None)
     props = [r for r in rows if r["role"] == "sheet" and r["status"] in ("generating", "proposed", "failed")]
-    return {"photos": photos, "sheet": sheet, "sheet_props": props,
+    return {"photos": photos, "inspi": inspi, "sheet": sheet, "sheet_props": props,
             "generating": any(r["status"] == "generating" for r in props)}
 
 
@@ -133,7 +137,7 @@ def launch_sheet(conn: sqlite3.Connection, character_slug: str, look: str, count
     from . import elements, production
     lk = _look(conn, character_slug, look)
     im = images(conn, lk)
-    if not im["photos"]:
+    if not im["photos"] and not im["inspi"]:
         raise LookError("Dépose d'abord au moins une photo de la tenue portée")
     if im["generating"]:
         raise LookError("Des propositions sont déjà en cours pour cette tenue")
@@ -149,7 +153,7 @@ def launch_sheet(conn: sqlite3.Connection, character_slug: str, look: str, count
         raise LookError(f"{m['label']} : les feuilles de tenue passent pour l'instant par un modèle gratuit")
     n = max(1, min(3, int(count or 1)))   # chaque feuille coûte trois images du quota gratuit
     person = _person_ref(conn, character_slug)
-    photos = [absp(p["path"]) for p in im["photos"]][-3:]
+    photos = [absp(p["path"]) for p in im["photos"] + im["inspi"]][-3:]
     inputs = ([person] if person else []) + photos
     prompt = "\n\n".join(f"[{name}] " + sheet_prompt(conn, lk, view) for name, view in VIEWS)
     ids = []
@@ -231,8 +235,22 @@ def decide(conn: sqlite3.Connection, image_id: int, decision: str) -> dict:
     r = db.row(conn.execute("SELECT * FROM look_images WHERE id=?", (image_id,)).fetchone())
     if r is None:
         raise LookError("Image de tenue inconnue")
-    if decision not in ("keep", "reject"):
-        raise LookError("Décision : keep ou reject")
+    if decision not in ("keep", "reject", "inspi", "ref"):
+        raise LookError("Décision : keep, reject, inspi ou ref")
+    if decision in ("inspi", "ref"):
+        # une photo passe en « inspiration seulement » (plus jamais en référence), ou revient en référence
+        src = absp(r["path"]) if r["path"] else None
+        if r["role"] != "photo" or r["status"] != "kept" or not src or not src.is_file():
+            raise LookError("Seule une photo de la tenue change de rôle")
+        inside = src.parent.name == "inspiration"
+        if (decision == "inspi") == inside:
+            return {"id": image_id, "decision": decision}
+        dest = (src.parent / "inspiration" / src.name) if decision == "inspi" else (src.parent.parent / src.name)
+        dest.parent.mkdir(exist_ok=True)
+        src.rename(dest)
+        with db.tx(conn):
+            conn.execute("UPDATE look_images SET path=? WHERE id=?", (rel(dest), image_id))
+        return {"id": image_id, "decision": decision}
     with db.tx(conn):
         if decision == "keep":
             if r["role"] != "sheet" or r["status"] != "proposed":
@@ -260,7 +278,7 @@ def view(conn: sqlite3.Connection, lk: dict) -> dict:
     im = images(conn, lk)
     c = production.variants_cfg()
     slim = lambda r: {k: r[k] for k in ("id", "role", "status", "path", "model_key", "error")}  # noqa: E731
-    return {"photos": [slim(r) for r in im["photos"]], "sheet": slim(im["sheet"]) if im["sheet"] else None,
+    return {"photos": [slim(r) for r in im["photos"]], "inspi": [slim(r) for r in im["inspi"]], "sheet": slim(im["sheet"]) if im["sheet"] else None,
             "sheet_props": [slim(r) for r in im["sheet_props"]], "sheet_generating": im["generating"],
             "sheet_count": {"default": 1, "max": 3}, "views": [v[0] for v in VIEWS],
             "person_ref": rel(_person_ref(conn, lk["character_slug"])) if _person_ref(conn, lk["character_slug"]) else None}

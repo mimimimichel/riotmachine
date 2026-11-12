@@ -3404,7 +3404,8 @@ function lookMedia(lk, character, models) {
   return `<div class="stack" style="gap:10px">
     <div><b>1. Photos de la tenue portée</b>
       <p class="hint">Tes photos du personnage dans cette tenue. Elles servent à créer la feuille de référence, puis partent aussi avec les visuels.</p>
-      ${photos.length ? `<div class="packgrid">${photos.map((ph) => tile(ph, `<button class="btn small ghost" data-lookimg="${ph.id}:reject">Retirer</button>`)).join("")}</div>` : ""}
+      ${photos.length ? `<div class="packgrid">${photos.map((ph) => tile(ph, `<button class="btn small ghost" data-lookimg="${ph.id}:inspi" title="Elle sert à créer la feuille, mais ne part plus jamais en référence (photo d'une vraie personne, par exemple)">Inspiration seulement</button><button class="btn small ghost" data-lookimg="${ph.id}:reject">Retirer</button>`)).join("")}</div>` : ""}
+      ${(lk.inspi || []).length ? `<div class="packgrid">${lk.inspi.map((ph) => tile(ph, `<button class="btn small ghost" data-lookimg="${ph.id}:ref">Remettre en référence</button><button class="btn small ghost" data-lookimg="${ph.id}:reject">Retirer</button>`, "Inspiration seulement : sert à créer la feuille, ne part jamais en référence")).join("")}</div>` : ""}
       ${dropZone(`look:${character}:${lk.look || lk.slug}`, "Ajouter des photos de la tenue portée", "png, jpg ou webp, plusieurs à la fois", "image/*", true)}</div>
     <div><b>2. Feuille de référence</b>
       <p class="hint">La machine fait trois photos du personnage dans cette tenue, une par vue (face, trois-quarts, dos), puis les assemble.
@@ -3446,7 +3447,8 @@ async function lookAction(d, refresh) {
   if (d.lookimg) {
     const [id, dec] = d.lookimg.split(":");
     await api(`/api/look-images/${id}/${dec}`, { method: "POST" });
-    toast(dec === "keep" ? "Feuille gardée" : "Image retirée"); refresh(); return true;
+    toast(dec === "keep" ? "Feuille gardée" : dec === "inspi" ? "Photo en inspiration seulement : elle ne part plus en référence"
+      : dec === "ref" ? "Photo remise en référence" : "Image retirée"); refresh(); return true;
   }
   return false;
 }

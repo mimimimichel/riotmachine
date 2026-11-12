@@ -683,3 +683,29 @@ def test_r_b8_ecran_a_jour_apres_une_action():
     js = (Path(__file__).resolve().parents[1] / "riotmachine/regie/static/app.js").read_text()
     assert "isBusy() && !state.forceDrawer" in js
     assert js.count("state.forceDrawer = true; return showClip(clip.slug, state.tab, false);") >= 2
+
+
+def test_r_e_photo_de_tenue_inspiration_seulement(studio):
+    """Une photo de tenue en « inspiration seulement » sert à créer la feuille mais ne part jamais en référence."""
+    import subprocess
+    from riotmachine import cli, look_sheets, production
+    assert cli.main(["init"]) == 0
+    conn = db.connect()
+    db.init_db(conn)
+    production.create_look(conn, "jj", "Essai", "tailleur noir") if hasattr(production, "create_look") else None
+    lk = conn.execute("SELECT * FROM looks WHERE character_slug='jj' LIMIT 1").fetchone()
+    assert lk is not None
+    lk = dict(lk)
+    img = studio["tmp"] / "photo.png"
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "color=c=black:s=64x96", "-frames:v", "1", str(img)], check=True)
+    dest = production.absp(lk["dir"]) / "photo-essai.png"
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_bytes(img.read_bytes())
+    iid = look_sheets.add_photo(conn, lk, dest)
+    conn.commit()
+    assert dest in look_sheets.refs(conn, "jj", lk["slug"])
+    look_sheets.decide(conn, iid, "inspi")
+    assert dest not in look_sheets.refs(conn, "jj", lk["slug"])
+    assert any(r["id"] == iid for r in look_sheets.images(conn, lk)["inspi"])
+    look_sheets.decide(conn, iid, "ref")
+    assert dest in look_sheets.refs(conn, "jj", lk["slug"])
