@@ -1,6 +1,6 @@
 # Riot Machine — Production des plans
 
-Version 3.0 — 12 novembre 2026. Fait partie de `SPEC-v3.md` (v3.0), à lire après
+Version 3.1 — 13 novembre 2026. Fait partie de `SPEC-v3.md` (v3.1), à lire après
 `VISION-v3.md`. Remplace dans `PROCESS.md` l'ancienne chaîne visuel draft → HD →
 plan vidéo → draft → HD.
 
@@ -63,7 +63,7 @@ Clip
 
 | Objet | Précisions |
 |---|---|
-| **Séquence** | Porte un **profil** (§7), une **fiche** (lieu, heure, météo, lumière, palette, figurants) et une **image maîtresse** validée par Michael. Ses plans peuvent ne pas se suivre dans le morceau (une performance entrecoupée d'autres plans). |
+| **Séquence** | Porte un **profil** (§7), une **fiche** (lieu, heure, météo, lumière, palette, figurants) et une **image maîtresse** validée par Michael. Ses plans peuvent ne pas se suivre dans le morceau (une performance entrecoupée d'autres plans). Une séquence peut couvrir plusieurs blocs : seuls les plans des blocs validés se tournent ; une prise ne regroupe que des plans de blocs validés. |
 | **Plan** | Garde ses timecodes quoi qu'il arrive aux prises. Attributs : `personnages`, `jeu` (aucun, présent, porteur), `chanté`, `dansé`, `composition` (libre, stricte), `mouvement`, `axe` (étiquette libre : deux plans de même axe peuvent sortir d'une même prise continue), `rôle` (A : performance ou récit ; B : plan de coupe, versable à la banque de l'artiste), **caméra** en champs (`cadrage`, `focale`, `angle`, `hauteur`, `mouvement de caméra`, `vitesse`), **jeu** par personnage (`émotion`, intention, en quelques mots). |
 | **Prise** | Mode, offre (modèle + fournisseur), durée, prompt assemblé, références envoyées, coût, réserve débitée, statut, motif de refus. Deux formes quand elle couvre plusieurs plans : **continue** (un axe, une action, découpée en fenêtres) ou **multi-plans** (coupes demandées dans le prompt). |
 | **Fenêtre** | Début et fin dans la prise, vitesse (1,0 par défaut, 0,9 à 1,1 au plus). Une prise gardée pour un plan = une fenêtre gardée. |
@@ -74,7 +74,9 @@ Clip
 Schéma : tables `sequences`, `takes`, `take_shots` (prise, plan, fenêtre,
 vitesse, gardée), `reserves`, `steps` (fil de production, §12) ; colonnes
 ajoutées à `shots` (`sequence_id`, attributs ci-dessus). Les tables `assets`
-vidéo existantes sont migrées en prises.
+vidéo existantes sont migrées en prises. Les anciens visuels de plan sont
+archivés et rattachés à leur plan : consultables, jamais envoyés à un modèle,
+sauf si Michael en choisit un comme image maîtresse.
 
 ## 5. Les rôles
 
@@ -96,7 +98,8 @@ Michael les change.
 
 ## 6. Le catalogue des modèles
 
-`config/models.yaml` est la seule source des capacités et des prix. Chaque
+`config/models.yaml` est la seule source des capacités et des prix des modèles
+de vidéo, d'image et de lip-sync (champ `kind: video | image | lipsync`). Chaque
 entrée porte `verified_at` et `source` ; une entrée non vérifiée depuis plus de
 45 jours est signalée dans la régie.
 
@@ -166,7 +169,7 @@ Michael et le script-doctor manipulent des profils, pas des modèles.
 | `chant_serre` | chanté, cadrage serré | références ; lip-sync possible ensuite |
 | `chant_danse_large` | chanté et dansé, plan large | références ; mouvement fort ; audio en référence souhaité |
 | `multi_personnages` | deux personnages ou plus identifiables | assez de références pour chacun |
-| `composition_stricte` | départ et arrivée imposés | mode première + dernière image |
+| `composition_stricte` (P1) | départ et arrivée imposés | mode première + dernière image ; les deux images sont générées avec les références du personnage. Jusqu'au clip zéro, un tel plan part en mode références. |
 
 Le profil d'une séquence est le plus exigeant de ses plans, sauf si le
 planificateur sépare les plans exigeants dans leur propre prise (§8).
@@ -190,7 +193,8 @@ prises proposées`. Mêmes entrées, même sortie. Aucun appel à un modèle.
      moins une marge (0,5 s par coupe si `cuts: approximate`, aucune si les
      durées par plan sont fixées par l'API) ;
    - un plan `jeu: porteur` ou `chant_serre` est seul dans sa prise ;
-   - un plan `composition: stricte` est seul, en mode première + dernière image.
+   - (P1) un plan `composition: stricte` est seul, en mode première + dernière image ;
+     jusqu'au clip zéro, il part en mode références.
 4. **Durée de prise** : la plus petite durée permise par l'offre et le mode qui
    couvre les plans regroupés.
 5. **Alertes**, avec proposition : plan plus long que le maximum de l'offre
@@ -255,7 +259,7 @@ Mélange de modèles dans une même séquence : autorisé, mais signalé.
 
 ## 11. Les dépenses
 
-- Toute génération payante attend un accord sur un montant affiché :
+- Toute génération payante, **crédits offerts compris**, attend un accord sur un montant affiché :
   tournage, reprise, changement de modèle, image maîtresse, lip-sync.
   L'accord vaut jusqu'à ce montant ; au-delà, nouvel accord.
 - L'exigence R-D2 (validation automatique sous un seuil) est supprimée.
@@ -274,7 +278,7 @@ Mélange de modèles dans une même séquence : autorisé, mais signalé.
 3 Plan de tournage ─▶ [Michael accorde la dépense, tout ou une sélection]
 4 Tournage       worker (relances non facturées automatiques)      contrôleur
 5 Dérushage ─▶ [Michael, plan par plan : garder, refaire, corriger]
-6 Lip-sync des plans chantés gardés ─▶ [accord] ─▶ montage (jouable à tout moment)
+6 Lip-sync des plans chantés gardés (P1, hors clip zéro) ─▶ [accord] ─▶ montage (jouable à tout moment)
 ```
 
 États d'un plan : `à préparer`, `prêt`, `en tournage`, `à dérusher`, `gardé`,
@@ -393,7 +397,7 @@ carton.
 - Michael modifie ou retire un plan.
 - Michael abandonne un plan au dérushage (motif « Impossible à tourner » :
   « la clé dans la serrure, Veo n'y arrive pas »).
-- La machine détecte une anomalie : trou, chevauchement, plan plus long que le
+- (P1, R-H27) La machine détecte une anomalie : trou, chevauchement, plan plus long que le
   maximum de son offre, plan chanté décalé de sa parole, coupe qui a quitté son
   temps, prise qui ne couvre plus son plan.
 - Michael demande « propose autre chose » sur un plan ou une séquence.
@@ -509,7 +513,7 @@ nommé `test_r_hNN_…`.
 | R-H21 | P1 | Étalonnage commun par séquence au montage. | Les plans d'une séquence reçoivent le même filtre. |
 | R-H22 | P1 | Contrôleur : écarts à la canon et à l'image maîtresse affichés au dérushage. | Verdict et note stockés sur la prise. |
 | R-H25 | P0 | Modification d'un plan indépendante de ses voisins (§14.1) ; trou et chevauchement permis comme état « à résoudre », visibles, bloquant le tournage de la zone ; abandon d'un plan depuis le dérushage. | Retirer un plan ne change aucun timecode voisin ; la zone est marquée ; le tournage de la zone est refusé avec le message. |
-| R-H26 | P0 | Résolution par proposition (§14.1) : fiche d'impact calculée par le code, 2 à 3 propositions de mise en scène écrites par le script-doctor, chiffrées par le planificateur, rejet des propositions qui violent un invariant ou un point fixe non annoncé, choix ou contre-proposition de Michael, application en une révision annulable. | Plan abandonné avant un plan d'une autre séquence : aucune proposition ne déplace ce dernier ; chaque proposition porte coût et impact ; annuler restaure l'état exact. |
+| R-H26 | P0 | Résolution par proposition (§14.1), réduite pour le clip zéro. Déclencheur : Michael abandonne ou modifie un plan. Fiche d'impact calculée par le code, 2 ou 3 propositions de mise en scène écrites par le script-doctor, chiffrées par le planificateur, rejet des propositions qui violent un invariant ou un point fixe non annoncé, choix ou contre-proposition de Michael, application en une révision annulable. La détection continue d'anomalies relève de R-H27 (P1). | Plan abandonné avant un plan d'une autre séquence : aucune proposition ne déplace ce dernier ; chaque proposition porte coût et impact ; annuler restaure l'état exact. |
 | R-H27 | P1 | Son sur les écrans de découpage (§14.1) : forme d'onde, temps, sections, paroles, lecture en boucle, aimantation désactivable. Points fixes (limites de bloc et de séquence, plans chantés, plans « calés »). Détection continue des anomalies. | Un test par anomalie ; un point fixe n'est jamais déplacé sans proposition explicite acceptée. |
 | R-H28 | P0 | Vérification de compatibilité (§6) : avertissement sur place et recommandation de l'offre la moins chère qui couvre la fonction demandée. | Demander une retouche d'objet sur une offre sans `edit_object` affiche l'avertissement et une offre compatible chiffrée ; rien ne part. |
 | R-H29 | P1 | Prolonger et Plan suivant depuis une prise gardée, proposés aussi par le script-doctor dans ses résolutions. | Prise prolongée liée à sa prise d'origine ; fenêtre étendue. |

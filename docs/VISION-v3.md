@@ -45,7 +45,7 @@ prolongement d'une prise, retouche d'une prise. Ce qu'aucun ne fait :
 
 | Phase | But | Moyens | On passe à la suite quand |
 |---|---|---|---|
-| **0. Rodage** (en cours) | Sortir le **clip zéro** : un bloc du premier morceau de JJ, 8 à 10 plans | Crédits offerts (Google Cloud, Veo), tout en brouillon | Le clip zéro est monté, pour moins de 10 $, et la liste des irritants est écrite |
+| **0. Rodage** (en cours) | Sortir le **clip zéro** : un bloc du premier morceau de JJ, 8 à 10 plans | Crédits offerts (Google Cloud, Veo), tout en brouillon | Le clip zéro est monté, pour moins de 10 $ de crédits consommés, et la liste des irritants est écrite |
 | **1. Viabilité** | Un premier clip complet de JJ, publiable | Crédits offerts d'abord | Coût ≤ 50 € (cible 20 €), temps de Michael raisonnable, qualité qu'il assume de publier |
 | **2. Qualité** | 3 ou 4 clips de JJ, avec leurs déclinaisons | Modèles payants là où ils apportent quelque chose | JJ a une présence et un public |
 | **3. Label** | D'autres artistes, des groupes | Bibliothèque et bibles partagées | — |

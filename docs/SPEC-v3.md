@@ -1,6 +1,6 @@
 # Riot Machine — Spécification
 
-Version 3.0 — 12 novembre 2026. Remplace `REQUIREMENTS.md` (v1.x). À lire après
+Version 3.1 — 13 novembre 2026. Remplace `REQUIREMENTS.md` (v1.x). À lire après
 `VISION-v3.md`. Le détail de la fabrication des plans est dans
 `PRODUCTION-PLANS-v3.md` (exigences R-H), qui fait partie de cette spécification.
 
@@ -37,7 +37,7 @@ Objets : voir `VISION-v3.md` §4.
 | R-A1 | P0 | Un plan est un objet unique ; toutes les vues lisent et écrivent les mêmes lignes. | Un champ modifié dans une vue apparaît dans les autres. |
 | R-A2 | P0 | Identifiants stables : aucune édition ne supprime et recrée. Un plan garde identifiant, prises, retours et historique. | Réimporter un découpage modifié conserve l'identifiant et les prises des plans non touchés. |
 | R-A3 | P0 | Baseline de Michael dans des champs que les agents ne peuvent pas écrire : mots d'un plan, intention d'un bloc, brief, note d'intention, instructions de casting, retours. Les agents écrivent une version de production à côté ; ils complètent, ils ne reformulent pas. | Après passage d'un agent, la baseline est identique ; l'écriture par un agent est refusée. |
-| R-A4 | P0 | Historique : toute modification passe par une fonction d'écriture unique qui journalise objet, champ, avant, après, auteur, raison, date. | Trois modifications donnent trois lignes exactes ; `riot history` les liste. |
+| R-A4 | P0 | Historique : toute modification passe par une fonction d'écriture unique qui journalise objet, champ, avant, après, auteur, raison, date. L'auteur `michael` ne vient que de la régie authentifiée ; la CLI et les variables d'environnement ne peuvent pas le donner. | Trois modifications donnent trois lignes exactes ; `riot history` les liste. `RIOT_ACTOR=michael riot …` est refusé. |
 | R-A5 | P1 | Un retour de Michael garde son texte, sa route et son résultat (ce qui a été produit en réponse). | Un retour traité est lié à la prise produite ensuite. |
 | R-A6 | P0 | Rien de généré n'est écrasé ni supprimé : chaque prise et chaque image est une version. La suppression d'un plan qui a des prises est logique et restaurable. | Deux générations donnent deux versions présentes en base et sur disque. |
 
@@ -48,7 +48,7 @@ Objets : voir `VISION-v3.md` §4.
 | R-P1 | P0 | **Analyse du morceau**, une fois par morceau, en local, mise en cache : tempo, temps, sections, énergie par section, paroles calées dans le temps. | L'analyse d'un morceau déjà analysé ne recalcule rien. |
 | R-P2 | P1 | Analyse enrichie : pistes séparées (voix, batterie, basse, autres), paroles calées au mot, repérage des passages chantés. En local, en tâche de fond, sans bloquer la régie. | Les passages chantés sont proposés comme plans chantés et points fixes. |
 | R-P3 | P0 | **Note d'intention** : une page (concept, arc, palette, références), écrite par Michael ou choisie parmi des propositions du script-doctor, validée par lui, fournie à tous les agents du clip. | Aucun agent du clip ne tourne sans la note validée (hors rédaction de la note). |
-| R-B1 | P0 | Le découpage se valide **par bloc**. Un bloc validé peut entrer en préparation pendant que les autres s'écrivent. | Bloc 1 validé : ses plans passent « à préparer », ceux du bloc 2 restent éditables. |
+| R-B1 | P0 | Le découpage se valide **par bloc**. Un bloc validé peut entrer en préparation pendant que les autres s'écrivent. | Bloc 1 validé : ses plans passent « à préparer », ceux du bloc 2 restent éditables. Une séquence à cheval sur les blocs 1 et 2, bloc 1 seul validé : le planificateur ne propose que des prises des plans du bloc 1. |
 | R-B5 | P0 | Du découpage à la production en un geste, dans les deux sens. La page d'un plan montre bloc, séquence, brief, mots de Michael, version de production, remarques des agents, retours, références, historique. | La réponse de l'API d'un plan contient tous ces éléments. |
 | R-B6 | P1 | Le script-doctor écrit ses remarques par plan et par séquence. | — |
 | R-P4 | P0 | **Animatique en cartons** : le découpage joué sur le morceau, chaque plan affichant ses mots pendant sa durée, avec les prises gardées quand elles existent. Calculée par du code, gratuite, immédiate. | Disponible dès qu'un bloc a des plans, sans appel à un modèle ni à un agent. |
@@ -102,8 +102,9 @@ montage manuel.
 | R-T6 | P0 | **Opérations atomiques.** Toute action de Michael s'applique entièrement ou pas du tout, et les révisions du découpage sont annulables. Délais et nombre d'essais bornés sur tout appel extérieur. | Une erreur en cours d'application laisse la base dans l'état d'avant. |
 | R-T7 | P0 | **Régie rapide** : réponse de l'API en moins de 300 ms sur un clip de 60 plans ; vignettes et aperçus basse définition générés une fois ; chargement à la demande ; mises à jour poussées par le serveur, sans rechargement ni interrogation en boucle. | Mesure automatisée sur le clip de démonstration de 60 plans. |
 | R-T8 | P0 | **Calculs lourds en tâche de fond** (analyse du morceau, montage, aperçus), mis en cache, jamais recalculés sans changement, jamais dans une requête de la régie. | Deuxième demande du même montage : servie depuis le cache. |
+| R-T10 | P0 | Aucun agent n'écrit dans `riot.db`, `config/` ni `.env` ; les agents n'agissent que par la CLI. | Les permissions des agents refusent ces chemins ; un test le vérifie. |
 | R-T9 | P1 | `riot doctor` : état des fournisseurs, des réserves, du canal de notification, du worker, de l'espace disque, des entrées du catalogue trop anciennes. | — |
-| R-G3 | P0 | Schéma versionné, migrations numérotées et rejouables, sauvegarde de la base avant chaque migration, aucune suppression de données. | Migrations appliquées deux fois sans erreur ; sauvegarde présente. |
+| R-G3 | P0 | Schéma versionné, migrations numérotées et rejouables, sauvegarde de la base avant chaque migration, aucune suppression de données. | Migrations appliquées deux fois sans erreur ; sauvegarde présente. Le script de migration de la base v1 vers le schéma v3 est testé sur une copie de `riot.db` : aucune ligne perdue, identifiants conservés. |
 | R-G2 | P0 | Un test par exigence P0 et P1 ; deux scénarios complets en simulation (un bloc en brouillon ; un clip avec modification du découpage et changement d'offre) ; tests verts avant tout commit. | Crochet de pré-commit en place. |
 | R-G1, R-G4 | P0 | La spec fait foi ; rien hors spec. Jusqu'au clip zéro, seules les exigences P0. | — |
 | R-G5 | P0 | Méthode : un lot à la fois, plan du lot validé par Michael avant le code, test d'abord, résumé en fin de lot. Tout le développement en simulation, sans dépense. | — |
@@ -112,13 +113,13 @@ montage manuel.
 
 | Lot | Exigences | Ce que Michael obtient |
 |---|---|---|
-| **0. État des lieux** | — | Ce qui se garde, ce qui se réécrit, sur une branche neuve ; rien n'est supprimé |
-| **1. Fondations** | R-G3, R-G2, R-A1 à R-A4, R-A6, R-T5, R-T6 | Données sûres, baseline, historique, aucune double dépense |
+| **0. État des lieux** | — | Ce qui se garde, ce qui se réécrit ; branche `v3` partie de `v1-final`, squelette neuf, `v1-final` reste exécutable ; rien n'est supprimé |
+| **1. Fondations** | R-G3, R-G2, R-A1 à R-A4, R-A6, R-T5, R-T6, R-T10 | Données sûres, baseline, historique, aucune double dépense |
 | **2. Label et objets** | R-L1 à R-L4, R-H1, R-H2, R-H3, R-H10, R-R2 | Label, artiste, clip, séquences, prises, catalogue, états |
 | **3. Calcul** | R-H4, R-H5, R-H8, R-H9, R-H28, R-T3 | Planificateur, accords de dépense, portefeuille, avertissements de compatibilité |
 | **4. Préparation** | R-P1, R-P3, R-P4, R-B1, R-M1, R-T8 | Analyse, note d'intention, validation par bloc, animatique, montage |
 | **5. Fabrication** | R-H6, R-H7, R-H14, R-H15, R-H31, R-T1, R-T2, R-T4 | Prompt assemblé, références, image maîtresse, agents sobres |
-| **6. Régie** | R-R1, R-B5, R-H11, R-H12, R-H13, R-H25, R-H26, R-T7 | Plan de tournage, page du plan, dérushage, propositions du script-doctor |
+| **6. Régie** | R-R1, R-B5, R-H11, R-H12, R-H13, R-H25, R-T7, R-H26 (en dernier) | Plan de tournage, page du plan, dérushage, propositions du script-doctor |
 | → **Clip zéro** | | Le bloc 1 de JJ, sur les crédits offerts |
 | **7. Découpage au son** | R-H27, R-H18, R-P2, R-B6 | |
 | **8. Souplesse** | R-H16, R-H17, R-H19, R-H20, R-H22, R-H29, R-H30, R-A5 | Prolonger, plan suivant, retouche, changement d'offre, rodage |
@@ -137,6 +138,11 @@ montage manuel.
 
 ## 10. Changelog
 
+- 3.1 (13/11/2026) : amendements issus de `DECISIONS-v3.md` (D1 à D10) :
+  migration v1 testée, crédits offerts soumis à accord, catalogue étendu aux
+  images et au lip-sync, lip-sync et composition stricte en P1, séquences à
+  cheval sur deux blocs, anciens visuels archivés, R-H26 réduite, R-T10,
+  auteur `michael` réservé à la régie.
 - 3.0 (12/11/2026) : spécification unique. Ajout du label (R-L), de la
   préparation (R-P), du montage (R-M), de la régie et de l'assistant (R-R), de
   la performance et de la robustesse (R-T). Intègre les décisions des 11 et
