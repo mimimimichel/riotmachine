@@ -1,0 +1,37 @@
+{
+  "_doc": "Permissions des agents (R-T10, D9, D18). Le lanceur d'agents les passe à `claude --settings`. Les agents n'agissent que par la CLI `riot` : aucun outil d'écriture de fichier, ni base, ni configuration, ni secrets.",
+  "permissions": {
+    "allow": [
+      "Bash(riot *)",
+      "Bash(ffprobe *)",
+      "Read(studio/**)",
+      "Read(docs/**)",
+      "Glob",
+      "Grep"
+    ],
+    "deny": [
+      "Write",
+      "Edit",
+      "NotebookEdit",
+      "Write(studio/riot*.db*)",
+      "Edit(studio/riot*.db*)",
+      "Write(config/**)",
+      "Edit(config/**)",
+      "Write(.env)",
+      "Edit(.env)",
+      "Read(.env)",
+      "Read(studio/riot*.db*)",
+      "Bash(sqlite3 *)",
+      "Bash(python *)",
+      "Bash(python3 *)",
+      "Bash(cp *)",
+      "Bash(mv *)",
+      "Bash(rm *)",
+      "Bash(tee *)",
+      "Bash(dd *)",
+      "Bash(git *)",
+      "Bash(RIOT_ACTOR=*)",
+      "Bash(riot * --auteur michael*)"
+    ]
+  }
+}

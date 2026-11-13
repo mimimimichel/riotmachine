@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Crochet pre-commit (R-G2) : les tests doivent être verts avant tout commit.
+# Installé par `bash deploy/install-hooks.sh` (lien dans .git/hooks).
+set -euo pipefail
+REPO="$(git rev-parse --show-toplevel)"
+cd "$REPO"
+PY="${RIOT_PYTHON:-}"
+if [ -z "$PY" ]; then
+  if [ -x .venv-v3/bin/python ]; then PY=.venv-v3/bin/python
+  elif [ -x .venv/bin/python ]; then PY=.venv/bin/python
+  else PY=python3; fi
+fi
+echo "pre-commit : tests de la v3…"
+if ! PYTHONPATH="$REPO" "$PY" -m pytest -q -x -p no:cacheprovider tests; then
+  echo
+  echo "pre-commit : des tests échouent, commit refusé. Corrige-les dans ce commit (R-G2)."
+  exit 1
+fi

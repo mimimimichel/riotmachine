@@ -1,7 +1,23 @@
 # Changelog
 
-Une ligne par exigence livrée (`docs/REQUIREMENTS.md`), la plus récente en haut.
-Format : date, identifiant, ce qui change pour Michael.
+Une ligne par exigence livrée, la plus récente en haut. Format : date,
+identifiant, ce qui change pour Michael. Référence : `docs/SPEC-v3.md` (3.1).
+
+## v3 — Lot 1 : Fondations
+
+- 2026-11-13 R-T10 : les agents n'ont plus aucun outil pour écrire un fichier. Leurs permissions (`config/agents-permissions.json`) leur interdisent la base, la configuration et `.env` : ils n'agissent que par la CLI `riot`.
+- 2026-11-13 R-T6 : chaque action est une révision qui s'applique entièrement ou pas du tout, et qui s'annule d'un geste (refusé, avec le motif, si un champ a changé depuis). Tout appel extérieur a un délai et un nombre d'essais bornés ; une demande de génération n'est jamais renvoyée automatiquement.
+- 2026-11-13 R-T5 : chaque génération a une clé unique. Elle est enregistrée avant l'envoi au fournisseur. Un double clic ne crée rien de plus. Un arrêt du worker ne la renvoie jamais : au redémarrage, elle est retrouvée chez le fournisseur ou passe « à vérifier », avec un message qui dit quoi faire.
+- 2026-11-13 R-A6 : chaque génération et chaque fichier sont une nouvelle version, jamais écrasée (`<nom>-v001`, `-v002`…). Retirer un plan qui a des prises le met de côté, restaurable.
+- 2026-11-13 R-A4 : toute modification passe par une seule fonction qui journalise objet, champ, avant, après, auteur, raison et date. `riot history plan <id>` liste l'historique. La CLI refuse l'auteur « michael » : tes écritures viendront de la régie.
+- 2026-11-13 R-A3 : tes mots (mots d'un plan, intention d'un bloc, brief, retours) sont dans des champs que ni un agent ni le code ne peuvent écrire ; les agents écrivent la version de production à côté.
+- 2026-11-13 R-A2 : réimporter un découpage garde l'identifiant, les retours et l'historique de chaque plan ; un plan absent est retiré, pas supprimé. (Critère sur les prises : lot 2.)
+- 2026-11-13 R-A1 : un plan est une seule ligne ; le découpage et la page du plan lisent la même.
+- 2026-11-13 R-G2 : crochet de pré-commit v3 (tests verts obligatoires, sans porte de sortie) ; chaque exigence de cette section a son test `test_r_<id>_`.
+- 2026-11-13 R-G3 : migrations numérotées (`riotmachine/migrations/`), rejouables, copie de la base avant migration, aucune suppression. Migration de la base v1 vers `studio/riot-v3.db`, table par table, avec essai à blanc et rapport (`riot migrer-v1 --essai`) ; la base v1 n'est jamais modifiée.
+
+## v1 (archive, exigences de `docs/archive/REQUIREMENTS.md`)
+
 
 ## Lot 1 : Fondations
 
