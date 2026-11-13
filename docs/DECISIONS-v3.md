@@ -1,8 +1,8 @@
 # Riot Machine — Décisions v3
 
-Décisions de Michael qui complètent ou précisent `SPEC-v3.md` et
-`PRODUCTION-PLANS-v3.md`. Les amendements proposés plus bas ne sont **pas
-appliqués** : ils attendent l'accord de Michael.
+Décisions qui complètent ou précisent `SPEC-v3.md` et `PRODUCTION-PLANS-v3.md`.
+D1 à D16 sont de Michael. À partir de D17, ce sont des choix d'exécution faits
+par Claude selon la règle D11 (l'option la plus simple conforme à la spec).
 
 ## Décisions
 
@@ -18,8 +18,26 @@ appliqués** : ils attendent l'accord de Michael.
 | D8 | 13/11/2026 | R-H26 en P0 ? | Gardée en P0 mais réduite, en dernier du lot 6. Déclencheur : Michael abandonne ou modifie un plan. Le script-doctor écrit 2 ou 3 propositions à partir de la fiche d'impact, le planificateur les chiffre, Michael choisit, la révision est annulable. La détection continue reste en P1 (R-H27). Si le lot 6 déborde, Michael décide. |
 | D9 | 13/11/2026 | Que peuvent écrire les agents ? | Aucun agent n'écrit dans `riot.db`, `config/` ni `.env`. Les agents n'agissent que par la CLI. |
 | D10 | 13/11/2026 | D'où peut venir l'auteur « michael » d'une écriture ? | Seulement de la régie authentifiée, jamais d'une variable d'environnement ni de la CLI. |
+| D11 | 13/11/2026 | Que demander à Michael ? | Claude fait tout lui-même. Il ne pose une question que pour une décision créative, une dépense ou un vrai choix de conception. Pour le reste, il prend l'option la plus simple conforme à la spec et la note ici. |
+| D12 | 13/11/2026 | Comment faire ce qui ne se fait que sur le PC (sauvegarde de `riot.db` et des clips, timers, crontab, essai de migration sur la vraie base) ? | Un script unique, `scripts/sur-le-pc.sh`, sans danger à relancer, qui fait tout et produit un rapport dans `docs/rapports/`. Il est tenu à jour à chaque lot. |
+| D13 | 13/11/2026 | Où vit l'ancien code ? | Dans `legacy/` sur la branche `v3`, jamais importé par le nouveau code. Le nouveau code est dans `riotmachine/`. |
+| D14 | 13/11/2026 | R-A2 au lot 1 ? | Identifiants, retours et historique testés au lot 1. Le critère sur les prises est complété au lot 2. |
+| D15 | 13/11/2026 | Migration de l'ancienne base ? | Ossature au lot 1. Chaque table est migrée au lot où elle naît. Tests sur une base v8 générée par le code de `legacy/` (clip de démonstration, plus un clip de 12 blocs et 64 plans). Mode d'essai à blanc sur une copie, avec rapport. |
+| D16 | 13/11/2026 | Usurpation d'identité entre agents ? | Pas avant le clip zéro. **P2** : un jeton par agent pour qu'un agent ne puisse pas se faire passer pour un autre. |
+| D17 | 13/11/2026 | Où est la base v3 ? | `studio/riot-v3.db`, à côté de `riot.db`. La base v1 n'est jamais modifiée par la v3 : `v1-final` continue de tourner dessus. |
+| D18 | 13/11/2026 | Comment appliquer R-T10 sans gêner le développement ? | Les permissions des agents sont dans `config/agents-permissions.json`, que le lanceur d'agents (lot 5) passera à `claude --settings`. L'ancien `.claude/settings.json`, qui interdisait aussi `git push` et `config/` aux sessions de développement, est rangé dans `legacy/.claude/`. |
+| D19 | 13/11/2026 | Qui peut signer une écriture ? | Trois sortes d'auteurs : `michael`, `agent:<nom>`, `code:<module>`. Michael peut écrire tous les champs. Les champs de baseline (mots d'un plan, intention d'un bloc, brief, texte d'un retour) n'acceptent que `michael`. La CLI refuse `michael`, que ce soit en option ou par `RIOT_ACTOR`. |
+| D20 | 13/11/2026 | Que devient le texte du clip v1 (`pitch`, `concept`) ? | Il forme le brief (baseline) : pitch, une ligne vide, puis concept. |
+| D21 | 13/11/2026 | L'historique v1 (`changes`) est-il importé ? | Non : les noms de champs ont changé. L'ancienne base reste intacte et consultable ; la v3 démarre son historique à la migration, et chaque ligne importée est journalisée par `code:migration-v1`. |
+| D22 | 13/11/2026 | Que fait le worker au redémarrage d'une génération partie sans réponse du fournisseur ? | Si le fournisseur sait retrouver une génération par sa clé (champ du catalogue), il la retrouve. Sinon, la génération passe « à vérifier », Michael est prévenu, et elle n'est jamais relancée d'office. |
+| D23 | 13/11/2026 | Où sont les mots de Michael et leur version de production ? | Plan : `words` (Michael) et `production_text` (agents). Bloc : `intention` (Michael) et `production_notes` (agents). Clip : `brief` (Michael). Retour : `text` (Michael). La note d'intention (lot 4) et les instructions de casting (lot 2) suivront la même règle à leur création. |
+| D24 | 13/11/2026 | Le crochet de pré-commit est-il « en place » sur une copie neuve du dépôt ? | Le test vérifie le crochet du dépôt (`deploy/hooks/pre-commit`). L'installation dans `.git/hooks` est faite par `deploy/install-hooks.sh`, lancé par `scripts/sur-le-pc.sh` et par Claude dans ses sessions. |
+| D25 | 13/11/2026 | Les deux scénarios complets de R-G2 ? | Ils demandent séquences, prises et planificateur : écrits au lot 3, complétés jusqu'au lot 6. |
 
-## Amendements proposés (non appliqués)
+## Amendements de D1 à D10
+
+Appliqués le 13/11/2026 (spec 3.1), à `SPEC-v3.md` et aux documents qui en font
+partie (`PRODUCTION-PLANS-v3.md`) ou qu'il cite (`VISION-v3.md`, pour D2).
 
 | Décision | Document, endroit | Amendement proposé |
 |---|---|---|
