@@ -30,7 +30,7 @@ async function showConso() {
   const days = {};
   for (const u of d.usage) (days[u.day] = days[u.day] || []).push(u);
   const usage = Object.entries(days).slice(0, 10).map(([day, us]) => `<tr><td>${esc(day.slice(5))}</td>
-      <td>${us.reduce((a, u) => a + u.runs, 0)}</td><td>${money(us.reduce((a, u) => a + u.cost_usd, 0))}</td>
+      <td>${us.reduce((a, u) => a + u.runs, 0)}</td><td>${us.some((u) => u.cost_usd != null) ? money(us.reduce((a, u) => a + (u.cost_usd || 0), 0)) : "non mesuré"}</td>
       <td>${tok(us.reduce((a, u) => a + u.tokens_in, 0))} / ${tok(us.reduce((a, u) => a + u.tokens_out, 0))}</td></tr>`).join("");
   $view.innerHTML = `
     <div class="pagehead"><h1>Consommation de Claude</h1></div>

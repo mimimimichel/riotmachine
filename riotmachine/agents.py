@@ -96,7 +96,7 @@ def usage(conn: sqlite3.Connection, days: int = 14) -> list[dict]:
     """Consommation par jour et par commande (R-T4, `riot usage`)."""
     return db.rows(conn.execute(
         "SELECT substr(started_at,1,10) AS day, command_kind AS command, COUNT(*) AS runs, "
-        "ROUND(SUM(COALESCE(cost_usd,0)),2) AS cost_usd, SUM(COALESCE(turns,0)) AS turns, "
+        "ROUND(SUM(cost_usd),2) AS cost_usd, SUM(COALESCE(turns,0)) AS turns, "
         "SUM(COALESCE(tokens_in,0)) AS tokens_in, SUM(COALESCE(tokens_out,0)) AS tokens_out "
         "FROM agent_runs WHERE started_at >= date('now', ?) GROUP BY day, command_kind ORDER BY day DESC, command_kind",
         (f"-{int(days)} days",)).fetchall())
