@@ -1484,6 +1484,22 @@ def _ui_version() -> str:
     return "-".join(str(int((STATIC / n).stat().st_mtime)) for n in ("app.js", "v3.js", "app.css", "index.html"))
 
 
+class ClientError(BaseModel):
+    msg: str
+    url: str = ""
+    ua: str = ""
+
+
+@app.post("/api/client-error")
+def client_error(body: ClientError) -> dict[str, Any]:
+    """Erreur JavaScript vue sur l'appareil de Michael, rangée pour le diagnostic."""
+    f = get_settings().logs_dir / "regie-client.log"
+    f.parent.mkdir(parents=True, exist_ok=True)
+    with f.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps({"t": db.now(), **body.model_dump()}, ensure_ascii=False)[:4000] + "\n")
+    return {"ok": True}
+
+
 @app.get("/api/ui-version")
 def ui_version() -> dict[str, str]:
     """La page compare sa version à celle-ci et se recharge seule après une mise à jour."""

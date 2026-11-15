@@ -36,8 +36,25 @@
   <aside id="drawer" class="drawer" hidden></aside>
   <div id="todopop" class="todopop" role="dialog" aria-label="À faire" hidden></div>
   <div id="toast" role="status" aria-live="polite"></div>
-  <script src="/static/app.js"></script>
+  <script>
+    /* Toute erreur de la page est envoyée au PC (studio/logs/regie-client.log) : Claude la lit sans te déranger.
+       Si la page reste sur « Chargement… », un bouton de rechargement apparaît après 10 s. */
+    (function () {
+      const send = (msg) => { try { fetch("/api/client-error", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ msg: String(msg).slice(0, 2000), url: location.href, ua: navigator.userAgent }) }); } catch (e) {} };
+      window.addEventListener("error", (e) => send(`${e.message} @ ${e.filename}:${e.lineno}:${e.colno}`));
+      window.addEventListener("unhandledrejection", (e) => send(`promesse : ${e.reason && (e.reason.stack || e.reason.message) || e.reason}`));
+      setTimeout(() => {
+        const v = document.getElementById("view");
+        if (v && v.querySelector(".loading")) {
+          send("page restée sur Chargement après 10 s");
+          v.innerHTML = '<p class="empty">La page ne se charge pas. <button class="btn go" onclick="location.reload()">Recharger</button></p>';
+        }
+      }, 10000);
+    })();
+  </script>
   <script src="/static/v3.js"></script>
+  <script src="/static/app.js"></script>
   <script>
     /* plein écran sans installation : un toucher suffit ; une fois choisi, il revient au premier toucher */
     (function () {
