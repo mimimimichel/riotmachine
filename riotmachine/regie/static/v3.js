@@ -144,7 +144,7 @@ async function renderSequences(box, clip) {
           <label><input type="checkbox" data-pick="${x.id}"> <b>${x.num}</b> ${esc((x.description || "").slice(0, 110))}</label></li>`).join("")}</ul></section>` : ""}
       <section class="panel stack" id="t-pickbar">
         <h2>Regrouper les plans cochés</h2>
-        <div class="row"><input id="t-newname" placeholder="Nom de la nouvelle séquence (ex. « Chambre, le réveil »)" style="flex:1;min-width:12em">
+        <div class="row"><input type="text" id="t-newname" placeholder="Nom de la nouvelle séquence (ex. « Chambre, le réveil »)" style="flex:1;min-width:12em">
           <button class="btn small go" id="t-new">Nouvelle séquence</button></div>
         <div class="row"><select id="t-dest">${opts}</select><button class="btn small" id="t-move">Déplacer vers cette séquence</button></div>
         <p class="hint">Couper une séquence ne coûte rien : la machine recalcule les prises et le coût tout de suite.</p>
@@ -171,7 +171,7 @@ async function renderSequences(box, clip) {
 
 function refChip(r, sel) {
   const [lab, cls] = REF_STATUS[r.status] || [r.status, "wait"];
-  return `<label class="refchip ${sel ? "on" : ""}" title="${esc(r.label)} · ${esc(lab)}">
+  return `<label class="refpick ${sel ? "on" : ""}" title="${esc(r.label)} · ${esc(lab)}">
       <input type="checkbox" data-ref="${esc(r.path)}" ${sel ? "checked" : ""} ${r.status.startsWith("refused") ? "disabled" : ""}>
       <img src="${media(r.path)}" alt="" loading="lazy"><span>${esc(r.label)}</span>${pill(lab, cls)}</label>`;
 }
@@ -200,7 +200,7 @@ async function renderSequence(box, clip, id) {
       <p class="michael-words">${esc(x.script || x.description)}</p>
       <div class="row">
         <label>Jeu <select data-attr="jeu" data-shot="${x.id}">${Object.entries(JEU_LABEL).map(([k, l]) => `<option value="${k}" ${x.jeu === k ? "selected" : ""}>${l}</option>`).join("")}</select></label>
-        <label title="Deux plans de même axe peuvent sortir d'une même prise continue">Axe <input data-attr="axe" data-shot="${x.id}" value="${esc(x.axe || "")}" style="width:5em"></label>
+        <label title="Deux plans de même axe peuvent sortir d'une même prise continue">Axe <input type="text" data-attr="axe" data-shot="${x.id}" value="${esc(x.axe || "")}" style="width:5em"></label>
         ${lookSel}
       </div>
       <label class="stack">Action envoyée au modèle (${x.action_edited ? "écrite par toi" : x.action_en ? "écrite par le prompteur" : "reprise du prompt détaillé du plan"})
@@ -226,7 +226,7 @@ async function renderSequence(box, clip, id) {
       <div class="row"><a class="btn small ghost" href="${base}">← Séquences</a><span class="spacer"></span>
         <a class="btn small" href="${base}/d/${id}">Dérushage</a></div>
       <section class="panel stack">
-        <div class="row"><h2>${s.num}. </h2><input id="s-name" value="${esc(s.name)}" style="flex:1;font-size:1.1em"></div>
+        <div class="row"><h2>${s.num}. </h2><input type="text" id="s-name" value="${esc(s.name)}" style="flex:1;font-size:1.1em"></div>
         <p class="hint">Profil : <b>${esc(v.profile_label)}</b> (calculé à partir des plans) · ${shootable.length} plan${shootable.length > 1 ? "s" : ""} à tourner</p>
         <label class="stack">Fiche de la séquence : lieu, heure, lumière, palette, figurants. Elle est injectée mot pour mot dans chaque prise.
           <textarea id="s-fiche" rows="3" placeholder="Ex. Morning, low warm autumn sun, long soft shadows, courtyard of an old limestone house…">${esc(s.fiche || "")}</textarea></label>
@@ -335,7 +335,7 @@ async function renderDerush(box, clip, id) {
       <div class="row">
         <button class="btn ok" data-keep="${cur.take_id}:${s.id}" ${cur.kept ? "disabled" : ""}>${cur.kept ? "Gardé ✓" : "Garder"}</button>
         <select data-motive="${s.id}">${mot}</select>
-        <input data-note="${s.id}" placeholder="Ce qui ne va pas" style="flex:1;min-width:10em">
+        <input type="text" data-note="${s.id}" placeholder="Ce qui ne va pas" style="flex:1;min-width:10em">
         <button class="btn small danger" data-redo="${cur.take_id}:${s.id}">Refaire</button>
       </div>
       ${cur.verdict === "redo" ? `<p class="alert warn">À refaire (${esc(cur.motive || "")}) : ${esc(cur.note || "")}. Il revient dans le plan de tournage avec son coût.</p>` : ""}` : "";

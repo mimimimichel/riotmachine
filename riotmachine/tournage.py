@@ -198,8 +198,13 @@ DEFAULT_TRAPS = ["lock", "padlock", "shoot", "fire", "crash", "strike", "cast", 
 DEFAULT_NEGATIVE = "extra hands, extra fingers, text, watermark, subtitles, morphing face, blurry, padlock"
 
 
+TRAP_EXCEPTIONS = ["locked-off", "locked off", "lock-off", "unlock"]   # termes de caméra ou sans danger
+
+
 def traps(text: str, words: list[str] | None = None) -> list[str]:
     words = words or DEFAULT_TRAPS
+    for ok in TRAP_EXCEPTIONS:
+        text = re.sub(re.escape(ok), " ", text or "", flags=re.I)
     found = []
     for w in words:
         if re.search(rf"\b{re.escape(w)}\w*", text or "", re.I):

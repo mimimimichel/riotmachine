@@ -1473,7 +1473,7 @@ def index() -> HTMLResponse:
     """La page charge app.js et app.css avec leur date de modification : la tablette
     ne garde jamais une ancienne version en cache après une mise à jour."""
     html = (STATIC / "index.html").read_text(encoding="utf-8")
-    for name in ("app.js", "app.css"):
+    for name in ("app.js", "v3.js", "app.css"):
         v = int((STATIC / name).stat().st_mtime)
         html = html.replace(f"/static/{name}", f"/static/{name}?v={v}")
     html = html.replace("</head>", f'<script>window.RIOT_VERSION="{_ui_version()}";</script></head>', 1)
