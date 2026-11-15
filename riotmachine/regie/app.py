@@ -20,6 +20,7 @@ from fastapi.responses import HTMLResponse, FileResponse, JSONResponse, Redirect
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from .. import agents as agents_mod
 from .. import db, image_models, media, production, providers, routing
 from ..settings import get_settings
 
@@ -93,9 +94,11 @@ def overview() -> dict[str, Any]:
         c["poster"] = poster["path"] if poster else None
         c["to_review"] += 0
     jobs = conn.execute("SELECT COUNT(*) FROM jobs WHERE status IN ('queued','running')").fetchone()[0]
-    agents = conn.execute("SELECT clip_slug FROM agent_runs WHERE ended_at IS NULL").fetchall()
+    running = conn.execute("SELECT clip_slug FROM agent_runs WHERE ended_at IS NULL").fetchall()
     return {"clips": clips, "characters": characters, "jobs_running": jobs,
-            "agents_running": [r["clip_slug"] for r in agents],
+            "agents_running": [r["clip_slug"] for r in running],
+            "agents_pending": conn.execute("SELECT COUNT(*) FROM agent_queue WHERE status='pending'").fetchone()[0],
+            "claude_today_usd": round(agents_mod.spent_today(conn), 2),
             "providers": routing.providers(), "spend": _spend_summary(conn), "todo": _todo(conn, clips, characters)}
 
 
@@ -158,6 +161,10 @@ def _todo(conn, clips: list[dict], characters: list[dict]) -> list[dict[str, Any
             bn = e["bnum"] if e["bnum"] is not None else LAST
             items.append(((ci, bn, 2, 0), {"label": f"{c['title']} : {blk(bn)}{e['name']}, {e['n']} image{'s' if e['n'] > 1 else ''} à garder ou écarter",
                                             "href": f"{base}/decors/ref/{e['slug']}", "block": e["bnum"]}))
+    n_agents = conn.execute("SELECT COUNT(*) FROM agent_queue WHERE status='pending'").fetchone()[0]
+    if n_agents:
+        items.append(((-1, 0, 0, 0), {"label": f"{n_agents} passage{'s' if n_agents > 1 else ''} d'agent Claude à accorder ou refuser",
+                                       "href": "#/conso", "block": None}))
     for ch in characters:
         if ch.get("to_review"):
             items.append(((LAST, LAST, 2, 0), {"label": f"{ch['name']} : {ch['to_review']} image{'s' if ch['to_review'] > 1 else ''} "
@@ -169,6 +176,46 @@ def _todo(conn, clips: list[dict], characters: list[dict]) -> list[dict[str, Any
 def _spend_summary(conn) -> dict[str, Any]:
     r = conn.execute("SELECT COUNT(*), COALESCE(SUM(est_usd),0) FROM spend_requests WHERE status='pending'").fetchone()
     return {"pending": r[0], "usd": round(r[1], 2)}
+
+
+# --- consommation de Claude (R-T1, R-T4) ----------------------------------------------
+
+@app.get("/api/conso")
+def conso() -> dict[str, Any]:
+    return agents_mod.overview(_conn())
+
+
+class ConsoSettings(BaseModel):
+    mode: str | None = None
+    day_cap_usd: float | None = None
+    run_cap_usd: float | None = None
+
+
+@app.post("/api/conso/settings")
+def conso_settings(body: ConsoSettings) -> dict[str, Any]:
+    conn = _conn()
+    try:
+        if body.mode is not None:
+            agents_mod.put(conn, "agent_mode", body.mode, by="michael")
+        if body.day_cap_usd is not None:
+            agents_mod.put(conn, "claude_day_cap_usd", body.day_cap_usd, by="michael")
+        if body.run_cap_usd is not None:
+            agents_mod.put(conn, "claude_run_cap_usd", body.run_cap_usd, by="michael")
+    except ValueError as exc:
+        raise _error(exc)
+    return agents_mod.config(conn)
+
+
+class AgentDecision(BaseModel):
+    approve: bool
+
+
+@app.post("/api/conso/{request_id}/decide")
+def conso_decide(request_id: int, body: AgentDecision) -> dict[str, Any]:
+    try:
+        return agents_mod.decide(_conn(), request_id, body.approve, by="michael")
+    except ValueError as exc:
+        raise _error(exc)
 
 
 @app.get("/api/spend")

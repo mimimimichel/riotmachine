@@ -3,6 +3,10 @@
 Une ligne par exigence livrée (`docs/REQUIREMENTS.md`), la plus récente en haut.
 Format : date, identifiant, ce qui change pour Michael.
 
+## v3 : clip zéro
+
+- 2026-11-15 R-T1, R-T4 : plus aucun agent Claude ne part tout seul. Le worker dépose une demande, avec ses raisons et son coût estimé, sur la nouvelle page « Conso » de la régie (et dans « À faire »). Michael l'accorde ou la refuse. Mode automatique possible sous un plafond du jour. Chaque passage est borné (plafond par passage, 1 $ par défaut) et mesuré : coût, tours, jetons.
+
 ## Lot 1 : Fondations
 
 - 2026-11-11 R-B8 (correctif) : après « Écarter » avec une raison, l'écran du plan ne se mettait pas à jour : la case de la raison restait ouverte et bloquait le rafraîchissement. Les boutons Valider et Refuser restaient affichés alors que l'écart était enregistré. Toute action lancée depuis le détail d'un plan redessine maintenant l'écran.

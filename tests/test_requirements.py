@@ -290,7 +290,7 @@ def test_r_a3_baseline_michael(studio):
     db.set_actor("machine")
     sh = db.get_shot(conn, sid)
     assert sh["script"] == "JJ court sous la pluie, essoufflée" and sh["prod_outdated"] == 1
-    settings = json.loads((Path(production.__file__).parent.parent / ".claude" / "settings.json").read_text())
+    settings = json.loads((Path(production.__file__).parent.parent / "config" / "agents-permissions.json").read_text())
     assert any("--script" in d for d in settings["permissions"]["deny"])
 
 

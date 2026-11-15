@@ -397,6 +397,7 @@ async function router() {
     else if (page === "fournisseurs") { setNav("fournisseurs"); await showProviders(); }
     else if (page === "depenses") { setNav("depenses"); await showSpend(arg); }
     else if (page === "crew") { setNav("crew"); await showCrew(arg); }
+    else if (page === "conso") { setNav("conso"); await showConso(); }
     else { setNav("studio"); await showStudio(); }
     updateBackBtn();
     afterRoute();
@@ -413,10 +414,13 @@ async function refreshSys() {
     const live = d.providers.filter((p) => p.usable);
     const navSpend = document.getElementById("nav-spend-n");
     if (navSpend) navSpend.textContent = d.spend && d.spend.pending ? ` ${d.spend.pending}` : "";
+    const navConso = document.getElementById("nav-conso-n");
+    if (navConso) navConso.textContent = d.agents_pending ? ` ${d.agents_pending}` : "";
     updateTodoBtn(d.todo || []);
     document.getElementById("sysstat").innerHTML = `
       <span title="Générations en cours chez les fournisseurs">${led(d.jobs_running ? "work" : "wait")}${d.jobs_running} génération${d.jobs_running > 1 ? "s" : ""}</span>
       <span title="Agents Claude au travail">${led(d.agents_running.length ? "work" : "wait")}<span class="long">Agents :</span> ${d.agents_running.length ? "au travail" : "en veille"}</span>
+      <a href="#/conso" title="Consommation de Claude aujourd'hui">Claude ${money(d.claude_today_usd || 0)}</a>
       <a href="#/fournisseurs" title="Fournisseurs branchés (les autres ne génèrent rien)">${led(live.length ? "done" : "failed")}${live.length ? live.map((p) => esc(p.label.replace(/ \(.*\)$/, ""))).join(", ") : "Aucun fournisseur branché"}</a>
       ${d.spend && d.spend.pending ? `<a class="spend-badge" href="#/depenses" title="Générations qui attendent ton accord">💳 ${d.spend.pending} à valider · ${money(d.spend.usd)}</a>` : ""}`;
     return d;

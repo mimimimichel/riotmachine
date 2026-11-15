@@ -21,7 +21,7 @@ from .settings import get_settings
 # numérotées (SCHEMA + LATER_COLUMNS, idempotents). Chaque version suivante est une
 # fonction de MIGRATIONS, rejouable sans effet, précédée d'une sauvegarde de la base.
 BASELINE_VERSION = 4
-SCHEMA_VERSION = 8
+SCHEMA_VERSION = 9
 
 # --- Cycle de vie ---------------------------------------------------------
 
@@ -556,11 +556,44 @@ def _migrate_v8(conn: sqlite3.Connection) -> None:
         conn.execute("UPDATE blocks SET brief=intention")
 
 
+def _migrate_v9(conn: sqlite3.Connection) -> None:
+    """R-T1, R-T4 : les agents attendent l'accord de Michael ; coût et jetons de chaque passage."""
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS settings_kv (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )""")
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS agent_queue (
+            id INTEGER PRIMARY KEY,
+            key TEXT NOT NULL,            -- clip ou personnage:<slug>
+            command TEXT NOT NULL,        -- /prod <clip>, /casting <slug>
+            reasons TEXT NOT NULL,        -- JSON
+            fingerprint TEXT,
+            est_usd REAL,
+            status TEXT NOT NULL,         -- pending | approved | refused | launched | obsolete
+            decided_by TEXT,
+            run_id INTEGER,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )""")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_agent_queue ON agent_queue(status, key)")
+    cols = _columns(conn, "agent_runs")
+    for name, decl in (("command_kind", "TEXT"), ("est_usd", "REAL"), ("cost_usd", "REAL"), ("turns", "INTEGER"),
+                       ("tokens_in", "INTEGER"), ("tokens_out", "INTEGER"), ("requested_by", "TEXT")):
+        if name not in cols:
+            conn.execute(f"ALTER TABLE agent_runs ADD COLUMN {name} {decl}")
+    conn.execute("UPDATE agent_runs SET command_kind = CASE WHEN clip_slug LIKE 'personnage:%' THEN '/casting' "
+                 "ELSE '/prod' END WHERE command_kind IS NULL")
+
+
 MIGRATIONS = {
     5: _migrate_v5,
     6: _migrate_v6,
     7: _migrate_v7,
     8: _migrate_v8,
+    9: _migrate_v9,
 }
 
 

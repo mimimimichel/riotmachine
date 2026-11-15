@@ -4,8 +4,8 @@ Toutes les RIOT_POLL_SECONDS secondes :
   1. il interroge fal pour les générations en cours et récupère les résultats ;
   2. il lance les étapes automatiques (rendu final, lip-sync) ;
   3. il prévient Michael sur Telegram quand des plans attendent sa validation ;
-  4. il réveille Claude Code (`claude -p "/prod <clip>"`) quand un clip a besoin
-     d'un agent : découpage, prompts, contrôle qualité, tri des retours.
+  4. quand un clip a besoin d'un agent, il dépose une demande que Michael accorde
+     dans la régie (page Consommation), puis lance les passages accordés.
 
 Il ne réfléchit pas : tout le jugement est fait par les agents Claude.
 """
@@ -13,19 +13,14 @@ Il ne réfléchit pas : tout le jugement est fait par les agents Claude.
 from __future__ import annotations
 
 import hashlib
-import os
-import signal
 import sqlite3
-import subprocess
 import time
 import traceback
 from pathlib import Path
 
-from . import db, fal, notify, production, providers
+from . import agents, db, fal, notify, production, providers
 from .settings import get_settings, load_models
 
-# agents en cours : id du passage -> (processus, clip)
-_running: dict[int, tuple[subprocess.Popen, str]] = {}
 
 
 def poll_jobs(conn: sqlite3.Connection) -> int:
@@ -114,126 +109,36 @@ def _budget_alerts(conn: sqlite3.Connection) -> None:
                              f"💸 <b>{c['title']}</b> : {spent:.2f} $ dépensés sur {c['budget_usd']:.0f} $ de budget.")
 
 
-# --- Réveil des agents Claude ----------------------------------------------------
+# --- Agents Claude : demandes soumises à Michael (R-T1) ----------------------------
+# Le worker ne lance plus Claude de lui-même : il dépose une demande avec ses
+# raisons et son coût estimé, et ne lance que ce que Michael a accordé (ou ce que
+# le mode automatique accorde sous le plafond du jour). Voir riotmachine/agents.py.
 
-def _agent_env() -> dict[str, str]:
-    env = dict(os.environ)
-    # Une clé API dans l'environnement ferait payer l'API au lieu de l'abonnement Claude.
-    env.pop("ANTHROPIC_API_KEY", None)
-    return env
-
-
-def _reap_agents(conn: sqlite3.Connection) -> None:
-    for run_id, (proc, _slug) in list(_running.items()):
-        code = proc.poll()
-        if code is None:
-            run = conn.execute("SELECT started_at FROM agent_runs WHERE id=?", (run_id,)).fetchone()
-            if db.age_seconds(run["started_at"]) > get_settings().agent_timeout_s:
-                proc.send_signal(signal.SIGTERM)
-                conn.execute("UPDATE agent_runs SET ended_at=?, exit_code=? WHERE id=?", (db.now(), -15, run_id))
-                _running.pop(run_id, None)
+def ask_agents(conn: sqlite3.Connection) -> list[str]:
+    """Dépose les demandes d'agent des clips et des personnages. Retourne les clés demandées."""
+    if not get_settings().agents_enabled:
+        return []
+    asked = []
+    for c in conn.execute("SELECT slug FROM clips WHERE stage!='done' ORDER BY updated_at").fetchall():
+        need = production.needs_agent(conn, c["slug"])
+        if not need["reasons"]:
+            agents.withdraw(conn, c["slug"])
             continue
-        conn.execute("UPDATE agent_runs SET ended_at=?, exit_code=? WHERE id=?", (db.now(), code, run_id))
-        _running.pop(run_id, None)
-        if code != 0:
-            run = conn.execute("SELECT * FROM agent_runs WHERE id=?", (run_id,)).fetchone()
-            notify.send_once(conn, f"agent-fail:{run_id}",
-                             f"⚠️ L'orchestrateur a échoué sur <b>{run['clip_slug']}</b> (code {code}). "
-                             f"Journal : {run['log_path']}")
-
-
-def _should_wake(conn: sqlite3.Connection, slug: str, need: dict) -> bool:
-    fingerprint = need["fingerprint"]
-    if any(clip == slug for _proc, clip in _running.values()):
-        return False
-    last = conn.execute(
-        "SELECT * FROM agent_runs WHERE clip_slug=? ORDER BY id DESC LIMIT 1", (slug,)
-    ).fetchone()
-    if last is None or last["fingerprint"] != fingerprint:
-        return True
-    # Même situation qu'au dernier passage : l'agent n'a pas pu avancer.
-    # On attend avant de réessayer pour ne pas brûler le quota de l'abonnement.
-    if last["ended_at"] is None or not need.get("retry_on_backoff", True):
-        return False
-    # Au plus RIOT_AGENT_MAX_RETRIES relances sur une situation identique : au-delà, l'agent
-    # attend qu'un changement (validation, nouvelle consigne) modifie l'empreinte.
-    recents = conn.execute(
-        "SELECT fingerprint FROM agent_runs WHERE clip_slug=? ORDER BY id DESC LIMIT ?",
-        (slug, get_settings().agent_max_retries + 1),
-    ).fetchall()
-    if len(recents) > get_settings().agent_max_retries and all(r["fingerprint"] == fingerprint for r in recents):
-        return False
-    return db.age_seconds(last["ended_at"]) > get_settings().agent_backoff_s
+        if agents.request(conn, c["slug"], f"/prod {c['slug']}", need["reasons"], need["fingerprint"],
+                          retry=need.get("retry_on_backoff", True)):
+            asked.append(c["slug"])
+    for need in production.characters_needing_agent(conn):
+        key = f"personnage:{need['slug']}"
+        if agents.request(conn, key, f"/casting {need['slug']}",
+                          [f"{need.get('what', 'pack demandé')} v{need['version']}"], need["fingerprint"], retry=False):
+            asked.append(key)
+    return asked
 
 
 def wake_agents(conn: sqlite3.Connection) -> list[str]:
-    s = get_settings()
-    if not s.agents_enabled:
-        return []
-    global _claude_missing
-    _claude_missing = False
-    woken = []
-    for c in conn.execute("SELECT slug FROM clips WHERE stage!='done' ORDER BY updated_at").fetchall():
-        need = production.needs_agent(conn, c["slug"])
-        if not need["reasons"] or not _should_wake(conn, c["slug"], need):
-            continue
-        if _launch_claude(conn, c["slug"], f"/prod {c['slug']}", need["reasons"], need["fingerprint"]):
-            woken.append(c["slug"])
-        elif _claude_missing:
-            return woken
-    return woken
-
-
-_claude_missing = False
-
-
-def _launch_claude(conn: sqlite3.Connection, key: str, prompt: str, reasons: list[str], fingerprint: str) -> bool:
-    global _claude_missing
-    s = get_settings()
-    log_path = s.logs_dir / f"agent-{key.replace(':', '-')}-{db.now().replace(':', '')}.log"
-    log_path.parent.mkdir(parents=True, exist_ok=True)
-    cmd = [
-        s.claude_bin, "-p", prompt,
-        "--permission-mode", "acceptEdits",
-        "--allowedTools", "Bash(riot *),Bash(ffmpeg *),Bash(ffprobe *),Read,Write,Edit,Glob,Grep,Agent,Task",
-        "--output-format", "text",
-    ]
-    if s.claude_model:
-        cmd += ["--model", s.claude_model]
-    log = log_path.open("w", encoding="utf-8")
-    log.write(f"# {' '.join(cmd)}\n# raisons : {reasons}\n\n")
-    log.flush()
-    try:
-        proc = subprocess.Popen(cmd, cwd=s.repo_root, stdout=log, stderr=subprocess.STDOUT,
-                                env=_agent_env(), start_new_session=True)
-    except FileNotFoundError:
-        notify.send_once(conn, "claude-missing", "⚠️ Claude Code introuvable : installe-le et connecte-toi (claude puis /login).")
-        log.close()
-        _claude_missing = True
-        return False
-    cur = conn.execute(
-        "INSERT INTO agent_runs (clip_slug, reason, fingerprint, pid, log_path, started_at) VALUES (?,?,?,?,?,?)",
-        (key, "; ".join(reasons), fingerprint, proc.pid, str(log_path), db.now()),
-    )
-    _running[cur.lastrowid] = (proc, key)
-    return True
-
-
-def wake_casting(conn: sqlite3.Connection) -> list[str]:
-    """Réveille /casting quand Michael a demandé le pack d'un personnage."""
-    s = get_settings()
-    if not s.agents_enabled:
-        return []
-    woken = []
-    for need in production.characters_needing_agent(conn):
-        key = f"personnage:{need['slug']}"
-        need = {**need, "retry_on_backoff": False}
-        if not _should_wake(conn, key, need):
-            continue
-        if _launch_claude(conn, key, f"/casting {need['slug']}", [f"{need.get('what', 'pack demandé')} v{need['version']}"],
-                          need["fingerprint"]):
-            woken.append(key)
-    return woken
+    """Dépose les demandes puis lance celles qui sont accordées. Retourne les clés lancées."""
+    ask_agents(conn)
+    return agents.launch_approved(conn)
 
 
 def tick(conn: sqlite3.Connection, wake: bool = True) -> dict:
@@ -241,8 +146,8 @@ def tick(conn: sqlite3.Connection, wake: bool = True) -> dict:
     out = {"jobs_done": poll_jobs(conn), "spend_launched": production.run_approved_spend(conn),
            "auto_launched": run_automatic_steps(conn)}
     notify_reviews(conn)
-    _reap_agents(conn)
-    out["agents"] = (wake_agents(conn) + wake_casting(conn)) if wake else []
+    agents.reap(conn)
+    out["agents"] = wake_agents(conn) if wake else []
     return out
 
 
@@ -268,7 +173,7 @@ def run_forever() -> None:
 
 def mark_stale_runs(conn: sqlite3.Connection) -> None:
     """Au démarrage : les agents d'une session précédente ne sont plus suivis."""
-    conn.execute("UPDATE agent_runs SET ended_at=?, exit_code=-1 WHERE ended_at IS NULL", (db.now(),))
+    agents.mark_stale(conn)
 
 
 def logs_dir() -> Path:

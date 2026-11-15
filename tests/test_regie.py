@@ -88,3 +88,22 @@ def test_token_guard(studio, monkeypatch):
     r = client.get("/?token=secret", follow_redirects=False)
     assert r.status_code == 307 and "riot_token" in r.headers["set-cookie"]
     assert client.get("/api/overview", headers={"Authorization": "Bearer secret"}).status_code == 200
+
+
+def test_r_t4_conso_page(studio):
+    """Page Consommation : réglages, demande en attente dans « À faire », accord par Michael."""
+    from riotmachine import agents, cli, db
+    from riotmachine.regie.app import app
+    cli.main(["init"])
+    client = TestClient(app)
+    r = client.post("/api/conso/settings", json={"mode": "accord", "day_cap_usd": 2, "run_cap_usd": 0.5})
+    assert r.json() == {"mode": "accord", "day_cap_usd": 2.0, "run_cap_usd": 0.5}
+    assert client.post("/api/conso/settings", json={"mode": "n'importe"}).status_code == 400
+    conn = db.connect()
+    agents.request(conn, "demo", "/prod demo", ["plans à préparer"], "f1")
+    ov = client.get("/api/overview").json()
+    assert ov["agents_pending"] == 1 and any(t["href"] == "#/conso" for t in ov["todo"])
+    (req,) = client.get("/api/conso").json()["pending"]
+    assert client.post(f"/api/conso/{req['id']}/decide", json={"approve": True}).json()["status"] == "approved"
+    assert conn.execute("SELECT decided_by FROM agent_queue").fetchone()[0] == "michael"
+    assert client.post(f"/api/conso/{req['id']}/decide", json={"approve": True}).status_code == 400
