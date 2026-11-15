@@ -1,0 +1,104 @@
+# Capacités des modèles vidéo pour le planificateur v3 (PRODUCTION-PLANS-v3 §6).
+# Complète config/models.yaml (point d'accès, prix, fournisseur) : même clé de modèle.
+# Aucune règle propre à un modèle n'est écrite dans le code : tout est ici.
+#
+# modes        : façons de générer, avec les durées permises et le nombre de références
+#                references  = images de référence (personnage, objets, décor), sans image de départ
+#                image_start = une image de départ
+#                text        = texte seul
+# multi_shot   : plusieurs plans dans une prise (max_shots ; cuts: approximate = coupes placées
+#                par le modèle à peu près où le prompt le demande ; fixed = durée fixée par plan)
+# profiles     : ok | weak | no par profil de séquence (déclarations de départ, corrigées par le rodage)
+# verified_at  : date du dernier essai réel ; une entrée sans essai est « non vérifiée »
+
+defaults:
+  stale_days: 45          # au-delà, l'entrée est signalée comme à revérifier
+  unused_alert: 0.4       # secondes payées non utilisées au-delà de 40 % : alerte
+  cut_margin_s: 0.5       # marge par coupe quand les coupes sont approximatives
+  quality_resolution: {brouillon: lowest, final: highest}
+
+models:
+  veo-31-fast-vertex:
+    modes:
+      references: {durations: [8], max_refs: 3}
+      image_start: {durations: [4, 6, 8]}
+      text: {durations: [4, 6, 8]}
+    multi_shot: {max_shots: 3, cuts: approximate}
+    profiles: {decor: ok, action: ok, jeu: weak, chant_serre: weak, chant_danse_large: "no",
+               multi_personnages: weak, composition_stricte: ok}
+    prompt_dialect: veo
+    refusals_billed: false
+    extend: true
+    continue_from_frame: true
+    edit_object: false
+    verified_at: 2026-11-11
+    source: test veo-modes-2026-11-11 (références acceptées en Fast, 8 s)
+
+  veo-31-vertex:
+    modes:
+      references: {durations: [8], max_refs: 3}
+      image_start: {durations: [4, 6, 8]}
+      text: {durations: [4, 6, 8]}
+    multi_shot: {max_shots: 3, cuts: approximate}
+    profiles: {decor: ok, action: ok, jeu: ok, chant_serre: weak, chant_danse_large: weak,
+               multi_personnages: weak, composition_stricte: ok}
+    prompt_dialect: veo
+    refusals_billed: false
+    extend: true
+    continue_from_frame: true
+    edit_object: false
+    verified_at: 2026-11-11
+    source: test veo-modes-2026-11-11 (P1b, joue mieux l'action que Fast)
+
+  veo-31-lite-vertex:
+    modes:
+      image_start: {durations: [4, 6, 8]}
+      text: {durations: [4, 6, 8]}
+    multi_shot: {max_shots: 3, cuts: approximate}
+    profiles: {decor: ok, action: weak, jeu: "no", chant_serre: "no", chant_danse_large: "no",
+               multi_personnages: "no", composition_stricte: weak}
+    prompt_dialect: veo
+    refusals_billed: false
+    source: page Vertex lue le 11/11 (pas de références) ; ouverture sur Vertex à vérifier
+
+  kling-30-direct:
+    modes:
+      references: {durations: [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], max_refs: 4}
+      image_start: {durations: [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]}
+      text: {durations: [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]}
+    multi_shot: {max_shots: 6, cuts: fixed}
+    profiles: {decor: ok, action: ok, jeu: ok, chant_serre: weak, chant_danse_large: ok,
+               multi_personnages: weak, composition_stricte: ok}
+    prompt_dialect: kling
+    refusals_billed: false
+    edit_object: false
+    source: page Kling lue le 11/11
+
+  seedance-2:
+    modes:
+      references: {durations: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], max_refs: 9}
+      image_start: {durations: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]}
+    multi_shot: {max_shots: 4, cuts: approximate}
+    profiles: {decor: ok, action: ok, jeu: ok, chant_serre: weak, chant_danse_large: ok,
+               multi_personnages: ok, composition_stricte: weak}
+    prompt_dialect: seedance
+    source: page fal lue le 11/11
+
+  seedance-25-runway:
+    modes:
+      references: {durations: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], max_refs: 30}
+      image_start: {durations: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]}
+    multi_shot: {max_shots: 6, cuts: approximate}
+    profiles: {decor: ok, action: ok, jeu: ok, chant_serre: ok, chant_danse_large: ok,
+               multi_personnages: ok, composition_stricte: weak}
+    prompt_dialect: seedance
+    source: page Runway lue le 11/11
+
+  h3-minimax:
+    modes:
+      references: {durations: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], max_refs: 9}
+      image_start: {durations: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]}
+    profiles: {decor: ok, action: ok, jeu: weak, chant_serre: weak, chant_danse_large: weak,
+               multi_personnages: weak, composition_stricte: weak}
+    prompt_dialect: generic
+    source: page MiniMax lue le 11/11

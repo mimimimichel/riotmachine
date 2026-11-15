@@ -21,7 +21,7 @@ from .settings import get_settings
 # numérotées (SCHEMA + LATER_COLUMNS, idempotents). Chaque version suivante est une
 # fonction de MIGRATIONS, rejouable sans effet, précédée d'une sauvegarde de la base.
 BASELINE_VERSION = 4
-SCHEMA_VERSION = 9
+SCHEMA_VERSION = 10
 
 # --- Cycle de vie ---------------------------------------------------------
 
@@ -588,12 +588,130 @@ def _migrate_v9(conn: sqlite3.Connection) -> None:
                  "ELSE '/prod' END WHERE command_kind IS NULL")
 
 
+def _run_statements(conn: sqlite3.Connection, script: str) -> None:
+    """Exécute un script SQL instruction par instruction (executescript validerait la transaction en cours)."""
+    for stmt in script.split(";"):
+        body = "\n".join(l for l in stmt.splitlines() if not l.strip().startswith("--")).strip()
+        if body:
+            conn.execute(body)
+
+
+def _migrate_v10(conn: sqlite3.Connection) -> None:
+    """R-H1, R-H2 (v3) : séquences, prises, fenêtres, lots d'accord, statut des références par fournisseur."""
+    _run_statements(conn, """
+        CREATE TABLE IF NOT EXISTS sequences (
+            id INTEGER PRIMARY KEY,
+            clip_slug TEXT NOT NULL REFERENCES clips(slug),
+            num INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            fiche TEXT,                   -- lieu, heure, lumière, palette, figurants (texte injecté mot pour mot)
+            profile TEXT,                 -- NULL = calculé depuis les plans
+            offer_key TEXT,               -- NULL = choix du planificateur
+            options TEXT NOT NULL DEFAULT '{}',   -- JSON : résolution, mode, références choisies
+            master_path TEXT,             -- image maîtresse validée
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            UNIQUE (clip_slug, num)
+        );
+        CREATE TABLE IF NOT EXISTS shoot_lots (
+            id INTEGER PRIMARY KEY,
+            clip_slug TEXT NOT NULL,
+            sequence_id INTEGER,
+            total_usd REAL NOT NULL,
+            status TEXT NOT NULL,         -- approved | done | partial
+            decided_by TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS takes (
+            id INTEGER PRIMARY KEY,
+            clip_slug TEXT NOT NULL,
+            sequence_id INTEGER,
+            lot_id INTEGER,
+            offer_key TEXT NOT NULL,
+            mode TEXT NOT NULL,           -- references | image_start | text | first_last
+            form TEXT NOT NULL,           -- single | multi | continuous
+            duration_s REAL NOT NULL,
+            resolution TEXT,
+            prompt TEXT NOT NULL,
+            refs TEXT NOT NULL DEFAULT '[]',
+            est_usd REAL NOT NULL DEFAULT 0,
+            cost_usd REAL,
+            funding TEXT,                 -- free | reserve:<fournisseur> | cash
+            status TEXT NOT NULL,         -- queued | submitting | running | done | failed | blocked | check
+            idem_key TEXT UNIQUE,
+            provider TEXT,
+            request_id TEXT,
+            status_url TEXT,
+            response_url TEXT,
+            attempts INTEGER NOT NULL DEFAULT 0,
+            path TEXT,
+            error TEXT,
+            retries INTEGER NOT NULL DEFAULT 0,
+            parent_take_id INTEGER,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_takes_seq ON takes(sequence_id, status);
+        CREATE TABLE IF NOT EXISTS take_shots (
+            take_id INTEGER NOT NULL REFERENCES takes(id),
+            shot_id INTEGER NOT NULL REFERENCES shots(id),
+            ord INTEGER NOT NULL,
+            t_in REAL NOT NULL,           -- fenêtre dans la prise
+            t_out REAL NOT NULL,
+            speed REAL NOT NULL DEFAULT 1.0,
+            kept INTEGER NOT NULL DEFAULT 0,
+            verdict TEXT,                 -- keep | redo
+            motive TEXT,
+            note TEXT,
+            decided_at TEXT,
+            PRIMARY KEY (take_id, shot_id)
+        );
+        CREATE TABLE IF NOT EXISTS ref_status (
+            path TEXT NOT NULL,
+            provider TEXT NOT NULL,
+            status TEXT NOT NULL,         -- accepted | refused_in | refused_out
+            note TEXT,
+            updated_at TEXT NOT NULL,
+            PRIMARY KEY (path, provider)
+        );
+    """)
+    if "quality" not in _columns(conn, "clips"):
+        conn.execute("ALTER TABLE clips ADD COLUMN quality TEXT NOT NULL DEFAULT 'brouillon'")
+    cols = _columns(conn, "shots")
+    for name, decl in (("sequence_id", "INTEGER"), ("jeu", "TEXT NOT NULL DEFAULT 'present'"),
+                       ("axe", "TEXT"), ("composition", "TEXT NOT NULL DEFAULT 'libre'"),
+                       ("role_ab", "TEXT NOT NULL DEFAULT 'A'"), ("action_en", "TEXT"), ("action_edited", "INTEGER NOT NULL DEFAULT 0")):
+        if name not in cols:
+            conn.execute(f"ALTER TABLE shots ADD COLUMN {name} {decl}")
+    # Une séquence par bloc pour commencer (Michael la découpe ensuite) ; plans sans personnage : jeu « aucun ».
+    for b in conn.execute("SELECT * FROM blocks ORDER BY clip_slug, num").fetchall():
+        has = conn.execute("SELECT 1 FROM shots WHERE block_id=? AND sequence_id IS NOT NULL", (b["id"],)).fetchone()
+        n_shots = conn.execute("SELECT COUNT(*) FROM shots WHERE block_id=? AND deleted_at IS NULL", (b["id"],)).fetchone()[0]
+        if has or not n_shots:
+            continue
+        num = (conn.execute("SELECT COALESCE(MAX(num),0) FROM sequences WHERE clip_slug=?", (b["clip_slug"],)).fetchone()[0]) + 1
+        cur = conn.execute("INSERT INTO sequences (clip_slug, num, name, created_at, updated_at) VALUES (?,?,?,?,?)",
+                           (b["clip_slug"], num, b["name"], now(), now()))
+        conn.execute("UPDATE shots SET sequence_id=? WHERE block_id=?", (cur.lastrowid, b["id"]))
+    conn.execute("UPDATE shots SET jeu='aucun' WHERE characters IN ('[]', '') OR characters IS NULL")
+    # Ce que Google a accepté ou refusé lors du test des modes de Veo (11 et 12/11/2026, RAPPORT.md)
+    for path, st, note in (
+            ("characters/jj/v2/canon.png", "refused_out", "vidéo filtrée en sortie (visage), test Veo du 11/11"),
+            ("characters/jj/v2/canon/tshirt-blanc-rousseur.png", "refused_out", "refusée avec la tenue, filtrée seule, test du 11/11"),
+            ("characters/jj/v2/details/ancienne-canon-7.png", "accepted", "acceptée en Fast et en Standard, test du 11/11"),
+            ("characters/jj/looks/black-tailor/inspiration/11008-2.png", "refused_in", "refusée à l'entrée, test du 11/11"),
+            ("clips/nobody-saw/decors/porte-document/inspiration/11005-192213.jpg", "accepted", "acceptée, test du 11/11")):
+        conn.execute("INSERT OR IGNORE INTO ref_status (path, provider, status, note, updated_at) VALUES (?,?,?,?,?)",
+                     (path, "vertex", st, note, now()))
+
+
 MIGRATIONS = {
     5: _migrate_v5,
     6: _migrate_v6,
     7: _migrate_v7,
     8: _migrate_v8,
     9: _migrate_v9,
+    10: _migrate_v10,
 }
 
 
@@ -807,7 +925,7 @@ def set_shot_status(conn: sqlite3.Connection, shot_id: int, status: str, by: str
 # champ modifié donne une ligne dans `changes` (avant, après, auteur, raison).
 # Un test lit le code source et refuse tout `UPDATE` direct sur ces tables hors de ce module.
 
-TRACKED = ("clips", "blocks", "shots", "characters", "character_versions", "elements")
+TRACKED = ("clips", "blocks", "shots", "characters", "character_versions", "elements", "sequences")
 _KEYS = {"clips": "slug", "characters": "slug"}
 _ACTOR = "machine"
 

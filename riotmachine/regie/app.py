@@ -1438,9 +1438,16 @@ class StudioFiles(StaticFiles):
         root.mkdir(parents=True, exist_ok=True)
         super().__init__(directory=root, check_dir=True)
 
+    async def check_config(self) -> None:
+        root = get_settings().studio_root
+        root.mkdir(parents=True, exist_ok=True)
+        self.directory, self.all_directories = root, [root]
+
     async def get_response(self, path: str, scope):
         if path.endswith((".db", ".db-wal", ".db-shm")) or path.startswith("logs/"):
             raise HTTPException(status_code=404)
+        root = get_settings().studio_root          # lu à chaque requête : suit RIOT_STUDIO_ROOT
+        self.directory, self.all_directories = root, [root]
         return await super().get_response(path, scope)
 
 
@@ -1474,10 +1481,16 @@ def index() -> HTMLResponse:
 
 
 def _ui_version() -> str:
-    return "-".join(str(int((STATIC / n).stat().st_mtime)) for n in ("app.js", "app.css", "index.html"))
+    return "-".join(str(int((STATIC / n).stat().st_mtime)) for n in ("app.js", "v3.js", "app.css", "index.html"))
 
 
 @app.get("/api/ui-version")
 def ui_version() -> dict[str, str]:
     """La page compare sa version à celle-ci et se recharge seule après une mise à jour."""
     return {"version": _ui_version()}
+
+
+# --- v3 : tournage par séquence ---------------------------------------------------------
+from .v3_routes import router as _v3_router  # noqa: E402
+
+app.include_router(_v3_router)

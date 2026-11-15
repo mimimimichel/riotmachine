@@ -5,6 +5,7 @@ Format : date, identifiant, ce qui change pour Michael.
 
 ## v3 : clip zéro
 
+- 2026-11-15 R-H1 à R-H13, R-H28, R-M1 (première version) : onglet « Tournage » dans chaque clip. Les plans sont regroupés en séquences (une par bloc au départ, Michael les découpe). Pour chaque séquence, la machine calcule comment elle la tournerait : offre (catalogue `config/capacites.yaml` + prix de `models.yaml`), prises, durée, résolution, coût, réserve débitée. Chaque option (offre, mode, résolution) affiche son prix et, avant d'être appliquée, ce qu'elle change (coût, prises, plans à recouper, plans à retourner). Références de JJ, tenues, décors et objets envoyées directement à Veo (mode références), sans visuel intermédiaire ; une image refusée par Google ne part jamais. « Accorder et tourner » crée un lot au montant affiché, rien au-delà. Refus non facturés relancés deux fois, puis bloqués avec la marche à suivre. Dérushage plan par plan en boucle sur la musique (garder, refaire avec motif, fenêtre et vitesse). Montage des blocs validés, cartons pour les plans sans prise, refait à chaque décision en ne réencodant que ce qui change.
 - 2026-11-15 R-T1, R-T4 : plus aucun agent Claude ne part tout seul. Le worker dépose une demande, avec ses raisons et son coût estimé, sur la nouvelle page « Conso » de la régie (et dans « À faire »). Michael l'accorde ou la refuse. Mode automatique possible sous un plafond du jour. Chaque passage est borné (plafond par passage, 1 $ par défaut) et mesuré : coût, tours, jetons.
 
 ## Lot 1 : Fondations

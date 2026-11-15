@@ -946,3 +946,27 @@ details.sources-box > div { padding: 10px 0 0; }
 .mline { margin: 0; font-size: 14px; }
 .rfopt { display: flex; gap: 10px; align-items: flex-start; padding: 10px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; }
 .rfopt input { margin-top: 4px; }
+
+/* v3 : tournage par séquence */
+.seqshots { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; }
+.seqshots li.dim { opacity: .55; }
+.seqbadge.warn { color: var(--amber); }
+.alert { margin: 0; padding: 6px 10px; border-radius: 8px; font-size: 13px; }
+.alert.bad { background: #ff4d6d22; border: 1px solid #ff4d6d66; }
+.alert.warn { background: #ffb02e1a; border: 1px solid #ffb02e55; }
+.alert.info { color: var(--muted); }
+.impact { margin: 4px 0; padding-left: 18px; font-size: 13px; }
+.refgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
+.refchip { display: flex; flex-direction: column; gap: 4px; font-size: 12px; border: 1px solid #ffffff1a; border-radius: 8px; padding: 6px; }
+.refchip.on { border-color: var(--violet); }
+.refchip img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 6px; }
+.shotv3 { border: 1px solid #ffffff14; border-radius: 10px; padding: 8px 12px; margin-bottom: 8px; }
+.shotv3 summary { cursor: pointer; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.shotv3 textarea, #s-fiche { width: 100%; }
+.michael-words { font-style: italic; color: var(--muted); }
+.takeshots { margin: 0; padding-left: 18px; }
+pre.prompt { white-space: pre-wrap; font-size: 12px; max-height: 260px; overflow: auto; }
+.promptblocks p { font-size: 12px; margin: 4px 0; }
+.shootbar { position: sticky; bottom: env(safe-area-inset-bottom, 0px); z-index: 2; }
+.derushplayer video { width: 100%; max-height: 52vh; background: #000; border-radius: 8px; }
+.derushplayer input[type=range] { width: 100%; }

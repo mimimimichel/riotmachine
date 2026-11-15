@@ -381,7 +381,7 @@ async function router() {
       state.shotId = sub === "p" && shot ? +shot : null;
       if (sub === "ref" && shot) state.refTarget = shot;
       if (sub === "avalider") state.focusBlock = true;
-      if (sameView) { renderDrawer(); if (state.refTarget && state.tab === "decors") loadDecors(state.clip); focusShotCard(); updateBackBtn(); afterRoute(); return; }
+      if (sameView) { renderDrawer(); if (state.refTarget && state.tab === "decors") loadDecors(state.clip); if (state.tab === "tournage") loadTournage(state.clip); focusShotCard(); updateBackBtn(); afterRoute(); return; }
       await showClip(arg, tab);
       focusShotCard();
       updateBackBtn();
@@ -737,6 +737,7 @@ function renderClip() {
   const tabs = [
     ["plans", "Plans", c.review ? `<span class="count">${c.review}</span>` : ""],
     ["decoupage", "Découpage", clip.stage === "decoupage_review" ? `<span class="count">à valider</span>` : ""],
+    ["tournage", "Tournage", ""],
     ["decors", "Références", clip.decors_pending ? `<span class="count">${clip.decors_pending}</span>` : ""],
     ["dossier", "Dossier", ""],
     ["journal", "Journal", ""],
@@ -759,11 +760,13 @@ function renderClip() {
   else if (state.tab === "decoupage") html += renderDecoupageTab(clip);
   else if (state.tab === "dossier") html += renderDossier(clip);
   else if (state.tab === "decors") html += `<div id="decors-tab"><p class="loading">Chargement…</p></div>`;
+  else if (state.tab === "tournage") html += `<div id="tournage-tab"><p class="loading">Chargement…</p></div>`;
   else html += renderJournal(clip);
   $view.innerHTML = html;
   bindClip();
   if (state.tab === "decors") loadDecors(clip);
   if (state.tab === "dossier") loadScenario(clip);
+  if (state.tab === "tournage") loadTournage(clip);
 }
 
 /* ----- scénariste : brainstorm brut -> propositions à accepter partie par partie ----- */

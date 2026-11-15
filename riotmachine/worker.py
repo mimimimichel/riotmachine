@@ -18,7 +18,7 @@ import time
 import traceback
 from pathlib import Path
 
-from . import agents, db, fal, notify, production, providers
+from . import agents, db, fal, notify, prises, production, providers
 from .settings import get_settings, load_models
 
 
@@ -144,7 +144,7 @@ def wake_agents(conn: sqlite3.Connection) -> list[str]:
 def tick(conn: sqlite3.Connection, wake: bool = True) -> dict:
     db.set_actor("worker")
     out = {"jobs_done": poll_jobs(conn), "spend_launched": production.run_approved_spend(conn),
-           "auto_launched": run_automatic_steps(conn)}
+           "auto_launched": run_automatic_steps(conn), **prises.tick(conn)}
     notify_reviews(conn)
     agents.reap(conn)
     out["agents"] = wake_agents(conn) if wake else []
@@ -164,7 +164,7 @@ def run_forever() -> None:
                 from . import provider_keys
                 provider_keys.reload()   # clés ajoutées ou changées depuis la régie
                 out = tick(conn)
-                if out["jobs_done"] or out["auto_launched"] or out["spend_launched"] or out["agents"]:
+                if out["jobs_done"] or out["auto_launched"] or out["spend_launched"] or out["agents"] or out["takes_sent"] or out["takes_back"]:
                     print(f"[{db.now()}] {out}", flush=True)
             except Exception:
                 traceback.print_exc()
@@ -174,6 +174,7 @@ def run_forever() -> None:
 def mark_stale_runs(conn: sqlite3.Connection) -> None:
     """Au démarrage : les agents d'une session précédente ne sont plus suivis."""
     agents.mark_stale(conn)
+    prises.mark_interrupted(conn)
 
 
 def logs_dir() -> Path:

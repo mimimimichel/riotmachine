@@ -61,7 +61,7 @@ def _model_url(model_id: str, verb: str) -> str:
 def submit(model_cfg: dict, payload: dict) -> dict:
     if model_cfg.get("kind") == "image":
         return _submit_image(model_cfg, payload)
-    mime, b64 = _http.image_parts(payload.get("image") or "")
+    mime, b64 = _http.image_parts(payload["image"]) if payload.get("image") else (None, None)
     params = {"aspectRatio": payload.get("aspect_ratio") or "16:9", "durationSeconds": int(payload.get("duration") or 8),
               "resolution": payload.get("resolution") or "720p", "generateAudio": False, "sampleCount": 1,
               "resizeMode": "crop", "personGeneration": "allow_adult"}
@@ -69,9 +69,18 @@ def submit(model_cfg: dict, payload: dict) -> dict:
         params["negativePrompt"] = payload["negative_prompt"]
     if payload.get("seed") is not None:
         params["seed"] = int(payload["seed"]) % 4294967295
-    body = {"instances": [{"prompt": payload.get("prompt") or "",
-                           "image": {"bytesBase64Encoded": b64, "mimeType": mime}}],
-            "parameters": params}
+    inst: dict = {"prompt": payload.get("prompt") or ""}
+    if payload.get("references"):
+        # mode références (v3) : images « asset », sans image de départ (test Veo du 11/11/2026)
+        refs = []
+        for r in payload["references"]:
+            rm, rb = _http.image_parts(r)
+            refs.append({"referenceType": "asset", "image": {"bytesBase64Encoded": rb, "mimeType": rm}})
+        inst["referenceImages"] = refs
+        params.pop("resizeMode", None)   # requête identique à celle du test du 11/11
+    elif b64:
+        inst["image"] = {"bytesBase64Encoded": b64, "mimeType": mime}
+    body = {"instances": [inst], "parameters": params}
     headers, query = _auth()
     with httpx.Client(timeout=120) as c:
         data = _http.check(c.post(_model_url(model_cfg["endpoint"], "predictLongRunning"), headers=headers,
