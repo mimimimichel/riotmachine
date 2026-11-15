@@ -130,6 +130,9 @@ async function renderSequences(box, clip) {
         <select id="t-quality"><option value="brouillon" ${d.quality === "brouillon" ? "selected" : ""}>Brouillon (résolution la plus basse)</option>
         <option value="final" ${d.quality === "final" ? "selected" : ""}>Final (1080p ou plus)</option></select></label>
         ${res ? `<span class="mono hint">${res}</span>` : ""}</div>
+      ${(d.clip_looks || []).map((c) => `<div class="row"><label>Tenue de ${esc(c.character)} dans tout le clip
+        <select data-cliplook="${esc(c.character)}"><option value="">aucune (plan par plan)</option>${c.looks.map((l) => `<option value="${esc(l.slug)}" ${c.look === l.slug ? "selected" : ""}>${esc(l.name)}</option>`).join("")}</select></label>
+        <span class="hint">Vaut pour chaque plan qui n'a pas sa propre tenue.</span></div>`).join("")}
       ${d.sequences.map((s) => `
         <section class="panel stack seqcard" data-seq="${s.id}">
           <div class="row"><h2>${s.num}. ${esc(s.name)}</h2><span class="spacer"></span>
@@ -155,6 +158,10 @@ async function renderSequences(box, clip) {
     try { await api(`/api/clips/${encodeURIComponent(clip.slug)}/quality`, { json: { quality: e.target.value } }); toast("Qualité changée : coûts recalculés"); renderSequences(box, clip); }
     catch (err) { toast(err.message, "err"); }
   });
+  box.querySelectorAll("[data-cliplook]").forEach((el) => el.addEventListener("change", async () => {
+    try { await api(`/api/clips/${encodeURIComponent(clip.slug)}/look`, { json: { character: el.dataset.cliplook, look: el.value || null } });
+      toast("Tenue du clip enregistrée"); renderSequences(box, clip); } catch (err) { toast(err.message, "err"); }
+  }));
   box.querySelector("#t-new").addEventListener("click", async () => {
     const ids = picked();
     if (!ids.length) { toast("Coche d'abord les plans à regrouper", "err"); return; }
@@ -193,7 +200,7 @@ async function renderSequence(box, clip, id) {
   const shotRow = (x) => {
     const chars = (x.characters || []);
     const lookSel = chars.filter((c) => (looks[c] || []).length).map((c) => `<label>Tenue de ${esc(c)}
-        <select data-look="${x.id}" data-char="${esc(c)}"><option value="">aucune</option>${looks[c].map((l) => `<option value="${esc(l.slug)}" ${x.looks && x.looks[c] === l.slug ? "selected" : ""}>${esc(l.name)}</option>`).join("")}</select></label>`).join("");
+        <select data-look="${x.id}" data-char="${esc(c)}"><option value="">${(v.cast_looks || {})[c] ? `celle du clip (${esc(v.cast_looks[c])})` : "aucune"}</option>${looks[c].map((l) => `<option value="${esc(l.slug)}" ${x.looks && x.looks[c] === l.slug ? "selected" : ""}>${esc(l.name)}</option>`).join("")}</select></label>`).join("");
     return `<details class="shotv3" ${x.traps && x.traps.length ? "open" : ""}><summary><b>Plan ${x.num}</b> <span class="mono">${tc(x.t_start)}–${tc(x.t_end)} · ${secs(x.t_end - x.t_start)}</span>
         ${x.shootable ? "" : `<span class="hint">bloc ${x.block_num} pas encore validé</span>`}
         ${x.traps && x.traps.length ? `<span class="pill failed">mots pièges : ${esc(x.traps.join(", "))}</span>` : ""}</summary>

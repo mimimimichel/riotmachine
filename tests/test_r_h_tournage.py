@@ -202,3 +202,35 @@ def test_r_m1_montage_cartons_and_cache(clip):
     info = montage.build(clip, "essai-v3")
     assert info["reencoded"] == 1
     assert montage.build(clip, "essai-v3")["reencoded"] == 0
+
+
+def test_clip_look_applies_to_every_shot_and_goes_first(clip):
+    """Tenue du clip : injectée dans chaque prise où joue le personnage, référence juste après le visage."""
+    from riotmachine import look_sheets
+    from pathlib import Path
+    conn = clip
+    lk = conn.execute("SELECT * FROM looks WHERE character_slug='jj' AND slug='black-tailor'").fetchone()
+    if lk is None:
+        production.create_look(conn, "jj", "Black tailor", "black tailored blazer, wide-leg trousers")
+        lk = conn.execute("SELECT * FROM looks WHERE character_slug='jj'").fetchone()
+    conn.execute("UPDATE look_images SET status='rejected' WHERE look_id=? AND role='sheet'", (lk["id"],))
+    _, sid = _seq(conn)
+    v = tournage.sequence_view(conn, sid)
+    assert not any("black tailored" in t["prompt"]["text"] for t in v["plan"]["takes"])
+    tournage.set_clip_look(conn, "essai-v3", "jj", lk["slug"])
+    v = tournage.sequence_view(conn, sid)
+    jj_takes = [t for t in v["plan"]["takes"] if any(s["characters"] for s in v["shots"] if s["id"] in {w["shot_id"] for w in t["shots"]})]
+    assert jj_takes and all("black tailored" in t["prompt"]["text"] for t in jj_takes)
+    assert any("aucune image de référence utilisable" in g for g in v["gaps"])
+    # une feuille gardée : elle part en deuxième, juste après le visage
+    sheet = production.studio() / "characters" / "jj" / "looks" / lk["slug"] / "feuille.png"
+    sheet.parent.mkdir(parents=True, exist_ok=True)
+    import shutil
+    shutil.copy(next((production.studio() / "characters" / "jj" / "v1").glob("canon.*")), sheet)
+    conn.execute("INSERT INTO look_images (look_id, role, status, path, created_at) VALUES (?,?,?,?,?)",
+                 (lk["id"], "sheet", "kept", production.rel(sheet), db.now()))
+    v = tournage.sequence_view(conn, sid)
+    for t in jj_takes and v["plan"]["takes"]:
+        if t.get("refs"):
+            assert [r["kind"] for r in t["refs"]][:2] == ["visage", "tenue"]
+    assert not any("aucune image de référence utilisable" in g for g in v["gaps"])
