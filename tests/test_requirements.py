@@ -434,7 +434,7 @@ def test_r_f4_a_faire_mene_au_bon_endroit(studio):
 
 
 def test_r_f5_a_faire_suit_les_blocs(studio):
-    """R-F5 : on finit le bloc 1 avant de valider le découpage du bloc 2."""
+    """R-F5 (revu en v3) : l'ancien parcours des visuels passe après le découpage et le tournage v3."""
     from fastapi.testclient import TestClient
     from riotmachine import cli, production
     from riotmachine.regie.app import app
@@ -455,8 +455,9 @@ def test_r_f5_a_faire_suit_les_blocs(studio):
     labels = [t["label"] for t in todo]
     plan = next(i for i, l in enumerate(labels) if "plan 1, visuel" in l)
     cut = next(i for i, l in enumerate(labels) if "bloc 2 à valider" in l)
-    assert plan < cut
-    assert "bloc 1" in labels[plan]
+    # v3 (16/11/2026) : la chaîne des visuels est l'ancien parcours, rangée après le travail v3
+    assert cut < plan
+    assert labels[plan].startswith("Ancien parcours") and "bloc 1" in labels[plan]
 
 
 def test_r_f6_a_faire_sur_toutes_les_pages():

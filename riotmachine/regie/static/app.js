@@ -684,6 +684,8 @@ function focusToSort() {
 /* ---------- Clip ---------- */
 
 function defaultTab(clip) {
+  // v3 : le tournage par séquence est l'écran principal dès qu'un bloc est validé
+  if ((clip.blocks || []).some((b) => b.validated)) return "tournage";
   if (clip.stage === "script" || clip.stage === "decoupage_review") {
     return clip.shots.length || clip.stage === "decoupage_review" ? "decoupage" : "dossier";
   }
@@ -735,12 +737,12 @@ function renderClip() {
   const [stLabel, stCls] = STAGE_LABEL[clip.stage] || [clip.stage, "wait"];
   const base = `#/clip/${encodeURIComponent(clip.slug)}`;
   const tabs = [
-    ["plans", "Plans", c.review ? `<span class="count">${c.review}</span>` : ""],
-    ["decoupage", "Découpage", clip.stage === "decoupage_review" ? `<span class="count">à valider</span>` : ""],
     ["tournage", "Tournage", ""],
+    ["decoupage", "Découpage", clip.stage === "decoupage_review" ? `<span class="count">à valider</span>` : ""],
     ["decors", "Références", clip.decors_pending ? `<span class="count">${clip.decors_pending}</span>` : ""],
     ["dossier", "Dossier", ""],
     ["journal", "Journal", ""],
+    ["plans", "Ancien parcours (v1)", ""],
   ];
   const casting = clip.casting.map((x) => `${esc(x.name)} v${x.version}${x.look_slug ? " · " + esc(x.look_slug) : ""}`).join(", ");
   let html = `<div class="cliphead">

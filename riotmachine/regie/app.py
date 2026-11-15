@@ -120,8 +120,9 @@ def _todo(conn, clips: list[dict], characters: list[dict]) -> list[dict[str, Any
         who = titles.get(r["clip_slug"], r["clip_slug"]) if r["clip_slug"] else names.get(r["character_slug"], r["character_slug"] or "")
         grp = f"clip:{r['clip_slug']}" if r["clip_slug"] else f"perso:{r['character_slug'] or ''}"
         bn = r["bnum"] if r["bnum"] is not None else LAST
-        key = (order.get(r["clip_slug"], LAST), bn, 1, 0) if r["clip_slug"] else (LAST, LAST, 1, 0)
-        items.append((key, {"label": f"{who} : {blk(bn)}{r['n']} génération{'s' if r['n'] > 1 else ''} à lancer ou refuser (~{r['usd']:.2f} $)",
+        key = (order.get(r["clip_slug"], LAST), LAST + bn, 1, 0) if r["clip_slug"] else (LAST, LAST, 1, 0)
+        old = "Ancien parcours · " if r["clip_slug"] else ""
+        items.append((key, {"label": f"{old}{who} : {blk(bn)}{r['n']} génération{'s' if r['n'] > 1 else ''} à lancer ou refuser (~{r['usd']:.2f} $)",
                             "href": f"#/depenses/{grp}", "block": r["bnum"]}))
     gate_label = {"image_review": "visuel", "hd_review": "visuel HD", "video_review": "plan vidéo",
                   "draft_review": "vidéo draft", "final_review": "final"}
@@ -143,14 +144,22 @@ def _todo(conn, clips: list[dict], characters: list[dict]) -> list[dict[str, Any
         waiting = conn.execute(f"SELECT s.id, s.num, s.status, b.num bnum FROM shots s LEFT JOIN blocks b ON b.id=s.block_id "
                                f"WHERE s.clip_slug=? AND s.deleted_at IS NULL AND s.status IN ({marks}) "
                                f"ORDER BY COALESCE(b.num, {LAST}), s.num", (c["slug"], *gate_label)).fetchall()
+        # v3 : plans rentrés à dérusher, par séquence
+        for r in conn.execute("SELECT t.sequence_id sid, q.num qnum, q.name qname, COUNT(DISTINCT ts.shot_id) n FROM take_shots ts "
+                              "JOIN takes t ON t.id=ts.take_id JOIN sequences q ON q.id=t.sequence_id WHERE t.clip_slug=? "
+                              "AND t.status='done' AND ts.verdict IS NULL AND ts.kept=0 GROUP BY t.sequence_id ORDER BY q.num",
+                              (c["slug"],)):
+            items.append(((ci, 0, 1, r["qnum"]), {"label": f"{c['title']} : séquence {r['qnum']} « {r['qname']} », "
+                                                           f"{r['n']} plan{'s' if r['n'] > 1 else ''} à dérusher",
+                                                  "href": f"{base}/tournage/d/{r['sid']}", "block": None}))
         for s in waiting[:8]:
             bn = s["bnum"] if s["bnum"] is not None else LAST
-            items.append(((ci, bn, 3, s["num"]), {"label": f"{c['title']} : {blk(bn)}plan {s['num']}, {gate_label[s['status']]} à valider",
+            items.append(((ci, LAST + bn, 3, s["num"]), {"label": f"Ancien parcours · {c['title']} : {blk(bn)}plan {s['num']}, {gate_label[s['status']]} à valider",
                                                    "href": f"{base}/plans/p/{s['id']}", "block": s["bnum"]}))
         if len(waiting) > 8:
             rest = waiting[8:]
             bn = rest[0]["bnum"] if rest[0]["bnum"] is not None else LAST
-            items.append(((ci, bn, 3, rest[0]["num"]), {"label": f"{c['title']} : {len(rest)} autres plans à valider",
+            items.append(((ci, LAST + bn, 3, rest[0]["num"]), {"label": f"Ancien parcours · {c['title']} : {len(rest)} autres plans à valider",
                                                          "href": base + "/plans", "block": rest[0]["bnum"]}))
         # une référence à trier compte pour le premier bloc qui s'en sert
         for e in conn.execute("SELECT e.slug, e.name, COUNT(DISTINCT i.id) n, "
