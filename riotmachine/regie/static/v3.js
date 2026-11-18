@@ -254,7 +254,7 @@ async function renderSequence(box, clip, id) {
         ${v.chosen_by_michael ? `<button class="btn small ghost" id="s-reco">Revenir à l'offre recommandée</button>` : ""}
       </section>
       ${p.mode === "references" ? `<section class="panel stack"><h2>Références</h2>
-        <p class="hint">Au plus ${v.max_refs} par prise chez ${esc(p.offer_label)}. Sans choix de ta part, la machine prend dans l'ordre : visage, image maîtresse, en pied, tenue, objet, décor.
+        <p class="hint">Au plus ${v.max_refs} par prise chez ${esc(p.offer_label)}. Sans choix de ta part, la machine prend dans l'ordre : visage, tenue, image maîtresse, en pied, objet, décor.
           Une image refusée par le fournisseur ne part jamais.</p>
         <div class="refgrid">${v.refs.map((r) => refChip(r, r.selected)).join("") || `<p class="empty">Aucune image utilisable.</p>`}</div>
         <div class="row"><button class="btn small" id="s-refs">Garder ce choix</button>
