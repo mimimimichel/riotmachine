@@ -196,17 +196,3 @@ def montage_start(slug: str) -> dict[str, Any]:
 def montage_status(slug: str) -> dict[str, Any]:
     from .. import montage
     return montage.status(slug)
-
-
-class ClipLook(BaseModel):
-    character: str
-    look: str | None = None
-
-
-@router.post("/api/clips/{slug}/look")
-def clip_look(slug: str, body: ClipLook) -> dict[str, Any]:
-    try:
-        tournage.set_clip_look(_conn(), slug, body.character, body.look)
-    except ERRORS as exc:
-        raise _err(exc)
-    return {"ok": True}

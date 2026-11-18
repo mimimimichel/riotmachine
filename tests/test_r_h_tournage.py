@@ -204,10 +204,9 @@ def test_r_m1_montage_cartons_and_cache(clip):
     assert montage.build(clip, "essai-v3")["reencoded"] == 0
 
 
-def test_clip_look_applies_to_every_shot_and_goes_first(clip):
-    """Tenue du clip : injectée dans chaque prise où joue le personnage, référence juste après le visage."""
-    from riotmachine import look_sheets
-    from pathlib import Path
+def test_looks_single_is_automatic_several_chosen_per_sequence(clip):
+    """Une seule tenue : portée partout, rien à choisir. Plusieurs : choix par séquence, un plan peut déroger."""
+    import shutil
     conn = clip
     lk = conn.execute("SELECT * FROM looks WHERE character_slug='jj' AND slug='black-tailor'").fetchone()
     if lk is None:
@@ -215,22 +214,44 @@ def test_clip_look_applies_to_every_shot_and_goes_first(clip):
         lk = conn.execute("SELECT * FROM looks WHERE character_slug='jj'").fetchone()
     conn.execute("UPDATE look_images SET status='rejected' WHERE look_id=? AND role='sheet'", (lk["id"],))
     _, sid = _seq(conn)
+    jj_ids = {r[0] for r in conn.execute("SELECT id FROM shots WHERE clip_slug='essai-v3' AND characters LIKE '%jj%'")}
+
+    def jj_takes(v):
+        return [t for t in v["plan"]["takes"] if {w["shot_id"] for w in t["shots"]} & jj_ids]
+
+    # une seule tenue : automatique, dans chaque prise où joue JJ, sans aucun réglage
     v = tournage.sequence_view(conn, sid)
-    assert not any("black tailored" in t["prompt"]["text"] for t in v["plan"]["takes"])
-    tournage.set_clip_look(conn, "essai-v3", "jj", lk["slug"])
-    v = tournage.sequence_view(conn, sid)
-    jj_takes = [t for t in v["plan"]["takes"] if any(s["characters"] for s in v["shots"] if s["id"] in {w["shot_id"] for w in t["shots"]})]
-    assert jj_takes and all("black tailored" in t["prompt"]["text"] for t in jj_takes)
-    assert any("aucune image de référence utilisable" in g for g in v["gaps"])
+    (entry,) = [l for l in v["looks"] if l["character"] == "jj"]
+    assert entry["auto"] and entry["name"] == "JJ"
+    assert jj_takes(v) and all("black tailored" in t["prompt"]["text"] for t in jj_takes(v))
+    assert any("aucune image de référence" in g for g in v["gaps"])
     # une feuille gardée : elle part en deuxième, juste après le visage
     sheet = production.studio() / "characters" / "jj" / "looks" / lk["slug"] / "feuille.png"
     sheet.parent.mkdir(parents=True, exist_ok=True)
-    import shutil
     shutil.copy(next((production.studio() / "characters" / "jj" / "v1").glob("canon.*")), sheet)
     conn.execute("INSERT INTO look_images (look_id, role, status, path, created_at) VALUES (?,?,?,?,?)",
                  (lk["id"], "sheet", "kept", production.rel(sheet), db.now()))
     v = tournage.sequence_view(conn, sid)
-    for t in jj_takes and v["plan"]["takes"]:
-        if t.get("refs"):
-            assert [r["kind"] for r in t["refs"]][:2] == ["visage", "tenue"]
-    assert not any("aucune image de référence utilisable" in g for g in v["gaps"])
+    for t in jj_takes(v):
+        assert [r["kind"] for r in t["refs"]][:2] == ["visage", "tenue"]
+    assert not any("aucune image de référence" in g for g in v["gaps"])
+
+    # deuxième tenue : plus d'automatisme, la séquence demande un choix
+    production.create_look(conn, "jj", "Pyjama", "oversized white cotton pajamas")
+    v = tournage.sequence_view(conn, sid)
+    assert not [l for l in v["looks"] if l["character"] == "jj"][0]["auto"]
+    assert any("plusieurs tenues" in g for g in v["gaps"])
+    assert not any("black tailored" in t["prompt"]["text"] or "pajamas" in t["prompt"]["text"] for t in jj_takes(v))
+    db.set_actor("michael")
+    tournage.update_sequence(conn, sid, options={"looks": {"jj": "pyjama"}})
+    v = tournage.sequence_view(conn, sid)
+    assert all("pajamas" in t["prompt"]["text"] for t in jj_takes(v))
+    assert not any("plusieurs tenues" in g for g in v["gaps"])
+    # un plan déroge à la séquence
+    from riotmachine import elements
+    one = sorted(jj_ids)[0]
+    elements.set_shot_look(conn, one, "jj", lk["slug"])
+    v = tournage.sequence_view(conn, sid)
+    assert next(x for x in v["shots"] if x["id"] == one)["looks_eff"]["jj"] == lk["slug"]
+    with pytest.raises(tournage.TournageError, match="Tenue inconnue"):
+        tournage.update_sequence(conn, sid, options={"looks": {"jj": "inexistante"}})

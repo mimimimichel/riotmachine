@@ -49,10 +49,47 @@ def seq_shots(conn: sqlite3.Connection, seq_id: int) -> list[dict]:
         "SELECT s.*, b.num AS block_num, b.name AS block_name, COALESCE(b.validated,0) AS block_validated "
         "FROM shots s LEFT JOIN blocks b ON b.id=s.block_id WHERE s.sequence_id=? AND s.deleted_at IS NULL "
         "ORDER BY s.t_start", (seq_id,)).fetchall())
+    seq = conn.execute("SELECT options FROM sequences WHERE id=?", (seq_id,)).fetchone()
+    seq_looks = _json(seq["options"] if seq else None, {}).get("looks") or {}
     for s in shots:
         s["looks"] = _json(s.get("looks"), {})
         s["shootable"] = bool(s["block_validated"])
+    apply_looks(conn, shots, seq_looks)
     return shots
+
+
+def char_name(conn: sqlite3.Connection, slug: str) -> str:
+    r = conn.execute("SELECT name FROM characters WHERE slug=?", (slug,)).fetchone()
+    return (r["name"] if r and r["name"] else slug)
+
+
+def char_looks(conn: sqlite3.Connection, slug: str) -> list[dict]:
+    """Toutes les tenues d'un personnage du studio."""
+    return [{"slug": r["slug"], "name": r["name"] or r["slug"]} for r in conn.execute(
+        "SELECT slug, name FROM looks WHERE character_slug=? ORDER BY name, slug", (slug,))]
+
+
+def apply_looks(conn: sqlite3.Connection, shots: list[dict], seq_looks: dict) -> None:
+    """Tenue portée par chaque personnage dans chaque plan (`looks_eff`) et d'où elle vient (`looks_src`).
+
+    Ordre : la tenue posée sur le plan ; sinon celle choisie pour la séquence ; sinon, si le personnage
+    n'a qu'une seule tenue, celle-là (rien à choisir). Avec plusieurs tenues et aucun choix : aucune,
+    et la séquence le signale.
+    """
+    cache: dict[str, list[dict]] = {}
+    for s in shots:
+        eff, src = {}, {}
+        for ch in s.get("characters") or []:
+            if ch not in cache:
+                cache[ch] = char_looks(conn, ch)
+            valid = {l["slug"] for l in cache[ch]}
+            if s["looks"].get(ch) in valid:
+                eff[ch], src[ch] = s["looks"][ch], "plan"
+            elif seq_looks.get(ch) in valid:
+                eff[ch], src[ch] = seq_looks[ch], "séquence"
+            elif len(cache[ch]) == 1:
+                eff[ch], src[ch] = cache[ch][0]["slug"], "seule tenue"
+        s["looks_eff"], s["looks_src"] = eff, src
 
 
 def _quality(conn: sqlite3.Connection, slug: str) -> str:
@@ -77,6 +114,8 @@ def shot_taken(conn: sqlite3.Connection, shot_ids: list[int]) -> dict[int, str]:
 
 # La tenue passe juste après le visage : sans elle, le modèle habille le personnage au hasard (Michael, 15/11)
 REF_PRIORITY = {"visage": 0, "tenue": 1, "maitresse": 2, "pied": 3, "objet": 4, "decor": 5, "autre": 6}
+ASSET_LABEL = {"canon": "visage", "canon_body": "en pied", "details": "visage (détail)", "expressions": "expressions",
+               "fullbody": "en pied", "turnaround": "tour complet", "sheet": "planche", "lighting": "lumières"}
 CHAR_KIND = {"canon": "visage", "details": "visage", "expressions": "visage", "fullbody": "pied", "canon_body": "pied",
              "turnaround": "pied", "sheet": "pied", "lighting": "autre"}
 
@@ -122,12 +161,14 @@ def ref_candidates(conn: sqlite3.Connection, seq: dict, shots: list[dict], provi
         if v:
             for a in conn.execute("SELECT kind, path FROM character_assets WHERE version_id=? AND status='kept' "
                                   "AND path IS NOT NULL ORDER BY id", (v["id"],)):
-                add(a["path"], CHAR_KIND.get(a["kind"], "autre"), ch, f"{ch} v{cast['version']} · {a['kind']}")
-        looks = {s["looks"].get(ch) or cast["look_slug"] for s in shots if ch in (s.get("characters") or [])}
+                add(a["path"], CHAR_KIND.get(a["kind"], "autre"), ch,
+                    f"{char_name(conn, ch)} · {ASSET_LABEL.get(a['kind'], a['kind'])}")
+        looks = {s.get("looks_eff", {}).get(ch) for s in shots}
+        names = {l["slug"]: l["name"] for l in char_looks(conn, ch)}
         for lk in sorted(x for x in looks if x):
             from . import look_sheets
             for p in look_sheets.refs(conn, ch, lk):
-                add(production.rel(p), "tenue", ch, f"tenue {lk}")
+                add(production.rel(p), "tenue", ch, f"{char_name(conn, ch)} · tenue {names.get(lk, lk)}")
     ids = [s["id"] for s in shots]
     if ids:
         marks = ",".join("?" * len(ids))
@@ -144,17 +185,13 @@ def ref_candidates(conn: sqlite3.Connection, seq: dict, shots: list[dict], provi
 def look_ref_gaps(conn: sqlite3.Connection, shots: list[dict]) -> list[str]:
     """Tenues portées dans ces plans qui n'ont aucune image pouvant partir en référence."""
     from . import look_sheets
-    if not shots:
-        return []
-    casting = {r["character_slug"]: r["look_slug"] for r in conn.execute(
-        "SELECT character_slug, look_slug FROM castings WHERE clip_slug=?", (shots[0]["clip_slug"],))}
-    used = {(ch, s["looks"].get(ch) or casting.get(ch)) for s in shots for ch in (s.get("characters") or [])}
+    used = {(ch, lk) for s in shots for ch, lk in (s.get("looks_eff") or {}).items()}
     out = []
-    for ch, lk in sorted(x for x in used if x[1]):
+    for ch, lk in sorted(used):
         if not look_sheets.refs(conn, ch, lk):
-            out.append(f"La tenue {lk} de {ch} n'a aucune image de référence utilisable (feuilles écartées, ou photo "
-                       "d'inspiration seulement) : elle ne part qu'en texte. Garde une feuille ou ajoute une photo dans "
-                       "la fiche de la tenue.")
+            name = next((l["name"] for l in char_looks(conn, ch) if l["slug"] == lk), lk)
+            out.append(f"La tenue « {name} » de {char_name(conn, ch)} n'a aucune image de référence : elle ne part "
+                       "qu'en texte. Dans la fiche de la tenue (Personnages), crée la feuille de référence ou garde-en une.")
     return out
 
 
@@ -176,20 +213,14 @@ def element_gaps(conn: sqlite3.Connection, shots: list[dict]) -> list[str]:
 
 
 def look_gaps(conn: sqlite3.Connection, shots: list[dict]) -> list[str]:
-    """Plans où un personnage qui a des tenues n'en porte aucune : le modèle l'habillerait au hasard."""
-    with_looks = {r[0] for r in conn.execute("SELECT DISTINCT character_slug FROM looks")}
-    casting = {}
-    if shots:
-        casting = {r["character_slug"]: r["look_slug"] for r in conn.execute(
-            "SELECT character_slug, look_slug FROM castings WHERE clip_slug=?", (shots[0]["clip_slug"],))}
+    """Personnages qui ont plusieurs tenues et dont aucune n'est choisie : le modèle les habillerait au hasard."""
     miss: dict[str, list[int]] = {}
     for s in shots:
         for ch in s.get("characters") or []:
-            if ch in with_looks and not s["looks"].get(ch) and not casting.get(ch):
+            if ch not in (s.get("looks_eff") or {}) and len(char_looks(conn, ch)) > 1:
                 miss.setdefault(ch, []).append(s["num"])
-    return [f"{ch} n'a pas de tenue sur le{'s' if len(n) > 1 else ''} plan{'s' if len(n) > 1 else ''} "
-            f"{', '.join(map(str, n))} : sans tenue, le modèle l'habille au hasard. Choisis-la dans le plan."
-            for ch, n in miss.items()]
+    return [f"{char_name(conn, ch)} a plusieurs tenues et aucune n'est choisie (plan{'s' if len(n) > 1 else ''} "
+            f"{', '.join(map(str, n))}) : choisis sa tenue pour la séquence, ci-dessous." for ch, n in miss.items()]
 
 
 def pick_refs(cands: list[dict], max_refs: int, chosen: list[str] | None) -> list[dict]:
@@ -260,7 +291,7 @@ def _identity(conn: sqlite3.Connection, slug: str, shots: list[dict]) -> list[di
         txt = production.resume_text(conn, ch, cast["version"]) or _adn_identity(production.adn_text(conn, ch, cast["version"]))
         if txt:
             blocks.append({"block": "Identité", "who": ch, "source": "référentiel", "text": txt.strip()})
-        looks = {s["looks"].get(ch) or cast["look_slug"] for s in shots if ch in (s.get("characters") or [])}
+        looks = {s.get("looks_eff", {}).get(ch) for s in shots}
         for lk in sorted(x for x in looks if x):
             r = conn.execute("SELECT description FROM looks WHERE character_slug=? AND slug=?", (ch, lk)).fetchone()
             if r and r["description"]:
@@ -383,7 +414,7 @@ def sequence_view(conn: sqlite3.Connection, seq_id: int, detail: bool = True) ->
         t["already"] = [w["num"] for w in t["shots"] if w["shot_id"] in taken]
     out["plan"] = plan
     out["badge"] = (f"{cat.PROFILE_LABEL[plan['profile']]} · {plan['offer_label']} · {len(plan['takes'])} prise"
-                    f"{'s' if len(plan['takes']) > 1 else ''} · {plan['total_usd']:.2f} $ · {plan['funding_label']}"
+                    f"{'s' if len(plan['takes']) > 1 else ''} · {plan['total_usd']:.2f} $ · {plan['funding_label']}".replace(".", ",")
                     if shootable else ("tous les plans validés sont tournés" if any(x["shootable"] for x in shots)
                                        else "aucun plan d'un bloc validé"))
     if detail:
@@ -391,10 +422,13 @@ def sequence_view(conn: sqlite3.Connection, seq_id: int, detail: bool = True) ->
         out["max_refs"] = mode_refs
         out["gaps"] = look_gaps(conn, shootable) + look_ref_gaps(conn, shootable) + element_gaps(conn, shootable)
         chars = sorted({c for x in shots for c in (x.get("characters") or [])})
-        out["cast_looks"] = {r["character_slug"]: r["look_slug"] for r in conn.execute(
-            "SELECT character_slug, look_slug FROM castings WHERE clip_slug=?", (seq["clip_slug"],))}
-        out["looks"] = {ch: [{"slug": r["slug"], "name": r["name"] or r["slug"]} for r in conn.execute(
-            "SELECT slug, name FROM looks WHERE character_slug=? ORDER BY slug", (ch,))] for ch in chars}
+        seq_looks = seq["options"].get("looks") or {}
+        out["looks"] = []
+        for ch in chars:
+            opts = char_looks(conn, ch)
+            if opts:
+                out["looks"].append({"character": ch, "name": char_name(conn, ch), "options": opts,
+                                     "sequence": seq_looks.get(ch), "auto": len(opts) == 1})
         for x in shots:
             x["action"] = shot_action(conn, x)
             x["traps"] = traps(x["action"])
@@ -460,8 +494,7 @@ def clip_sequences(conn: sqlite3.Connection, slug: str) -> dict:
                                       "description": s["description"], "shootable": s["shootable"],
                                       "block_num": s["block_num"], "jeu": s["jeu"], "axe": s["axe"], "state_label": s["state_label"]}
                                      for s in v["shots"]]} for v in views],
-            "loose_shots": loose, "reserves": cat.reserves(conn), "quality": _quality(conn, slug),
-            "clip_looks": clip_looks(conn, slug)}
+            "loose_shots": loose, "reserves": cat.reserves(conn), "quality": _quality(conn, slug)}
 
 
 # --- écritures de Michael -----------------------------------------------------------
@@ -514,8 +547,17 @@ def update_sequence(conn: sqlite3.Connection, seq_id: int, **fields: Any) -> dic
     if "profile" in fields and fields["profile"] and fields["profile"] not in cat.PROFILE_ORDER:
         raise TournageError("Profil inconnu")
     if "options" in fields:
-        opts = {**seq["options"], **(fields["options"] or {})}
-        fields["options"] = json.dumps({k: v for k, v in opts.items() if v not in (None, "", [])}, ensure_ascii=False)
+        new = dict(fields["options"] or {})
+        if "looks" in new:
+            looks = {**(seq["options"].get("looks") or {}), **(new["looks"] or {})}
+            for ch, lk in list(looks.items()):
+                if not lk:
+                    looks.pop(ch)
+                elif lk not in {l["slug"] for l in char_looks(conn, ch)}:
+                    raise TournageError(f"Tenue inconnue pour {char_name(conn, ch)} : {lk}")
+            new["looks"] = looks
+        opts = {**seq["options"], **new}
+        fields["options"] = json.dumps({k: v for k, v in opts.items() if v not in (None, "", [], {})}, ensure_ascii=False)
     fields["updated_at"] = db.now()
     db.update(conn, "sequences", seq_id, fields, reason="Michael")
     return seq_row(conn, seq_id)
@@ -536,31 +578,6 @@ def set_shot_attrs(conn: sqlite3.Connection, shot_id: int, **fields: Any) -> dic
         else:
             raise TournageError(f"Attribut inconnu : {k}")
     return db.update(conn, "shots", shot_id, clean, reason="attributs v3")
-
-
-def set_clip_look(conn: sqlite3.Connection, slug: str, character: str, look: str | None) -> None:
-    """Tenue d'un personnage pour tout le clip : vaut pour chaque plan qui n'a pas sa propre tenue."""
-    cast = conn.execute("SELECT * FROM castings WHERE clip_slug=? AND character_slug=?", (slug, character)).fetchone()
-    if not cast:
-        raise TournageError(f"{character} n'est pas casté dans ce clip")
-    if look and not conn.execute("SELECT 1 FROM looks WHERE character_slug=? AND slug=?", (character, look)).fetchone():
-        raise TournageError(f"Tenue inconnue : {look}")
-    old = cast["look_slug"]
-    with db.tx(conn):
-        conn.execute("UPDATE castings SET look_slug=? WHERE clip_slug=? AND character_slug=?", (look or None, slug, character))
-        conn.execute("INSERT INTO changes (table_name, row_id, field, old, new, author, reason, created_at) "
-                     "VALUES ('castings', ?, 'look_slug', ?, ?, ?, 'tenue du clip', ?)",
-                     (f"{slug}:{character}", old, look, db.actor(), db.now()))
-
-
-def clip_looks(conn: sqlite3.Connection, slug: str) -> list[dict]:
-    out = []
-    for c in conn.execute("SELECT * FROM castings WHERE clip_slug=? ORDER BY character_slug", (slug,)).fetchall():
-        looks = [{"slug": r["slug"], "name": r["name"] or r["slug"]} for r in conn.execute(
-            "SELECT slug, name FROM looks WHERE character_slug=? ORDER BY slug", (c["character_slug"],))]
-        if looks:
-            out.append({"character": c["character_slug"], "look": c["look_slug"], "looks": looks})
-    return out
 
 
 def set_quality(conn: sqlite3.Connection, slug: str, quality: str) -> None:

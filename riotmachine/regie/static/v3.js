@@ -130,9 +130,6 @@ async function renderSequences(box, clip) {
         <select id="t-quality"><option value="brouillon" ${d.quality === "brouillon" ? "selected" : ""}>Brouillon (résolution la plus basse)</option>
         <option value="final" ${d.quality === "final" ? "selected" : ""}>Final (1080p ou plus)</option></select></label>
         ${res ? `<span class="mono hint">${res}</span>` : ""}</div>
-      ${(d.clip_looks || []).map((c) => `<div class="row"><label>Tenue de ${esc(c.character)} dans tout le clip
-        <select data-cliplook="${esc(c.character)}"><option value="">aucune (plan par plan)</option>${c.looks.map((l) => `<option value="${esc(l.slug)}" ${c.look === l.slug ? "selected" : ""}>${esc(l.name)}</option>`).join("")}</select></label>
-        <span class="hint">Vaut pour chaque plan qui n'a pas sa propre tenue.</span></div>`).join("")}
       ${d.sequences.map((s) => `
         <section class="panel stack seqcard" data-seq="${s.id}">
           <div class="row"><h2>${s.num}. ${esc(s.name)}</h2><span class="spacer"></span>
@@ -158,10 +155,6 @@ async function renderSequences(box, clip) {
     try { await api(`/api/clips/${encodeURIComponent(clip.slug)}/quality`, { json: { quality: e.target.value } }); toast("Qualité changée : coûts recalculés"); renderSequences(box, clip); }
     catch (err) { toast(err.message, "err"); }
   });
-  box.querySelectorAll("[data-cliplook]").forEach((el) => el.addEventListener("change", async () => {
-    try { await api(`/api/clips/${encodeURIComponent(clip.slug)}/look`, { json: { character: el.dataset.cliplook, look: el.value || null } });
-      toast("Tenue du clip enregistrée"); renderSequences(box, clip); } catch (err) { toast(err.message, "err"); }
-  }));
   box.querySelector("#t-new").addEventListener("click", async () => {
     const ids = picked();
     if (!ids.length) { toast("Coche d'abord les plans à regrouper", "err"); return; }
@@ -196,11 +189,18 @@ async function renderSequence(box, clip, id) {
   const optImp = v.option_impacts || { mode: {}, resolution: {} };
   const modeOpts = v.options.modes.map((m) => `<option value="${m.key}" ${m.key === p.mode ? "selected" : ""}>${esc(m.label)} (${(m.durations || []).join(", ")} s)${optImp.mode[m.key] ? ` · ${usd(optImp.mode[m.key].total_usd)}` : ` · ${usd(p.total_usd)}`}</option>`).join("");
   const resOpts = v.options.resolutions.map((r) => `<option value="${r.key}" ${r.key === p.resolution ? "selected" : ""}>${esc(r.key)} · ${usd(r.price_per_s)}/s${optImp.resolution[r.key] ? ` · ${usd(optImp.resolution[r.key].total_usd)}` : ` · ${usd(p.total_usd)}`}</option>`).join("");
-  const looks = v.looks || {};
+  const looks = v.looks || [];
+  const multi = looks.filter((l) => !l.auto);
+  const lookName = (c, slug) => ((looks.find((l) => l.character === c) || { options: [] }).options.find((o) => o.slug === slug) || { name: slug }).name;
+  const looksPanel = looks.length ? `<section class="panel stack"><h2>Tenues</h2>
+      ${looks.map((l) => l.auto
+        ? `<p>${esc(l.name)} : <b>${esc(l.options[0].name)}</b> <span class="hint">(sa seule tenue, portée dans tous ses plans)</span></p>`
+        : `<label>${esc(l.name)} dans cette séquence
+            <select data-seqlook="${esc(l.character)}"><option value="">à choisir</option>${l.options.map((o) => `<option value="${esc(o.slug)}" ${l.sequence === o.slug ? "selected" : ""}>${esc(o.name)}</option>`).join("")}</select></label>`).join("")}
+      ${multi.length ? `<p class="hint">Un plan peut porter une autre tenue : ouvre le plan plus bas.</p>` : ""}</section>` : "";
   const shotRow = (x) => {
-    const chars = (x.characters || []);
-    const lookSel = chars.filter((c) => (looks[c] || []).length).map((c) => `<label>Tenue de ${esc(c)}
-        <select data-look="${x.id}" data-char="${esc(c)}"><option value="">${(v.cast_looks || {})[c] ? `celle du clip (${esc(v.cast_looks[c])})` : "aucune"}</option>${looks[c].map((l) => `<option value="${esc(l.slug)}" ${x.looks && x.looks[c] === l.slug ? "selected" : ""}>${esc(l.name)}</option>`).join("")}</select></label>`).join("");
+    const lookSel = multi.filter((l) => (x.characters || []).includes(l.character)).map((l) => `<label>Tenue de ${esc(l.name)}
+        <select data-look="${x.id}" data-char="${esc(l.character)}"><option value="">celle de la séquence${l.sequence ? ` (${esc(lookName(l.character, l.sequence))})` : ""}</option>${l.options.map((o) => `<option value="${esc(o.slug)}" ${x.looks && x.looks[l.character] === o.slug ? "selected" : ""}>${esc(o.name)}</option>`).join("")}</select></label>`).join("");
     return `<details class="shotv3" ${x.traps && x.traps.length ? "open" : ""}><summary><b>Plan ${x.num}</b> <span class="mono">${tc(x.t_start)}–${tc(x.t_end)} · ${secs(x.t_end - x.t_start)}</span>
         ${x.shootable ? "" : `<span class="hint">bloc ${x.block_num} pas encore validé</span>`}
         ${x.traps && x.traps.length ? `<span class="pill failed">mots pièges : ${esc(x.traps.join(", "))}</span>` : ""}</summary>
@@ -240,6 +240,7 @@ async function renderSequence(box, clip, id) {
         <div class="row"><button class="btn small" id="s-save">Enregistrer nom et fiche</button></div>
       </section>
       ${(v.gaps || []).map((g) => `<p class="alert warn">${esc(g)}</p>`).join("")}
+      ${looksPanel}
       <section class="panel stack">
         <div class="row"><h2>Comment la machine la tourne</h2><span class="spacer"></span>
           <span class="pill ${v.chosen_by_michael ? "review" : "done"}">${v.chosen_by_michael ? "offre choisie par toi" : "offre recommandée"}</span></div>
@@ -297,6 +298,7 @@ async function renderSequence(box, clip, id) {
     try { await api(`/api/shots/${shot}/attrs`, { json }); toast(msg || "Enregistré"); await renderSequence(box, clip, id); }
     catch (e) { toast(e.message, "err"); }
   };
+  box.querySelectorAll("[data-seqlook]").forEach((el) => el.addEventListener("change", () => save({ options: { looks: { [el.dataset.seqlook]: el.value || null } } }, "Tenue de la séquence enregistrée")));
   box.querySelectorAll("[data-attr]").forEach((el) => el.addEventListener("change", () => attr(el.dataset.shot, { [el.dataset.attr]: el.value })));
   box.querySelectorAll("[data-look]").forEach((el) => el.addEventListener("change", () => attr(el.dataset.look, { look: { character: el.dataset.char, look: el.value } }, "Tenue posée")));
   box.querySelectorAll("[data-saveaction]").forEach((b) => b.addEventListener("click", () => attr(b.dataset.saveaction, { action_en: box.querySelector(`[data-action="${b.dataset.saveaction}"]`).value }, "Action enregistrée")));

@@ -174,6 +174,8 @@ def sync_character_files(conn: sqlite3.Connection, slug: str | None = None) -> i
         if canon:
             db.update(conn, "characters", cdir.name, {"canon_version": int(canon)}, reason="character.yaml")
         for ldir in sorted((cdir / "looks").glob("*")):
+            if ldir.name.startswith("."):      # .supprimees : tenues retirées, jamais une tenue
+                continue
             if ldir.is_dir():
                 desc_file = ldir / "look.md"
                 desc = desc_file.read_text(encoding="utf-8") if desc_file.is_file() else ""

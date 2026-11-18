@@ -177,14 +177,15 @@ def plan_sequence(shots: list[dict], o: dict, *, quality: str = "brouillon", opt
 def rank(plans: list[dict], offers: list[dict]) -> list[dict]:
     """Classe des plans chiffrés, le recommandé en tête (R-H5).
 
-    Branchée d'abord ; profil tenu (« non » en dernier) ; pas de plan trop long ;
+    Branchée d'abord ; profil tenu (« non » en dernier) ; vérifiée par un essai ; pas de plan trop long ;
     source de paiement (gratuit, réserve, direct) ; profil « ok » avant « faible » ; coût total.
     """
     by = {o["key"]: o for o in offers}
 
     def key(p: dict) -> tuple:
         note = cat.profile_note(by[p["offer"]], p["profile"])
-        return (not p.get("usable", False), note == "no", p.get("mode") is None,
+        # une offre jamais vérifiée par un essai réel n'est pas recommandée devant une offre vérifiée
+        return (not p.get("usable", False), note == "no", p.get("mode") is None, not by[p["offer"]].get("verified_at"),
                 any(a["kind"] == "too_long" for t in p["takes"] for a in t["alerts"]),
                 cat.funding_rank(p.get("funding", "cash")), note != "ok", p["total_usd"], p["offer"])
     return sorted(plans, key=key)

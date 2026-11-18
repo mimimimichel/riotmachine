@@ -3430,11 +3430,11 @@ function lookMedia(lk, character, models) {
             : `${pr.model_key ? esc(pr.model_key) : ""}${pr.error ? `<br><span style="color:#ffb547">${esc(pr.error.slice(0, 220))}</span>` : ""}`)).join("")}</div>` : ""}
       ${modelPicker(`look:${key}`, mopts)}
       <div class="row" style="gap:8px;margin-top:6px">
-        <button class="btn go" data-looksheet="${esc(key)}" ${photos.length && !lk.sheet_generating ? "" : "disabled"}>${lk.sheet ? "Refaire la feuille" : "Créer la feuille de référence"}</button>
+        <button class="btn go" data-looksheet="${esc(key)}" ${(photos.length || (lk.inspi || []).length) && !lk.sheet_generating ? "" : "disabled"}>${lk.sheet ? "Refaire la feuille" : "Créer la feuille de référence"}</button>
         <span class="countpick">${Array.from({ length: cnt.max }, (_, i) => i + 1).map((k) =>
           `<button class="${k === n ? "on" : ""}" data-lookcount="${esc(key)}:${k}">${k}</button>`).join("")}
           <span class="hint">feuille${n > 1 ? "s" : ""} · ${n * 3} images du quota gratuit</span></span>
-        ${photos.length ? "" : `<span class="hint">Dépose d'abord une photo.</span>`}
+        ${photos.length || (lk.inspi || []).length ? "" : `<span class="hint">Dépose d'abord une photo.</span>`}
         ${lk.sheet_generating ? `<span class="hint">${led("work")} Création en cours : trois vues par feuille, quelques minutes.</span>` : ""}</div></div>
   </div>`;
 }
